@@ -1,10 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "@fontsource/plus-jakarta-sans/400.css";
+@import "@fontsource/plus-jakarta-sans/500.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/plus-jakarta-sans/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -12,8 +16,8 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
+  --radius: 0.8rem;
+  --background: oklch(0.975 0.01 250); /* Soft light grayish blue */
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -127,5 +131,28 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .soft-shadow {
+    box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.03);
+  }
+  .soft-shadow-hover {
+    box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.06);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.04);
+  }
+  .glass-panel-dark {
+    background: rgba(30, 30, 35, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.2);
   }
 }

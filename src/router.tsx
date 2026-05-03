@@ -1,7 +1,13 @@
 import { createBrowserRouter } from "react-router-dom"
-import Layout from "@/pages/_layout"
-import HomePage from "@/pages/home"
-import NotFoundPage from "@/pages/not-found"
+import Login from "@/pages/login"
+import DashboardLayout from "@/layouts/DashboardLayout"
+import DashboardBO from "@/pages/bo/Dashboard"
+import CreateDossier from "@/pages/bo/CreateDossier"
+import DossiersList from "@/pages/bo/DossiersList"
+import DossierDetail from "@/pages/bo/DossierDetail"
+import Relances from "@/pages/bo/Relances"
+import RemiseCheque from "@/pages/bo/RemiseCheque"
+import Blocages from "@/pages/bo/Blocages"
 
 // IMPORTANT: Do not remove or modify the code below!
 // Normalize basename when hosted in Power Apps
@@ -13,10 +19,19 @@ if (location.pathname.endsWith("/index.html")) {
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout showHeader={false} />,
-    errorElement: <NotFoundPage />,
+    element: <Login />,
+  },
+  {
+    // LayoutRoute without a path acts as a wrapper for its children
+    element: <DashboardLayout />,
     children: [
-      { index: true, element: <HomePage /> },
+      { path: "bo/dashboard", element: <DashboardBO /> },
+      { path: "bo/dossiers/nouveau", element: <CreateDossier /> },
+      { path: "bo/dossiers", element: <DossiersList /> },
+      { path: "bo/dossiers/:id", element: <DossierDetail /> },
+      { path: "bo/relances", element: <Relances /> },
+      { path: "bo/remises", element: <RemiseCheque /> },
+      { path: "bo/blocages", element: <Blocages /> },
     ],
   },
 ], { 
