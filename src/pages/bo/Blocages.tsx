@@ -62,7 +62,7 @@ export default function Blocages() {
         <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
           <div className="relative w-[300px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input type="text" placeholder="Rechercher par N° Dossier..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20" />
+            <input type="text" placeholder="Rechercher par N° Dossier..." className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm text-black placeholder:text-black/60 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/20" />
           </div>
         </div>
 

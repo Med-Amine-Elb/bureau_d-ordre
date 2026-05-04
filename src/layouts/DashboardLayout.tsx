@@ -2,11 +2,27 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom"
 import { 
   LayoutDashboard, Package, Users, FileText, 
   Settings, HelpCircle, Diamond, Search, 
-  Sun, Bell, AlertOctagon 
+  Sun, Moon, Bell, AlertOctagon 
 } from "lucide-react"
+import { useState, useEffect } from "react"
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
+
+  const toggleDarkMode = () => setDarkMode(!darkMode);
 
   // On récupère le rôle simulé (en vrai ça viendrait de Xrm)
   const role = localStorage.getItem('userRole') || 'BO';
@@ -26,15 +42,15 @@ export default function DashboardLayout() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F4F7FE] text-foreground overflow-hidden font-sans">
+    <div className={`flex h-screen ${darkMode ? 'bg-slate-950' : 'bg-[#F4F7FE]'} text-foreground overflow-hidden font-sans transition-colors duration-300`}>
       {/* Sidebar */}
-      <aside className="w-[260px] flex-shrink-0 bg-white border-r border-slate-100 flex flex-col justify-between z-20">
+      <aside className={`w-[260px] flex-shrink-0 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-r border-slate-100'} flex flex-col justify-between z-20`}>
         <div>
           <div className="p-6 flex items-center gap-3">
             <div className="bg-primary/10 text-primary p-2 rounded-xl">
               <Package className="w-6 h-6" />
             </div>
-            <span className="font-bold text-xl tracking-tight text-slate-900">GBM <span className="text-primary">Ordre</span></span>
+            <span className={`font-bold text-xl tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>GBM <span className="text-primary">Ordre</span></span>
           </div>
 
           <nav className="px-4 mt-4 space-y-1">
@@ -46,8 +62,8 @@ export default function DashboardLayout() {
                 className={({ isActive }) => 
                   `flex items-center justify-between px-4 py-3 mx-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive 
-                      ? "bg-[#EBF3FE] text-[#2563EB]" 
-                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                      ? (darkMode ? "bg-blue-600/20 text-blue-400" : "bg-[#EBF3FE] text-[#2563EB]") 
+                      : (darkMode ? "text-slate-400 hover:bg-slate-800 hover:text-white" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900")
                   }`
                 }
               >
@@ -94,24 +110,27 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F4F7FE]">
+      <div className={`flex-1 flex flex-col h-screen overflow-hidden ${darkMode ? 'bg-slate-950' : 'bg-[#F4F7FE]'}`}>
         {/* Top Header */}
         <header className="h-20 bg-transparent flex items-center justify-between px-8 z-10 pt-4">
-          <div className="flex items-center bg-slate-100/80 rounded-full px-4 py-2 w-96 border border-slate-200/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all">
+          <div className={`flex items-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-100/80'} rounded-full px-4 py-2 w-96 border transition-all`}>
             <Search className="w-4 h-4 text-slate-400 mr-2" />
             <input 
               type="text" 
               placeholder="Rechercher un N° Dossier, Facture..." 
-              className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder:text-slate-400"
+              className={`bg-transparent border-none outline-none text-sm w-full ${darkMode ? 'text-slate-200 placeholder:text-slate-500' : 'text-slate-700 placeholder:text-slate-400'}`}
             />
-            <div className="bg-white text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 shadow-sm ml-2">⌘K</div>
+            <div className={`${darkMode ? 'bg-slate-800 text-slate-500 border-slate-700' : 'bg-white text-slate-400 border-slate-200'} text-[10px] font-bold px-2 py-0.5 rounded border shadow-sm ml-2`}>⌘K</div>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors">
-              <Sun className="w-5 h-5" />
+            <button 
+              onClick={toggleDarkMode}
+              className={`w-10 h-10 rounded-full ${darkMode ? 'bg-slate-900 text-yellow-400' : 'bg-white text-slate-500'} shadow-sm flex items-center justify-center hover:scale-110 transition-all`}
+            >
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button className="w-10 h-10 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors relative">
+            <button className={`w-10 h-10 rounded-full ${darkMode ? 'bg-slate-900 text-slate-400' : 'bg-white text-slate-500'} shadow-sm flex items-center justify-center relative`}>
               <Bell className="w-5 h-5" />
               <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>

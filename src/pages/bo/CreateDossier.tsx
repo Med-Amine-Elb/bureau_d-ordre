@@ -1,31 +1,42 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
+import type { Dossier } from "@/lib/dataService";
 import { ArrowLeft, Save, Send, UploadCloud, AlertCircle, CheckCircle2, XCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 
 export default function CreateDossier() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const editDossier = location.state?.editDossier as Dossier | undefined;
+  const isEditing = !!editDossier;
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    numero_dossier: `DOS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    date_reception: new Date().toISOString().split('T')[0],
-    fournisseur: "",
-    societe_gbm: "",
-    direction: "",
-    prescripteur: "",
-    type_document: 100, // Facture
-    numero_facture: "",
-    numero_bc: "",
-    date_facture: new Date().toISOString().split('T')[0],
-    description: "",
-    documents_complements: [] as string[],
+    numero_dossier: editDossier ? editDossier.new_numero_dossier : `DOS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    date_reception: editDossier?.new_date_reception ? new Date(editDossier.new_date_reception).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    fournisseur: editDossier?.new_fournisseur_nom || "",
+    societe_gbm: editDossier?.new_societe_gbm || "",
+    direction: editDossier?.new_direction || "",
+    prescripteur: editDossier?.new_prescripteur || "",
+    type_document: editDossier?.new_type_document || 100, // Facture
+    numero_facture: editDossier?.new_numero_facture || "",
+    numero_bc: editDossier?.new_numero_bc || "",
+    date_facture: editDossier?.new_date_facture ? new Date(editDossier.new_date_facture).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    description: editDossier?.new_description || "",
+    documents_complements: editDossier?.new_documents_complements || ([] as string[]),
     dossier_lie: "",
-    collecteur_dcf: ""
+    collecteur_dcf: editDossier?.new_collecteur_dcf || ""
   });
 
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
+
+  const daysDiff = differenceInDays(
+    parseISO(formData.date_reception), 
+    parseISO(formData.date_facture)
+  );
+  const isLate = formData.type_document === 100 && daysDiff > 5;
 
   const requiredDocsPerType: Record<number, string[]> = {
     100: ['Facture Originale', 'Bon de Commande (BC)', 'Bon de Livraison (BL) / Attestation de Service', 'Attestation Fiscale'],
@@ -38,21 +49,17 @@ export default function CreateDossier() {
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean) => {
     e.preventDefault();
     
-    // Règle des 5 jours (pour Facture et Acompte P2)
+    // Règle des 5 jours (pour Facture)
     let statut = isDraft ? 10 : 30; // Brouillon ou En Transit Vers Prescripteur
     let isRejete = false;
 
-    if (!isDraft && (formData.type_document === 100)) {
-      const daysDiff = differenceInDays(
-        parseISO(formData.date_reception), 
-        parseISO(formData.date_facture)
-      );
+    if (formData.type_document === 100 && isLate) {
+      statut = 20; // Rejeté 5 Jours (En Retard)
+      isRejete = true;
       
-      if (daysDiff > 5) {
-        statut = 20; // Rejeté 5 Jours
-        isRejete = true;
+      if (!isDraft) {
         toast.error("Règle des 5 jours dépassée !", {
-          description: `Il y a ${daysDiff} jours d'écart entre la date de facture et la date de réception. Le dossier est automatiquement rejeté.`,
+          description: `Il y a ${daysDiff} jours d'écart entre la date de facture et la date de réception. Le dossier est enregistré en tant que 'Retard'.`,
           duration: 6000
         });
       }
@@ -76,30 +83,37 @@ export default function CreateDossier() {
     setLoading(true);
     
     try {
-      await dataService.createDossier({
+      const payload = {
         new_numero_dossier: formData.numero_dossier,
         new_fournisseur_nom: formData.fournisseur,
         new_societe_gbm: formData.societe_gbm,
         new_direction: formData.direction,
         new_prescripteur: formData.prescripteur,
-        new_collecteur_dcf: formData.collecteur_dcf,
+        new_type_document: Number(formData.type_document),
         new_numero_facture: formData.numero_facture,
         new_numero_bc: formData.numero_bc,
-        new_date_facture: formData.date_facture,
-        new_date_reception: formData.date_reception,
+        new_date_facture: new Date(formData.date_facture).toISOString(),
         new_description: formData.description,
-        new_documents_complements: Object.keys(uploadedDocs),
-        new_type_document: Number(formData.type_document),
         new_statut: statut,
-      });
+        new_est_bloque: isRejete,
+        new_documents_complements: formData.documents_complements,
+        new_collecteur_dcf: formData.collecteur_dcf,
+        new_date_reception: new Date(formData.date_reception).toISOString()
+      };
 
-      if (isDraft) {
-        toast.success("Dossier sauvegardé en brouillon.");
-      } else if (!isRejete) {
-        toast.success("Dossier soumis avec succès !", { description: "Le flux Power Automate a été déclenché." });
+      if (isEditing) {
+        await dataService.updateDossier(editDossier.new_dossierid, payload);
+        toast.success(isRejete ? "Dossier enregistré (Hors délai)" : "Dossier modifié avec succès", {
+          description: isRejete ? `Le dossier ${formData.numero_dossier} est maintenant marqué comme en retard.` : `Le dossier ${formData.numero_dossier} a été mis à jour.`
+        });
+      } else {
+        await dataService.createDossier(payload);
+        toast.success(isRejete ? "Dossier enregistré (Hors délai)" : "Dossier créé avec succès", {
+          description: isRejete ? `Le dossier ${formData.numero_dossier} a été créé avec le statut en retard.` : `Le dossier ${formData.numero_dossier} a été enregistré.`
+        });
       }
       
-      navigate("/bo/dashboard");
+      setTimeout(() => navigate('/bo/dossiers'), 1500);
     } catch (error) {
       console.error(error);
       toast.error("Erreur système", { description: "Impossible de créer le dossier." });
@@ -121,8 +135,12 @@ export default function CreateDossier() {
       </button>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Nouveau Dossier Fournisseur</h1>
-        <p className="text-slate-500 mt-1">Saisie complète et vérification des pièces avant routage.</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isEditing ? `Modifier le dossier ${formData.numero_dossier}` : "Créer un nouveau dossier"}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {isEditing ? "Modifiez les informations du brouillon." : "Remplissez les informations pour initialiser un nouveau dossier dans le circuit."}
+          </p>
       </div>
 
       <form className="space-y-8">
@@ -338,23 +356,36 @@ export default function CreateDossier() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 soft-shadow flex items-center justify-end gap-4 sticky bottom-6 z-10">
-          <button 
-            type="button"
-            onClick={(e) => handleSubmit(e, true)}
-            disabled={loading}
-            className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" /> Brouillon
-          </button>
-          <button 
-            type="button"
-            onClick={(e) => handleSubmit(e, false)}
-            disabled={loading}
-            className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
-          >
-            <Send className="w-4 h-4" /> Transmettre Dossier
-          </button>
+        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xl flex items-center justify-end gap-4 sticky bottom-6 z-10">
+          {isLate ? (
+            <button 
+              type="button"
+              onClick={(e) => handleSubmit(e, false)}
+              disabled={loading}
+              className="px-8 py-2.5 rounded-xl bg-orange-600 text-white font-semibold hover:bg-orange-700 shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2"
+            >
+              <AlertCircle className="w-4 h-4" /> Enregistrer le dossier (Hors délai)
+            </button>
+          ) : (
+            <>
+              <button 
+                type="button"
+                onClick={(e) => handleSubmit(e, true)}
+                disabled={loading}
+                className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> Brouillon
+              </button>
+              <button 
+                type="button"
+                onClick={(e) => handleSubmit(e, false)}
+                disabled={loading}
+                className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" /> Transmettre Dossier
+              </button>
+            </>
+          )}
         </div>
       </form>
     </div>

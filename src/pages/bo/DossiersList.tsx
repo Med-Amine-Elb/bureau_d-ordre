@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { Search, Filter, Download, MoreHorizontal, Eye, FileText, AlertTriangle } from "lucide-react";
+import { Search, Filter, Download, MoreHorizontal, Eye, FileText, AlertTriangle, Pencil } from "lucide-react";
+import { toast } from "sonner";
 
 export default function DossiersList() {
   const navigate = useNavigate();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState<number | 'ALL'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<number | 'ALL'>('ALL');
+  const [filterFournisseur, setFilterFournisseur] = useState<string>('ALL');
+  const [filterDate, setFilterDate] = useState<string>('');
 
   useEffect(() => {
     const fetchDossiers = async () => {
@@ -41,16 +47,34 @@ export default function DossiersList() {
       case 20: return <span className="flex items-center gap-1.5 text-red-700 font-medium"><div className="w-2 h-2 rounded-full bg-red-500"></div>Rejeté 5 Jours</span>;
       case 30: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit Prescripteur</span>;
       case 40: return <span className="flex items-center gap-1.5 text-indigo-600"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>Chez Prescripteur</span>;
+      case 50: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit BO</span>;
+      case 60: return <span className="flex items-center gap-1.5 text-emerald-600"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Prêt DCF</span>;
       case 70: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit DCF</span>;
-      case 150: return <span className="flex items-center gap-1.5 text-emerald-700 font-medium"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé</span>;
+      case 80: return <span className="flex items-center gap-1.5 text-purple-600 font-medium"><div className="w-2 h-2 rounded-full bg-purple-500"></div>Chez DCF</span>;
+      case 90: return <span className="flex items-center gap-1.5 text-orange-600 font-medium"><div className="w-2 h-2 rounded-full bg-orange-500"></div>Retour Correction</span>;
+      case 100: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit Trésorerie</span>;
+      case 110: return <span className="flex items-center gap-1.5 text-indigo-700 font-medium"><div className="w-2 h-2 rounded-full bg-indigo-600"></div>Chez Trésorerie</span>;
+      case 120: return <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight"><div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>Attente Remise</span>;
+      case 130: return <span className="flex items-center gap-1.5 text-orange-600"><div className="w-2 h-2 rounded-full bg-orange-500"></div>En Transport</span>;
+      case 140: return <span className="flex items-center gap-1.5 text-emerald-600 font-medium"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Disponible Agence</span>;
+      case 150: return <span className="flex items-center gap-1.5 text-emerald-700 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé</span>;
+      case 160: return <span className="flex items-center gap-1.5 text-emerald-700 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé-Avance</span>;
       default: return <span className="flex items-center gap-1.5 text-slate-600"><div className="w-2 h-2 rounded-full bg-slate-400"></div>Statut: {status}</span>;
     }
   };
 
-  const filteredDossiers = dossiers.filter(d => 
-    d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
-    d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase())
-  );
+  const uniqueFournisseurs = Array.from(new Set(dossiers.map(d => d.new_fournisseur_nom).filter(Boolean))).sort();
+
+  const filteredDossiers = dossiers.filter(d => {
+    const matchesSearch = d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
+                          d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase());
+    const matchesType = filterType === 'ALL' || d.new_type_document === filterType;
+    const matchesStatus = filterStatus === 'ALL' || d.new_statut === filterStatus;
+    const matchesFournisseur = filterFournisseur === 'ALL' || d.new_fournisseur_nom === filterFournisseur;
+    const matchesDate = !filterDate || d.new_date_reception.startsWith(filterDate);
+    
+    return matchesSearch && matchesType && matchesStatus && matchesFournisseur && matchesDate;
+  });
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -77,11 +101,14 @@ export default function DossiersList() {
             placeholder="Rechercher par N° Dossier, Fournisseur..." 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black placeholder:text-black/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
             <Filter className="w-4 h-4" /> Filtres Avancés
           </button>
           <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
@@ -89,6 +116,80 @@ export default function DossiersList() {
           </button>
         </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-white border-x border-t border-slate-200 p-4 flex flex-wrap gap-6 animate-in slide-in-from-top-2 fade-in duration-200">
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Type de Document</label>
+            <select 
+              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+            >
+              <option value="ALL">Tous les types</option>
+              <option value="100">Facture</option>
+              <option value="200">Avoir</option>
+              <option value="300">Contrat</option>
+              <option value="400">Demande de Chèque</option>
+              <option value="500">Acompte</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Statut du Dossier</label>
+            <select 
+              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+            >
+              <option value="ALL">Tous les statuts</option>
+              <option value="10">Brouillon</option>
+              <option value="20">Rejeté 5 Jours</option>
+              <option value="30">Transit Prescripteur</option>
+              <option value="40">Chez Prescripteur</option>
+              <option value="50">Validé Prescripteur</option>
+              <option value="60">Rejeté Prescripteur</option>
+              <option value="70">Transit DCF</option>
+              <option value="80">Chez DCF</option>
+              <option value="150">Payé</option>
+            </select>
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fournisseur</label>
+            <select 
+              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+              value={filterFournisseur}
+              onChange={(e) => setFilterFournisseur(e.target.value)}
+            >
+              <option value="ALL">Tous les fournisseurs</option>
+              {uniqueFournisseurs.map(f => (
+                <option key={f as string} value={f as string}>{f as string}</option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de Réception</label>
+            <input 
+              type="date"
+              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+          </div>
+
+          {/* Bouton de réinitialisation */}
+          <div className="flex items-end pb-0.5">
+            <button 
+              onClick={() => { setFilterType('ALL'); setFilterStatus('ALL'); setFilterFournisseur('ALL'); setFilterDate(''); setSearch(''); }}
+              className="text-sm font-medium text-slate-400 hover:text-slate-700 underline underline-offset-2 transition-colors"
+            >
+              Réinitialiser
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-b-2xl border border-slate-200 shadow-sm overflow-x-auto">
@@ -134,10 +235,23 @@ export default function DossiersList() {
                   <td className="px-6 py-4 text-sm">
                     {getStatusBadge(dossier.new_statut)}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                    {dossier.new_statut === 10 && (
+                      <button 
+                        onClick={() => {
+                          toast.info("Mode modification", { description: "Redirection vers le formulaire d'édition..." });
+                          navigate('/bo/dossiers/nouveau', { state: { editDossier: dossier } });
+                        }}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors mr-1"
+                        title="Modifier le brouillon"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
                     <button 
                       onClick={() => navigate(`/bo/dossiers/${dossier.new_dossierid}`)}
                       className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      title="Consulter"
                     >
                       <Eye className="w-4 h-4" />
                     </button>

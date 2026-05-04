@@ -33,10 +33,19 @@ export default function DossierDetail() {
   const getStatusDisplay = (status: number) => {
     switch(status) {
       case 10: return { label: "Brouillon", color: "slate" };
-      case 20: return { label: "Rejeté 5 Jours", color: "red" };
-      case 30: return { label: "En Transit Vers Prescripteur", color: "blue" };
+      case 20: return { label: "En Retard (>5j)", color: "red" };
+      case 30: return { label: "En Transit (Prescr.)", color: "blue" };
       case 40: return { label: "Chez Prescripteur", color: "indigo" };
-      case 70: return { label: "En Transit Vers DCF", color: "blue" };
+      case 50: return { label: "En Transit (BO)", color: "blue" };
+      case 60: return { label: "Prêt DCF", color: "emerald" };
+      case 70: return { label: "En Transit (DCF)", color: "blue" };
+      case 80: return { label: "Chez DCF", color: "purple" };
+      case 90: return { label: "Retour Correction", color: "orange" };
+      case 100: return { label: "En Transit (Tréso.)", color: "blue" };
+      case 110: return { label: "Chez Trésorerie", color: "indigo" };
+      case 120: return { label: "Attente Remise", color: "emerald" };
+      case 130: return { label: "En Transport", color: "orange" };
+      case 140: return { label: "Disponible Agence", color: "emerald" };
       case 150: return { label: "Payé", color: "emerald" };
       default: return { label: `Statut ${status}`, color: "slate" };
     }
@@ -88,9 +97,6 @@ export default function DossierDetail() {
           )}
           <button className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg px-4 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
             <Share2 className="w-4 h-4" /> Partager
-          </button>
-          <button className="bg-red-50 hover:bg-red-100 text-red-600 rounded-lg px-4 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4" /> Bloquer
           </button>
         </div>
       </div>
@@ -149,35 +155,79 @@ export default function DossierDetail() {
 
         {activeTab === "timeline" && (
           <div className="p-8">
-             <div className="relative border-l-2 border-slate-100 ml-4 py-4 space-y-8">
-               
-               {/* Step 1 */}
-               <div className="relative pl-8">
-                 <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-emerald-500 ring-4 ring-white"></div>
-                 <p className="text-xs text-slate-500 mb-1">{new Date(dossier.new_date_reception).toLocaleString('fr-FR')}</p>
-                 <h4 className="font-bold text-slate-800">Enregistrement Bureau d'Ordre</h4>
-                 <p className="text-sm text-slate-600 mt-1">Dossier créé et vérifié par l'agent BO.</p>
+             {dossier.new_statut === 20 && (
+               <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3">
+                 <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                 <div>
+                   <h4 className="text-sm font-bold text-red-800">Dossier Rejeté (Hors Délai)</h4>
+                   <p className="text-xs text-red-600 mt-1">Ce dossier a dépassé la règle des 5 jours entre la date de facture et la date de réception. Il est bloqué et nécessite une action corrective ou une dérogation.</p>
+                 </div>
                </div>
+             )}
+             <div className="relative border-l-2 border-slate-100 ml-4 py-2 space-y-10">
+               
+               {[
+                 { id: 10, label: "Brouillon", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_direction || ''}.`, icon: "send" },
+                 { id: 40, label: "Chez Prescripteur", desc: dossier.new_prescripteur ? `Le dossier est chez ${dossier.new_prescripteur} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
+                 { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
+                 { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
+                 { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
+                 { id: 80, label: "Chez DCF", desc: dossier.new_collecteur_dcf ? `Le dossier est entre les mains de ${dossier.new_collecteur_dcf} (DCF).` : "Vérification de la conformité comptable et fiscale.", icon: "shield" },
+                 { id: 90, label: "Retour Correction", desc: "Besoin de corrections ou pièces manquantes.", icon: "alert" },
+                 { id: 100, label: "Transit Trésorerie", desc: "Dossier conforme envoyé à la Trésorerie pour règlement.", icon: "send" },
+                 { id: 110, label: "Chez Trésorerie", desc: "La Trésorerie prépare le règlement (Chèque/Virement).", icon: "bank" },
+                 { id: 120, label: "Prêt pour Remise", desc: "Chèque prêt au BO pour remise au fournisseur.", icon: "credit" },
+                 { id: 130, label: "En Transport (Agence)", desc: dossier.new_agence_destination ? `Chèque expédié vers l'agence ${dossier.new_agence_destination}.` : "Chèque en cours d'expédition vers l'agence.", icon: "truck" },
+                 { id: 140, label: "Disponible Agence", desc: dossier.new_agence_destination ? `Le chèque est arrivé à l'agence ${dossier.new_agence_destination} pour retrait.` : "Le chèque est arrivé en agence pour retrait.", icon: "map" },
+                 { id: 150, label: "Payé / Clôturé", desc: "Remise effectuée et dossier clôturé définitivement.", icon: "check" }
+               ].map((step, index, array) => {
+                 // Logic for visibility and state
+                 const isCompleted = dossier.new_statut > step.id || (dossier.new_statut === 150 && step.id === 150);
+                 
+                 // Handle Retour Correction separately if it's not the current status
+                 if (step.id === 90 && dossier.new_statut !== 90) return null;
 
-               {/* Step 2 (if transmitted) */}
-               {dossier.new_statut >= 30 && (
-                 <div className="relative pl-8">
-                   <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${dossier.new_statut > 30 ? 'bg-emerald-500' : 'bg-blue-500 animate-pulse'} ring-4 ring-white`}></div>
-                   <p className="text-xs text-slate-500 mb-1">Aujourd'hui</p>
-                   <h4 className="font-bold text-slate-800">Transmission au Prescripteur</h4>
-                   <p className="text-sm text-slate-600 mt-1">Dossier en attente d'accusé réception par le prescripteur.</p>
-                 </div>
-               )}
+                 const actuallyCurrent = (dossier.new_statut === step.id);
+                 const isFuture = dossier.new_statut < step.id;
 
-               {/* Rejeté */}
-               {dossier.new_statut === 20 && (
-                 <div className="relative pl-8">
-                   <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-red-500 ring-4 ring-white"></div>
-                   <p className="text-xs text-slate-500 mb-1">Aujourd'hui</p>
-                   <h4 className="font-bold text-red-700">Rejet Automatique (&gt; 5 Jours)</h4>
-                   <p className="text-sm text-red-600 mt-1">La date du document est trop ancienne par rapport à la date de réception.</p>
-                 </div>
-               )}
+                 if (isFuture && !actuallyCurrent) {
+                    return (
+                      <div key={step.id} className="relative pl-8 opacity-40">
+                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 ring-4 ring-white"></div>
+                        <h4 className="font-bold text-slate-400 text-sm">{step.label}</h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{step.desc}</p>
+                      </div>
+                    );
+                 }
+
+                 return (
+                   <div key={step.id} className="relative pl-8">
+                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${actuallyCurrent ? 'bg-blue-500 animate-pulse ring-blue-100' : 'bg-emerald-500'} ring-4 ring-white`}></div>
+                     <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Étape {index + 1}</p>
+                          <h4 className={`font-bold text-sm ${actuallyCurrent ? 'text-blue-600' : 'text-slate-800'}`}>{step.label}</h4>
+                          <p className="text-xs text-slate-600 mt-0.5 max-w-md">{step.desc}</p>
+                        </div>
+                        {actuallyCurrent && (
+                          <span className="bg-blue-50 text-blue-600 text-[9px] font-bold px-2 py-0.5 rounded-full">ACTUEL</span>
+                        )}
+                        {!actuallyCurrent && isCompleted && (
+                          <div className="text-right">
+                             <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                             {dossier.new_accuse_par && step.id === 60 && (
+                               <p className="text-[9px] text-slate-400 font-medium mt-1">Accusé par {dossier.new_accuse_par}</p>
+                             )}
+                             {dossier.new_date_accuse && step.id === 60 && (
+                               <p className="text-[9px] text-slate-400">{new Date(dossier.new_date_accuse).toLocaleDateString('fr-FR')}</p>
+                             )}
+                          </div>
+                        )}
+                     </div>
+                   </div>
+                 );
+               })}
 
              </div>
           </div>

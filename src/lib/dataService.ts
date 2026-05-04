@@ -21,6 +21,9 @@ export interface Dossier {
   new_date_reception: string;
   new_est_bloque?: boolean;
   new_documents_complements?: string[];
+  new_agence_destination?: string;
+  new_accuse_par?: string;
+  new_date_accuse?: string;
 }
 
 const LOCAL_STORAGE_KEY = "gbm_mock_dossiers";
@@ -32,6 +35,7 @@ const initMockData = () => {
       { new_dossierid: "DOS-001", new_numero_dossier: "DOS-2026-102 (Facture IT)", new_type_document: 100, new_statut: 150, new_date_reception: new Date().toISOString(), new_montant: 124839 },
       { new_dossierid: "DOS-002", new_numero_dossier: "DOS-2026-101 (Achat Matériel)", new_type_document: 100, new_statut: 40, new_date_reception: new Date().toISOString(), new_montant: 92662 },
       { new_dossierid: "DOS-003", new_numero_dossier: "DOS-2026-098 (Prestation Svc)", new_type_document: 300, new_statut: 70, new_date_reception: new Date().toISOString(), new_montant: 74048 },
+      { new_dossierid: "DOS-004", new_numero_dossier: "DOS-2026-099 (Prestation IT)", new_type_document: 300, new_statut: 120, new_date_reception: new Date().toISOString(), new_montant: 75023 }
     ];
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mockData));
   }
@@ -41,7 +45,7 @@ export const dataService = {
   getDossiers: async (): Promise<Dossier[]> => {
     // Mode Power Apps
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_dossier", "?$select=new_numero_dossier,new_statut,new_type_document,new_date_reception");
+      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_dossier", "?$select=new_numero_dossier,new_statut,new_type_document,new_date_reception,new_fournisseur_nom,new_societe_gbm,new_direction,new_prescripteur,new_numero_facture,new_numero_bc,new_date_facture,new_description,new_collecteur_dcf,new_documents_complements,new_agence_destination,new_accuse_par,new_date_accuse");
       return result.entities;
     }
     
