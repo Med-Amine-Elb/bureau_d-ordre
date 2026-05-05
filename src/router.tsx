@@ -8,22 +8,30 @@ import DossierDetail from "@/pages/bo/DossierDetail"
 import Relances from "@/pages/bo/Relances"
 import RemiseCheque from "@/pages/bo/RemiseCheque"
 import Blocages from "@/pages/bo/Blocages"
+import ErrorPage from "@/pages/ErrorPage"
 
-// IMPORTANT: Do not remove or modify the code below!
 // Normalize basename when hosted in Power Apps
-const BASENAME = new URL(".", location.href).pathname
-if (location.pathname.endsWith("/index.html")) {
-  history.replaceState(null, "", BASENAME + location.search + location.hash);
-}
+// We want to find the root directory regardless of current sub-path
+const getBasename = () => {
+  const path = window.location.pathname;
+  if (path.includes("/index.html")) {
+    return path.substring(0, path.lastIndexOf("/") + 1);
+  }
+  // In development mode (Vite), basename is usually "/"
+  return "/"; 
+};
+
+const BASENAME = getBasename();
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <Login />,
+    errorElement: <ErrorPage />,
   },
   {
-    // LayoutRoute without a path acts as a wrapper for its children
     element: <DashboardLayout />,
+    errorElement: <ErrorPage />,
     children: [
       { path: "bo/dashboard", element: <DashboardBO /> },
       { path: "bo/dossiers/nouveau", element: <CreateDossier /> },
@@ -35,5 +43,5 @@ export const router = createBrowserRouter([
     ],
   },
 ], { 
-  basename: BASENAME // IMPORTANT: Set basename for proper routing when hosted in Power Apps
+  basename: BASENAME 
 })

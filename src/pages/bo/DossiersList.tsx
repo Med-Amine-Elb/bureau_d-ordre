@@ -2,7 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { Search, Filter, Download, MoreHorizontal, Eye, FileText, AlertTriangle, Pencil } from "lucide-react";
+import {
+  Search,
+  Filter,
+  Download,
+  MoreHorizontal,
+  Eye,
+  FileText,
+  AlertTriangle,
+  Pencil,
+} from "lucide-react";
 import { toast } from "sonner";
 
 export default function DossiersList() {
@@ -11,10 +20,10 @@ export default function DossiersList() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [filterType, setFilterType] = useState<number | 'ALL'>('ALL');
-  const [filterStatus, setFilterStatus] = useState<number | 'ALL'>('ALL');
-  const [filterFournisseur, setFilterFournisseur] = useState<string>('ALL');
-  const [filterDate, setFilterDate] = useState<string>('');
+  const [filterType, setFilterType] = useState<number | "ALL">("ALL");
+  const [filterStatus, setFilterStatus] = useState<number | "ALL">("ALL");
+  const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
+  const [filterDate, setFilterDate] = useState<string>("");
 
   useEffect(() => {
     const fetchDossiers = async () => {
@@ -31,87 +40,239 @@ export default function DossiersList() {
   }, []);
 
   const getTypeBadge = (type: number) => {
-    switch(type) {
-      case 100: return <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">FACTURE</span>;
-      case 200: return <span className="bg-orange-50 text-orange-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">AVOIR</span>;
-      case 300: return <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">CONTRAT</span>;
-      case 400: return <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">DEMANDE CHÈQUE</span>;
-      case 500: return <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">ACOMPTE</span>;
-      default: return <span className="bg-slate-50 text-slate-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">INCONNU</span>;
+    switch (type) {
+      case 100:
+        return (
+          <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            FACTURE
+          </span>
+        );
+      case 200:
+        return (
+          <span className="bg-orange-50 text-orange-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            AVOIR
+          </span>
+        );
+      case 300:
+        return (
+          <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            CONTRAT
+          </span>
+        );
+      case 400:
+        return (
+          <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            DEMANDE CHÈQUE
+          </span>
+        );
+      case 500:
+        return (
+          <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            ACOMPTE
+          </span>
+        );
+      default:
+        return (
+          <span className="bg-slate-50 text-slate-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+            INCONNU
+          </span>
+        );
     }
   };
 
   const getStatusBadge = (status: number) => {
-    switch(status) {
-      case 10: return <span className="flex items-center gap-1.5 text-slate-600"><div className="w-2 h-2 rounded-full bg-slate-400"></div>Brouillon</span>;
-      case 20: return <span className="flex items-center gap-1.5 text-red-700 font-medium"><div className="w-2 h-2 rounded-full bg-red-500"></div>Rejeté 5 Jours</span>;
-      case 30: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit Prescripteur</span>;
-      case 40: return <span className="flex items-center gap-1.5 text-indigo-600"><div className="w-2 h-2 rounded-full bg-indigo-500"></div>Chez Prescripteur</span>;
-      case 50: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit BO</span>;
-      case 60: return <span className="flex items-center gap-1.5 text-emerald-600"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Prêt DCF</span>;
-      case 70: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit DCF</span>;
-      case 80: return <span className="flex items-center gap-1.5 text-purple-600 font-medium"><div className="w-2 h-2 rounded-full bg-purple-500"></div>Chez DCF</span>;
-      case 90: return <span className="flex items-center gap-1.5 text-orange-600 font-medium"><div className="w-2 h-2 rounded-full bg-orange-500"></div>Retour Correction</span>;
-      case 100: return <span className="flex items-center gap-1.5 text-blue-600"><div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit Trésorerie</span>;
-      case 110: return <span className="flex items-center gap-1.5 text-indigo-700 font-medium"><div className="w-2 h-2 rounded-full bg-indigo-600"></div>Chez Trésorerie</span>;
-      case 120: return <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight"><div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>Attente Remise</span>;
-      case 130: return <span className="flex items-center gap-1.5 text-orange-600"><div className="w-2 h-2 rounded-full bg-orange-500"></div>En Transport</span>;
-      case 140: return <span className="flex items-center gap-1.5 text-emerald-600 font-medium"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Disponible Agence</span>;
-      case 150: return <span className="flex items-center gap-1.5 text-emerald-700 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé</span>;
-      case 160: return <span className="flex items-center gap-1.5 text-emerald-700 font-bold"><div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé-Avance</span>;
-      default: return <span className="flex items-center gap-1.5 text-slate-600"><div className="w-2 h-2 rounded-full bg-slate-400"></div>Statut: {status}</span>;
+    switch (status) {
+      case 10:
+        return (
+          <span className="flex items-center gap-1.5 text-slate-600">
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Brouillon
+          </span>
+        );
+      case 20:
+        return (
+          <span className="flex items-center gap-1.5 text-red-700 font-medium">
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>Rejeté 5
+            Jours
+          </span>
+        );
+      case 30:
+        return (
+          <span className="flex items-center gap-1.5 text-blue-600">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
+            Prescripteur
+          </span>
+        );
+      case 40:
+        return (
+          <span className="flex items-center gap-1.5 text-indigo-600">
+            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>Chez
+            Prescripteur
+          </span>
+        );
+      case 50:
+        return (
+          <span className="flex items-center gap-1.5 text-blue-600">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit BO
+          </span>
+        );
+      case 60:
+        return (
+          <span className="flex items-center gap-1.5 text-emerald-600">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>Prêt DCF
+          </span>
+        );
+      case 70:
+        return (
+          <span className="flex items-center gap-1.5 text-blue-600">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit DCF
+          </span>
+        );
+      case 80:
+        return (
+          <span className="flex items-center gap-1.5 text-purple-600 font-medium">
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>Chez DCF
+          </span>
+        );
+      case 90:
+        return (
+          <span className="flex items-center gap-1.5 text-orange-600 font-medium">
+            <div className="w-2 h-2 rounded-full bg-orange-500"></div>Retour
+            Correction
+          </span>
+        );
+      case 100:
+        return (
+          <span className="flex items-center gap-1.5 text-blue-600">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
+            Trésorerie
+          </span>
+        );
+      case 110:
+        return (
+          <span className="flex items-center gap-1.5 text-indigo-700 font-medium">
+            <div className="w-2 h-2 rounded-full bg-indigo-600"></div>Chez
+            Trésorerie
+          </span>
+        );
+      case 120:
+        return (
+          <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight">
+            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+            Attente Remise
+          </span>
+        );
+      case 130:
+        return (
+          <span className="flex items-center gap-1.5 text-orange-600">
+            <div className="w-2 h-2 rounded-full bg-orange-500"></div>En
+            Transport
+          </span>
+        );
+      case 140:
+        return (
+          <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            Disponible Agence
+          </span>
+        );
+      case 150:
+        return (
+          <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>Payé
+          </span>
+        );
+      case 160:
+        return (
+          <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+            Payé-Avance
+          </span>
+        );
+      default:
+        return (
+          <span className="flex items-center gap-1.5 text-slate-600">
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Statut:{" "}
+            {status}
+          </span>
+        );
     }
   };
 
-  const uniqueFournisseurs = Array.from(new Set(dossiers.map(d => d.new_fournisseur_nom).filter(Boolean))).sort();
+  const uniqueFournisseurs = Array.from(
+    new Set(dossiers.map((d) => d.new_fournisseur_nom).filter(Boolean)),
+  ).sort();
 
-  const filteredDossiers = dossiers.filter(d => {
-    const matchesSearch = d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
-                          d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase());
-    const matchesType = filterType === 'ALL' || d.new_type_document === filterType;
-    const matchesStatus = filterStatus === 'ALL' || d.new_statut === filterStatus;
-    const matchesFournisseur = filterFournisseur === 'ALL' || d.new_fournisseur_nom === filterFournisseur;
-    const matchesDate = !filterDate || d.new_date_reception.startsWith(filterDate);
-    
-    return matchesSearch && matchesType && matchesStatus && matchesFournisseur && matchesDate;
+  const filteredDossiers = dossiers.filter((d) => {
+    const matchesSearch =
+      d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
+      d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase());
+    const matchesType =
+      filterType === "ALL" || d.new_type_document === filterType;
+    const matchesStatus =
+      filterStatus === "ALL" || d.new_statut === filterStatus;
+    const matchesFournisseur =
+      filterFournisseur === "ALL" ||
+      d.new_fournisseur_nom === filterFournisseur;
+    const matchesDate =
+      !filterDate || d.new_date_reception.startsWith(filterDate);
+
+    return (
+      matchesSearch &&
+      matchesType &&
+      matchesStatus &&
+      matchesFournisseur &&
+      matchesDate
+    );
   });
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Liste des Dossiers</h1>
-          <p className="text-slate-500 mt-1">Recherche et gestion de tous les dossiers fournisseurs.</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
+            Liste des Dossiers
+          </h1>
+          <p className="text-slate-500 mt-1 dark:text-slate-400">
+            Recherche et gestion de tous les dossiers fournisseurs.
+          </p>
         </div>
         <div className="flex gap-3">
-          <button onClick={() => navigate("/bo/dossiers/nouveau")} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2 text-sm font-semibold soft-shadow transition-colors">
+          <button
+            onClick={() => navigate("/bo/dossiers/nouveau")}
+            className="bg-blue-600 hover:bg-blue-700
+          dark:bg-blue-800 dark:hover:bg-blue-900 dark:border dark:border-blue-700
+          text-white rounded-lg px-6 py-2 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2 shadow-blue-500/20"
+          >
             + Nouveau Dossier
           </button>
         </div>
       </div>
 
       {/* Toolbar / Filters */}
-      <div className="bg-white p-4 rounded-t-2xl border-x border-t border-slate-200 flex flex-wrap gap-4 items-center justify-between">
+      <div className="bg-white dark:bg-[#0F172B] p-4 rounded-t-2xl border-x border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between">
         <div className="flex-1 min-w-[300px] relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input 
-            type="text" 
-            placeholder="Rechercher par N° Dossier, Fournisseur..." 
+          <input
+            type="text"
+            placeholder="Rechercher par N° Dossier, Fournisseur..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-black placeholder:text-black/60 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-black dark:text-slate-200 placeholder:text-black/60 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
           />
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              showFilters
+                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
+                : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            }`}
           >
             <Filter className="w-4 h-4" /> Filtres Avancés
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate.300 hover:bg-slate-50 dark:hover:bg-slate-700">
             <Download className="w-4 h-4" /> Exporter Excel
           </button>
         </div>
@@ -119,13 +280,19 @@ export default function DossiersList() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-white border-x border-t border-slate-200 p-4 flex flex-wrap gap-6 animate-in slide-in-from-top-2 fade-in duration-200">
+        <div className="bg-white dark:bg-[#0F172B] border-x border-t border-slate-200 dark:border-slate-700 p-4 flex flex-wrap gap-6 animate-in slide-in-from-top-2 fade-in duration-200">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Type de Document</label>
-            <select 
-              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Type de Document
+            </label>
+            <select
+              className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+              onChange={(e) =>
+                setFilterType(
+                  e.target.value === "ALL" ? "ALL" : Number(e.target.value),
+                )
+              }
             >
               <option value="ALL">Tous les types</option>
               <option value="100">Facture</option>
@@ -135,12 +302,19 @@ export default function DossiersList() {
               <option value="500">Acompte</option>
             </select>
           </div>
+
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Statut du Dossier</label>
-            <select 
-              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Statut du Dossier
+            </label>
+            <select
+              className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+              onChange={(e) =>
+                setFilterStatus(
+                  e.target.value === "ALL" ? "ALL" : Number(e.target.value),
+                )
+              }
             >
               <option value="ALL">Tous les statuts</option>
               <option value="10">Brouillon</option>
@@ -154,36 +328,47 @@ export default function DossiersList() {
               <option value="150">Payé</option>
             </select>
           </div>
-          
+
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Fournisseur</label>
-            <select 
-              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Fournisseur
+            </label>
+            <select
+              className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
               value={filterFournisseur}
               onChange={(e) => setFilterFournisseur(e.target.value)}
             >
               <option value="ALL">Tous les fournisseurs</option>
-              {uniqueFournisseurs.map(f => (
-                <option key={f as string} value={f as string}>{f as string}</option>
+              {uniqueFournisseurs.map((f) => (
+                <option key={f as string} value={f as string}>
+                  {f as string}
+                </option>
               ))}
             </select>
           </div>
-          
+
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de Réception</label>
-            <input 
+            <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Date de Réception
+            </label>
+            <input
               type="date"
-              className="w-full min-w-[200px] border border-slate-200 rounded-lg text-sm px-3 py-2 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700"
+              className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
             />
           </div>
 
-          {/* Bouton de réinitialisation */}
           <div className="flex items-end pb-0.5">
-            <button 
-              onClick={() => { setFilterType('ALL'); setFilterStatus('ALL'); setFilterFournisseur('ALL'); setFilterDate(''); setSearch(''); }}
-              className="text-sm font-medium text-slate-400 hover:text-slate-700 underline underline-offset-2 transition-colors"
+            <button
+              onClick={() => {
+                setFilterType("ALL");
+                setFilterStatus("ALL");
+                setFilterFournisseur("ALL");
+                setFilterDate("");
+                setSearch("");
+              }}
+              className="text-sm font-medium text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline underline-offset-2 transition-colors"
             >
               Réinitialiser
             </button>
@@ -192,33 +377,61 @@ export default function DossiersList() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-b-2xl border border-slate-200 shadow-sm overflow-x-auto">
+      <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-200">
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Dossier</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fournisseur</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Date Réception</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+            <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Dossier
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Fournisseur
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Date Réception
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Statut
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="py-12 text-center text-slate-400">Chargement des données...</td></tr>
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-400">
+                  Chargement des données...
+                </td>
+              </tr>
             ) : filteredDossiers.length === 0 ? (
-              <tr><td colSpan={6} className="py-12 text-center text-slate-500">Aucun dossier trouvé.</td></tr>
+              <tr>
+                <td
+                  colSpan={6}
+                  className="py-12 text-center text-slate-500 dark:text-slate-400"
+                >
+                  Aucun dossier trouvé.
+                </td>
+              </tr>
             ) : (
               filteredDossiers.map((dossier) => (
-                <tr key={dossier.new_dossierid} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors group">
+                <tr
+                  key={dossier.new_dossierid}
+                  className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group"
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
                         <FileText className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-900 text-sm">{dossier.new_numero_dossier}</div>
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                          {dossier.new_numero_dossier}
+                        </div>
                         {dossier.new_est_bloque && (
                           <div className="flex items-center gap-1 text-[10px] text-red-500 font-bold mt-0.5">
                             <AlertTriangle className="w-3 h-3" /> BLOQUÉ
@@ -227,35 +440,48 @@ export default function DossiersList() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">{getTypeBadge(dossier.new_type_document)}</td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700">{dossier.new_fournisseur_nom || 'Non renseigné'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500">
-                    {new Date(dossier.new_date_reception).toLocaleDateString('fr-FR')}
+                  <td className="px-6 py-4">
+                    {getTypeBadge(dossier.new_type_document)}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {dossier.new_fournisseur_nom || "Non renseigné"}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                    {new Date(dossier.new_date_reception).toLocaleDateString(
+                      "fr-FR",
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {getStatusBadge(dossier.new_statut)}
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
                     {dossier.new_statut === 10 && (
-                      <button 
+                      <button
                         onClick={() => {
-                          toast.info("Mode modification", { description: "Redirection vers le formulaire d'édition..." });
-                          navigate('/bo/dossiers/nouveau', { state: { editDossier: dossier } });
+                          toast.info("Mode modification", {
+                            description:
+                              "Redirection vers le formulaire d'édition...",
+                          });
+                          navigate("/bo/dossiers/nouveau", {
+                            state: { editDossier: dossier },
+                          });
                         }}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-500 hover:bg-amber-50 transition-colors mr-1"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors mr-1"
                         title="Modifier le brouillon"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                     )}
-                    <button 
-                      onClick={() => navigate(`/bo/dossiers/${dossier.new_dossierid}`)}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    <button
+                      onClick={() =>
+                        navigate(`/bo/dossiers/${dossier.new_dossierid}`)
+                      }
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                       title="Consulter"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
-                    <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors ml-1">
+                    <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-1">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
                   </td>
@@ -264,19 +490,32 @@ export default function DossiersList() {
             )}
           </tbody>
         </table>
-        
-        {/* Pagination mock */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between text-sm text-slate-500">
-          <div>Affichage de 1 à {filteredDossiers.length} sur {filteredDossiers.length} résultats</div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+          <div>
+            Affichage de 1 à {filteredDossiers.length} sur{" "}
+            {filteredDossiers.length} résultats
+          </div>
           <div className="flex gap-2">
-            <button className="px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50 disabled:opacity-50" disabled>Précédent</button>
-            <button className="px-3 py-1 border border-slate-200 rounded-md bg-blue-50 text-blue-600 font-medium">1</button>
-            <button className="px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50">2</button>
-            <button className="px-3 py-1 border border-slate-200 rounded-md hover:bg-slate-50">Suivant</button>
+            <button
+              className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              disabled
+            >
+              Précédent
+            </button>
+            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium">
+              1
+            </button>
+            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
+              2
+            </button>
+            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
+              Suivant
+            </button>
           </div>
         </div>
       </div>
-
     </div>
-  )
+  );
 }
