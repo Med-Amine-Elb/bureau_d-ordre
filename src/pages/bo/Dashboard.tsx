@@ -45,16 +45,6 @@ const profitData = [
   { name: "12 Feb", value: 10000 },
 ];
 
-const activeData = [
-  { name: "Sun", value: 4000 },
-  { name: "Mon", value: 3000 },
-  { name: "Tue", value: 8162, active: true },
-  { name: "Wed", value: 2780 },
-  { name: "Thu", value: 1890 },
-  { name: "Fri", value: 2390 },
-  { name: "Sat", value: 3490 },
-];
-
 export default function DashboardBO() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -664,7 +654,7 @@ export default function DashboardBO() {
 
         {/* Timeline Activité */}
         <div className="bg-card dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6">
-          <h3 className="font-semibold text-slate-800 dark:text-white text-lg mb-6 flex items-center gap-2">
+          <h3 className="font-semibold text-slate-800 dark:white text-lg mb-6 flex items-center gap-2">
             <Activity className="w-5 h-5 text-emerald-500" /> Flux Temps Réel
           </h3>
           <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
@@ -855,25 +845,3 @@ function getTypeBadge(type: number) {
       );
   }
 }
-
-// Just an icon wrapper since lucide FileText wasn't imported at the top initially, though it is now. Keeping it for safety.
-const FileTextIcon = ({ className }: { className?: string }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" x2="8" y1="13" y2="13" />
-    <line x1="16" x2="8" y1="17" y2="17" />
-    <line x1="10" x2="8" y1="9" y2="9" />
-  </svg>
-);

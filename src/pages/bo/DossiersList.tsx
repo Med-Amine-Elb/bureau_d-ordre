@@ -378,20 +378,26 @@ export default function DossiersList() {
 
       {/* Table */}
       <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+        <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead>
             <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
               <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Dossier
               </th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Type
+                Type / Document
               </th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Fournisseur
               </th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Date Réception
+                Société / Direction
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Prescripteur
+              </th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Dates (Fact. / Réc.)
               </th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Statut
@@ -404,14 +410,14 @@ export default function DossiersList() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-slate-400">
+                <td colSpan={8} className="py-12 text-center text-slate-400">
                   Chargement des données...
                 </td>
               </tr>
             ) : filteredDossiers.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={8}
                   className="py-12 text-center text-slate-500 dark:text-slate-400"
                 >
                   Aucun dossier trouvé.
@@ -429,7 +435,7 @@ export default function DossiersList() {
                         <FileText className="w-4 h-4" />
                       </div>
                       <div>
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm whitespace-nowrap">
                           {dossier.new_numero_dossier}
                         </div>
                         {dossier.new_est_bloque && (
@@ -441,15 +447,34 @@ export default function DossiersList() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {getTypeBadge(dossier.new_type_document)}
+                    <div className="flex flex-col items-start gap-1">
+                      {getTypeBadge(dossier.new_type_document)}
+                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase ml-2.5">
+                        {dossier.new_numero_facture || 'N/A'}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    {dossier.new_fournisseur_nom || "Non renseigné"}
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      {dossier.new_fournisseur_nom || "Non renseigné"}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
-                    {new Date(dossier.new_date_reception).toLocaleDateString(
-                      "fr-FR",
-                    )}
+                  <td className="px-6 py-4">
+                     <div className="flex flex-col">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{dossier.new_societe_gbm || 'GBM'}</span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">{dossier.new_direction || 'N/A'}</span>
+                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-slate-600 dark:text-slate-400 font-medium italic">
+                      {dossier.new_prescripteur || "Non assigné"}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col text-[11px]">
+                      <span className="text-slate-400 dark:text-slate-500">Doc: {dossier.new_date_facture ? new Date(dossier.new_date_facture).toLocaleDateString('fr-FR') : 'N/A'}</span>
+                      <span className="text-slate-600 dark:text-slate-300 font-semibold">Réc: {new Date(dossier.new_date_reception).toLocaleDateString('fr-FR')}</span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {getStatusBadge(dossier.new_statut)}
@@ -459,8 +484,7 @@ export default function DossiersList() {
                       <button
                         onClick={() => {
                           toast.info("Mode modification", {
-                            description:
-                              "Redirection vers le formulaire d'édition...",
+                            description: "Redirection vers le formulaire d'édition...",
                           });
                           navigate("/bo/dossiers/nouveau", {
                             state: { editDossier: dossier },

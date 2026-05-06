@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
@@ -129,83 +129,81 @@ export default function CreateDossier() {
     <div className="w-full max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button 
         onClick={() => navigate("/bo/dashboard")}
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-900 mb-6 transition-colors font-medium text-sm"
+        className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
       >
         <ArrowLeft className="w-4 h-4" /> Retour au Dashboard
       </button>
 
       <div className="mb-8">
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             {isEditing ? `Modifier le dossier ${formData.numero_dossier}` : "Créer un nouveau dossier"}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             {isEditing ? "Modifiez les informations du brouillon." : "Remplissez les informations pour initialiser un nouveau dossier dans le circuit."}
           </p>
       </div>
 
       <form className="space-y-8">
         {/* Section 1: Informations Générales */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 soft-shadow">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2">1. Informations Générales</h2>
+        <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">1. Informations Générales</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">N° Dossier (Généré Auto) <span className="text-red-500">*</span></label>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">N° Dossier (Généré Auto) <span className="text-red-500">*</span></label>
               <input type="text" readOnly value={formData.numero_dossier}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-bold focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Date de Réception (Aujourd'hui) <span className="text-red-500">*</span></label>
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Date de Réception (Aujourd'hui) <span className="text-red-500">*</span></label>
               <input type="date" readOnly value={formData.date_reception} onChange={e => setFormData({...formData, date_reception: e.target.value})}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
             </div>
             {!isAvoir && (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Fournisseur <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Fournisseur <span className="text-red-500">*</span></label>
                   <input type="text" required={!isAvoir} placeholder="Ex: GBM IT Services" value={formData.fournisseur} onChange={e => setFormData({...formData, fournisseur: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Société GBM <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Société GBM <span className="text-red-500">*</span></label>
                   <select value={formData.societe_gbm} onChange={e => setFormData({...formData, societe_gbm: e.target.value})} required={!isAvoir}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
                     <option value="">Sélectionner...</option>
                     <option value="GBM_CASA">GBM Casablanca</option>
                     <option value="GBM_RABAT">GBM Rabat</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Direction</label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Direction</label>
                   <select value={formData.direction} onChange={e => setFormData({...formData, direction: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
                     <option value="">Sélectionner...</option>
                     <option value="IT">Direction Informatique</option>
                     <option value="RH">Ressources Humaines</option>
                     <option value="ACHATS">Direction Achats</option>
                   </select>
                 </div>
-                {!isFluxCourt && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-700">Prescripteur Assigné <span className="text-red-500">*</span></label>
-                    <select value={formData.prescripteur} onChange={e => setFormData({...formData, prescripteur: e.target.value})} required={!isAvoir && !isFluxCourt}
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
-                      <option value="">Sélectionner un prescripteur...</option>
-                      <option value="user_1">Ahmed Benali</option>
-                      <option value="user_2">Sarah Alaoui</option>
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Prescripteur / Demandeur <span className="text-red-500">*</span></label>
+                  <select value={formData.prescripteur} onChange={e => setFormData({...formData, prescripteur: e.target.value})} required={!isAvoir}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none">
+                    <option value="">Sélectionner un prescripteur...</option>
+                    <option value="user_1">Ahmed Benali</option>
+                    <option value="user_2">Sarah Alaoui</option>
+                  </select>
+                </div>
               </>
             )}
           </div>
         </div>
 
         {/* Section 2: Document Principal */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 soft-shadow">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2">2. Document Principal</h2>
+        <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">2. Document Principal</h2>
           
           <div className="mb-2">
-            <label className="text-sm font-semibold text-slate-700 block mb-3">Type de Document</label>
+            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-3">Type de Document</label>
             <div className="flex flex-wrap gap-4">
               {[
                 { id: 100, label: "Facture", color: "blue" },
@@ -216,14 +214,14 @@ export default function CreateDossier() {
               ].map(type => (
                 <label key={type.id} className={`cursor-pointer flex items-center px-4 py-2.5 border rounded-xl transition-all ${
                   formData.type_document === type.id 
-                    ? `border-${type.color}-500 bg-${type.color}-50 ring-2 ring-${type.color}-200` 
-                    : `border-slate-200 bg-white hover:bg-slate-50`
+                    ? `border-${type.color}-500 bg-${type.color}-50 dark:bg-${type.color}-900/20 ring-2 ring-${type.color}-200 dark:ring-${type.color}-900/40` 
+                    : `border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700`
                 }`}>
                   <input type="radio" name="type_doc" className="sr-only" 
                     checked={formData.type_document === type.id} 
                     onChange={() => setFormData({...formData, type_document: type.id})} 
                   />
-                  <span className={`text-sm font-semibold ${formData.type_document === type.id ? `text-${type.color}-700` : 'text-slate-600'}`}>
+                  <span className={`text-sm font-semibold ${formData.type_document === type.id ? `text-${type.color}-700 dark:text-${type.color}-400` : 'text-slate-600 dark:text-slate-400'}`}>
                     {type.label}
                   </span>
                 </label>
@@ -235,26 +233,26 @@ export default function CreateDossier() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">N° Facture / Pièce <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">N° Facture / Pièce <span className="text-red-500">*</span></label>
                   <input type="text" required={!isAvoir} placeholder="Ex: FAC-2026-089" value={formData.numero_facture} onChange={e => setFormData({...formData, numero_facture: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">N° Bon de Commande (BC)</label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">N° Bon de Commande (BC)</label>
                   <input type="text" placeholder="Ex: BC-2026-104" value={formData.numero_bc} onChange={e => setFormData({...formData, numero_bc: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">Date du Document <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Date du Document <span className="text-red-500">*</span></label>
                   <input type="date" required={!isAvoir} value={formData.date_facture} onChange={e => setFormData({...formData, date_facture: e.target.value})}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" />
                 </div>
               </div>
               
               <div className="mt-6 space-y-2">
-                <label className="text-sm font-semibold text-slate-700">Description / Objet</label>
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Description / Objet</label>
                 <textarea rows={2} placeholder="Précisions sur la nature de la dépense..." value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" />
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none" />
               </div>
             </>
           )}
@@ -262,34 +260,34 @@ export default function CreateDossier() {
 
         {/* Section 5: Informations Spécifiques Conditionnelles */}
         {(isFluxCourt || isAvoir) && (
-          <div className="bg-amber-50 rounded-2xl p-8 border border-amber-200 soft-shadow">
-            <h2 className="text-lg font-bold text-amber-900 mb-6 flex items-center gap-2">
+          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-8 border border-amber-200 dark:border-amber-900/30 soft-shadow">
+            <h2 className="text-lg font-bold text-amber-900 dark:text-amber-400 mb-6 flex items-center gap-2">
               <AlertCircle className="w-5 h-5" /> Informations Spécifiques Requises
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {isAvoir && (
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-amber-900">Dossier d'origine (Lié) <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-amber-900 dark:text-amber-300">Dossier d'origine (Lié) <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                       <Search className="w-4 h-4 text-amber-500" />
                     </div>
                     <input type="text" required placeholder="Rechercher par N° Dossier ou N° BC..." value={formData.dossier_lie} onChange={e => setFormData({...formData, dossier_lie: e.target.value})}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-amber-300 bg-white text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none" />
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none" />
                   </div>
-                  <p className="text-xs text-amber-700 mt-1">Saisissez le N° de Dossier ou le Bon de Commande pour lier cet Avoir.</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">Saisissez le N° de Dossier ou le Bon de Commande pour lier cet Avoir.</p>
                 </div>
               )}
               {isFluxCourt && (
                 <div className="space-y-2">
-                  <label className="text-sm font-semibold text-amber-900">Collecteur DCF (Comptabilité) <span className="text-red-500">*</span></label>
+                  <label className="text-sm font-semibold text-amber-900 dark:text-amber-300">Collecteur DCF (Comptabilité) <span className="text-red-500">*</span></label>
                   <select value={formData.collecteur_dcf} onChange={e => setFormData({...formData, collecteur_dcf: e.target.value})} required
-                    className="w-full px-4 py-2.5 rounded-xl border border-amber-300 bg-white text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none">
+                    className="w-full px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none">
                     <option value="">Sélectionner la personne de la DCF...</option>
                     <option value="dcf_1">Karim Idrissi</option>
                     <option value="dcf_2">Nadia Tazi</option>
                   </select>
-                  <p className="text-xs text-amber-700 mt-1">Requis car les flux courts contournent le Prescripteur.</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">Requis car les flux courts contournent le Prescripteur.</p>
                 </div>
               )}
             </div>
@@ -297,29 +295,29 @@ export default function CreateDossier() {
         )}
 
         {/* Section 3: Documents Requis */}
-        <div className="bg-white rounded-2xl p-8 border border-slate-200 soft-shadow">
-          <h2 className="text-lg font-bold text-slate-800 mb-6 border-b border-slate-100 pb-2">
-            3. Documents Requis <span className="text-sm font-normal text-slate-500 ml-2">(Spécifiques au type de document)</span>
+        <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
+            3. Documents Requis <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">(Spécifiques au type de document)</span>
           </h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {requiredDocsPerType[formData.type_document]?.map(docLabel => {
               const isUploaded = !!uploadedDocs[docLabel];
               return (
-                <div key={docLabel} className={`border-2 ${isUploaded ? 'border-emerald-500 bg-emerald-50' : 'border-dashed border-slate-300 hover:border-blue-500 hover:bg-slate-50'} rounded-xl p-5 transition-colors relative group flex flex-col justify-between`}>
+                <div key={docLabel} className={`border-2 ${isUploaded ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10' : 'border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'} rounded-xl p-5 transition-colors relative group flex flex-col justify-between`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isUploaded ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isUploaded ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`}>
                         {isUploaded ? <CheckCircle2 className="w-6 h-6" /> : <UploadCloud className="w-6 h-6" />}
                       </div>
                       <div className="flex-1 min-w-0 pt-1">
-                        <p className={`font-semibold text-[15px] leading-tight mb-1 ${isUploaded ? 'text-emerald-800' : 'text-slate-800'}`}>
+                        <p className={`font-semibold text-[15px] leading-tight mb-1 ${isUploaded ? 'text-emerald-800 dark:text-emerald-300' : 'text-slate-800 dark:text-slate-200'}`}>
                           {docLabel}
                         </p>
                         {isUploaded ? (
-                          <p className="text-sm text-emerald-600 font-medium truncate">{uploadedDocs[docLabel]}</p>
+                          <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium truncate">{uploadedDocs[docLabel]}</p>
                         ) : (
-                          <p className="text-xs text-slate-500">Formats acceptés : PDF, JPG (Max 5MB)</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Formats acceptés : PDF, JPG (Max 5MB)</p>
                         )}
                       </div>
                     </div>
@@ -330,12 +328,12 @@ export default function CreateDossier() {
                           const newDocs = {...uploadedDocs};
                           delete newDocs[docLabel];
                           setUploadedDocs(newDocs);
-                        }} className="text-slate-400 hover:text-red-500 bg-white border border-slate-200 hover:border-red-200 rounded-lg p-2 transition-colors">
+                        }} className="text-slate-400 hover:text-red-500 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-red-200 rounded-lg p-2 transition-colors">
                           <XCircle className="w-5 h-5" />
                         </button>
                       ) : (
                         <div className="relative">
-                          <button type="button" className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-slate-700 hover:text-blue-600 hover:border-blue-300 shadow-sm transition-colors pointer-events-none whitespace-nowrap">
+                          <button type="button" className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm transition-colors pointer-events-none whitespace-nowrap">
                             Parcourir...
                           </button>
                           <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -356,7 +354,7 @@ export default function CreateDossier() {
         </div>
 
         {/* Actions */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xl flex items-center justify-end gap-4 sticky bottom-6 z-10">
+        <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-xl flex items-center justify-end gap-4 sticky bottom-6 z-10">
           {isLate ? (
             <button 
               type="button"
@@ -372,7 +370,7 @@ export default function CreateDossier() {
                 type="button"
                 onClick={(e) => handleSubmit(e, true)}
                 disabled={loading}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
+                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
               >
                 <Save className="w-4 h-4" /> Brouillon
               </button>

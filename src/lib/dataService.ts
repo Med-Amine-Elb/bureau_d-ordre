@@ -106,5 +106,21 @@ export const dataService = {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
     }
     return new Promise((resolve) => setTimeout(resolve, 300));
+  },
+
+  updateDossier: async (id: string, dossier: Partial<Dossier>): Promise<void> => {
+    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+      await (window as any).Xrm.WebApi.updateRecord("new_dossier", id, dossier);
+      return;
+    }
+
+    // Mode Local
+    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
+    const index = data.findIndex(d => d.new_dossierid === id);
+    if (index !== -1) {
+      data[index] = { ...data[index], ...dossier };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    }
+    return new Promise((resolve) => setTimeout(resolve, 300));
   }
 };

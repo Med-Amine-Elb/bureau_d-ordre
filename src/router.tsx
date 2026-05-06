@@ -8,6 +8,7 @@ import DossierDetail from "@/pages/bo/DossierDetail"
 import Relances from "@/pages/bo/Relances"
 import RemiseCheque from "@/pages/bo/RemiseCheque"
 import Blocages from "@/pages/bo/Blocages"
+import Settings from "@/pages/bo/Settings"
 import ErrorPage from "@/pages/ErrorPage"
 
 // Normalize basename when hosted in Power Apps
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: "bo/relances", element: <Relances /> },
       { path: "bo/remises", element: <RemiseCheque /> },
       { path: "bo/blocages", element: <Blocages /> },
+      { path: "bo/settings", element: <Settings /> },
     ],
   },
 ], { 
