@@ -10,11 +10,15 @@ import {
   Truck,
   AlertTriangle,
   Clock,
-  Lock,
   CheckCircle,
   Plus,
   Activity,
+  CheckCircle2,
+  RotateCcw,
+  Send,
+  Link as LinkIcon,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   LineChart,
   Line,
@@ -84,7 +88,7 @@ export default function DashboardBO() {
   );
 
   const allStatuses = [
-    { id: 10, label: "Brouillon", color: "bg-slate-400", hex: "#94a3b8" },
+    { id: 10, label: "Sauvegarder", color: "bg-slate-400", hex: "#94a3b8" },
     { id: 20, label: "En Retard (>5j)", color: "bg-red-500", hex: "#ef4444" },
     {
       id: 30,
@@ -168,19 +172,63 @@ export default function DashboardBO() {
 
   const navigate = useNavigate();
 
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+
+
+  const fetchDossiers = async () => {
+    try {
+      const result = await dataService.getDossiers();
+      setDossiers(result);
+    } catch (err: any) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDossiers = async () => {
-      try {
-        const result = await dataService.getDossiers();
-        setDossiers(result);
-      } catch (err: any) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchDossiers();
   }, []);
+
+  const handleTransmit = async (dossier: Dossier) => {
+    const nextStatus =
+      dossier.new_type_document === 400 || dossier.new_type_document === 500
+        ? 70
+        : 30;
+    try {
+      await dataService.updateDossier(dossier.new_dossierid, {
+        new_statut: nextStatus,
+      });
+      setSuccessMessage(
+        `Le dossier ${dossier.new_numero_dossier} a été transmis vers ${nextStatus === 70 ? "la DCF" : "le Prescripteur"}.`,
+      );
+      setSuccessModalOpen(true);
+      fetchDossiers();
+    } catch (err) {
+      toast.error("Erreur", {
+        description: "Impossible de transmettre le dossier.",
+      });
+    }
+  };
+
+  const handleAccuse = async (dossier: Dossier) => {
+    try {
+      await dataService.accuseReception(
+        dossier.new_dossierid,
+        60,
+        "Med Amine (Dash)",
+      );
+      setSuccessMessage(
+        `Réception accusée pour le dossier ${dossier.new_numero_dossier}. Prêt pour la DCF.`,
+      );
+      setSuccessModalOpen(true);
+      fetchDossiers();
+    } catch (err) {
+      toast.error("Erreur", { description: "Impossible d'accuser réception." });
+    }
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -226,71 +274,319 @@ export default function DashboardBO() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
         <KPICard
           index={0}
           variant="blue"
           title="Dossiers en cours"
           value={enCoursTotal}
-          trend="+12%"
-          positive
+          showTrend={false}
+          onClick={() =>
+            navigate("/bo/dossiers", { state: { filterStatus: "EN_COURS" } })
+          }
           icon={
             <Eye className="w-5 h-5 text-white group-hover:animate-pulse" />
           }
         />
         <KPICard
           index={1}
-          title="Attente BO"
+          title="Chez BO"
           value={enAttenteBO}
-          trend="-2%"
-          positive={false}
+          showTrend={false}
+          onClick={() =>
+            navigate("/bo/dossiers", { state: { filterStatus: 10 } })
+          }
           icon={
             <Clock className="w-5 h-5 text-indigo-500 group-hover:rotate-12 transition-transform duration-300" />
           }
         />
         <KPICard
           index={2}
-          title="En Retard (>5j)"
-          value={enRetard}
-          trend="-5%"
-          positive
-          icon={
-            <AlertTriangle className="w-5 h-5 text-orange-500 group-hover:scale-110 transition-transform duration-300" />
-          }
-        />
-        <KPICard
-          index={3}
-          title="Bloqués"
-          value={bloques}
-          trend="+1%"
-          positive={false}
-          icon={
-            <Lock className="w-5 h-5 text-red-500 group-hover:-rotate-12 transition-transform duration-300" />
-          }
-        />
-        <KPICard
-          index={4}
           title="Chèques Attente"
           value={chequesAttente}
-          trend="0%"
-          positive
+          showTrend={false}
+          onClick={() =>
+            navigate("/bo/dossiers", { state: { filterStatus: "CHEQUES" } })
+          }
           icon={
             <PackageSearch className="w-5 h-5 text-purple-500 group-hover:-translate-y-1 transition-transform duration-300" />
           }
         />
         <KPICard
-          index={5}
+          index={3}
           variant="emerald"
           title="Clôturés"
           value={cloturesAujourdhui}
           trend="+8%"
           positive
+          showTrend={true}
+          onClick={() =>
+            navigate("/bo/dossiers", { state: { filterStatus: 150 } })
+          }
           icon={
             <CheckCircle className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" />
           }
         />
       </div>
 
+      {/* Réceptions en attente (High UX Priority) */}
+      {dossiers.filter(d => d.new_statut === 50).length > 0 && (
+        <div className="mb-8 animate-in fade-in slide-in-from-top-4 duration-700">
+           <div className="flex items-center gap-2 mb-4">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                 Réceptions en attente <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs px-2 py-0.5 rounded-full">{dossiers.filter(d => d.new_statut === 50).length}</span>
+              </h2>
+           </div>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {dossiers.filter(d => d.new_statut === 50).map((d) => (
+                <div key={d.new_dossierid} className="bg-white dark:bg-[#0F172B] border-2 border-emerald-100 dark:border-emerald-900/20 rounded-2xl p-4 soft-shadow flex flex-col justify-between group hover:border-emerald-500 transition-all">
+                   <div className="mb-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-1">Dossier à recevoir</p>
+                          <h3 className="font-bold text-slate-900 dark:text-white text-base truncate max-w-[180px]">{d.new_numero_dossier}</h3>
+                        </div>
+                        <button 
+                          onClick={() => navigate(`/bo/dossiers/${d.new_dossierid}`)}
+                          className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-blue-500 transition-colors"
+                          title="Voir le dossier complet"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 mt-3">
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                          <span className="font-bold">Fournisseur:</span> {d.new_fournisseur_nom}
+                        </div>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
+                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 flex items-center gap-1">
+                              <LinkIcon className="w-3 h-3" /> Documents à vérifier ({d.new_documents_complements?.length || 0})
+                           </p>
+                           <div className="flex flex-wrap gap-1.5">
+                              {d.new_documents_complements && d.new_documents_complements.length > 0 ? (
+                                d.new_documents_complements.slice(0, 3).map(doc => (
+                                  <span key={doc} className="text-[9px] bg-white dark:bg-slate-700 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
+                                    {doc}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[10px] italic text-slate-400">Aucun document attaché</span>
+                              )}
+                              {d.new_documents_complements && d.new_documents_complements.length > 3 && (
+                                <span className="text-[9px] text-blue-500 font-bold">+{d.new_documents_complements.length - 3}</span>
+                              )}
+                           </div>
+                        </div>
+                      </div>
+                   </div>
+
+                   <button 
+                     onClick={async () => {
+                       try {
+                         await dataService.accuseReception(d.new_dossierid, 60, "Med Amine (Dashboard)");
+                         toast.success("Réception validée", {
+                           description: `Le dossier ${d.new_numero_dossier} est maintenant enregistré.`
+                         });
+                         const updated = await dataService.getDossiers();
+                         setDossiers(updated);
+                       } catch (e) {
+                         toast.error("Erreur", { description: "Impossible de valider la réception." });
+                       }
+                     }}
+                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 text-sm font-bold transition-all flex items-center justify-center gap-2 group-hover:scale-[1.02]"
+                   >
+                      <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+                   </button>
+                </div>
+              ))}
+           </div>
+        </div>
+      )}
+
+      {/* Priority Actions: Table & Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Tableau Alertes / Dossiers */}
+        <div className="bg-card dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-700 soft-shadow lg:col-span-2">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-semibold text-slate-800 dark:text-white text-lg flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-orange-500" /> Alertes &
+              Dossiers Récents
+            </h3>
+            <button
+              onClick={() => navigate("/bo/dossiers")}
+              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Voir tout
+            </button>
+          </div>
+
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-slate-800">
+                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  N° Dossier
+                </th>
+                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Type
+                </th>
+                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Fournisseur
+                </th>
+                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Statut
+                </th>
+                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400">
+                    Chargement...
+                  </td>
+                </tr>
+              ) : (
+                dossiers
+                  .filter((d) => d.new_statut !== 150 && d.new_statut !== 20)
+                  .slice(0, 5)
+                  .map((dossier, i) => {
+                    const isEnRetard =
+                      differenceInDays(
+                        new Date(),
+                        parseISO(dossier.new_date_reception),
+                      ) > 5;
+                    const inBoHand =
+                      dossier.new_statut === 10 ||
+                      dossier.new_statut === 90 ||
+                      dossier.new_statut === 20;
+
+                    return (
+                      <tr
+                        key={i}
+                        className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
+                      >
+                        <td className="py-4 text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${dossier.new_statut === 90 ? "bg-orange-500" : dossier.new_statut === 20 ? "bg-red-500" : isEnRetard ? "bg-orange-400" : "bg-slate-800 dark:bg-slate-700"}`}
+                          >
+                            {dossier.new_statut === 90 ? (
+                              <RotateCcw className="w-4 h-4" />
+                            ) : (
+                              <FileText className="w-4 h-4" />
+                            )}
+                          </div>
+                          {dossier.new_numero_dossier}
+                        </td>
+                        <td className="py-4">
+                          {getTypeBadge(dossier.new_type_document)}
+                        </td>
+                        <td className="py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
+                          {dossier.new_fournisseur_nom || "-"}
+                        </td>
+                        <td className="py-4">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                              dossier.new_statut === 90
+                                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                : dossier.new_statut === 20
+                                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                  : isEnRetard
+                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                    : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                            }`}
+                          >
+                            {dossier.new_statut === 90
+                              ? "À corriger"
+                              : dossier.new_statut === 20
+                                ? "Rejeté 5J"
+                                : isEnRetard
+                                  ? "En retard"
+                                  : "En cours"}
+                          </span>
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {dossier.new_statut === 10 && (
+                              <button
+                                onClick={() => handleTransmit(dossier)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                              >
+                                <Send className="w-3.5 h-3.5" /> Transmettre
+                              </button>
+                            )}
+
+                            {dossier.new_statut === 50 && (
+                              <button
+                                onClick={() => handleAccuse(dossier)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/20"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Accuser
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() =>
+                                navigate(`/bo/dossiers/${dossier.new_dossierid}`)
+                              }
+                              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+                              title="Détails"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Timeline Activité */}
+        <div className="bg-card dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6">
+          <h3 className="font-semibold text-slate-800 dark:text-white text-lg mb-6 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-emerald-500" /> Flux Temps Réel
+          </h3>
+          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
+            {timelineEvents.map((evt, i) => (
+              <div key={i} className="relative flex items-start gap-4">
+                <div
+                  className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 ${
+                    i === 0
+                      ? "bg-emerald-50 dark:bg-emerald-900/20"
+                      : "bg-slate-50 dark:bg-slate-800"
+                  }`}
+                >
+                  {i === 0 && (
+                    <div className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-20"></div>
+                  )}
+                  <div
+                    className={`relative w-2 h-2 rounded-full ${i === 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+                  ></div>
+                </div>
+                <div className="ml-10">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                    {evt.action}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                    {evt.dossier}
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    {evt.time}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Analytics & Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Main Chart */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-100 dark:border-slate-800 soft-shadow flex flex-col">
@@ -532,164 +828,29 @@ export default function DashboardBO() {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Tableau Alertes / Dossiers */}
-        <div className="bg-card dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-700 soft-shadow lg:col-span-2">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-semibold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-500" /> Alertes &
-              Dossiers Récents
-            </h3>
-            <button
-              onClick={() => navigate("/bo/dossiers")}
-              className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-            >
-              Voir tout
-            </button>
-          </div>
-
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800">
-                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  N° Dossier
-                </th>
-                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Fournisseur
-                </th>
-                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="pb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400">
-                    Chargement...
-                  </td>
-                </tr>
-              ) : (
-                dossiers
-                  .filter((d) => d.new_statut !== 150 && d.new_statut !== 20)
-                  .slice(0, 5)
-                  .map((dossier, i) => {
-                    const isEnRetard =
-                      differenceInDays(
-                        new Date(),
-                        parseISO(dossier.new_date_reception),
-                      ) > 5;
-                    const inBoHand =
-                      dossier.new_statut === 10 ||
-                      dossier.new_est_bloque ||
-                      dossier.new_statut === 20;
-
-                    return (
-                      <tr
-                        key={i}
-                        className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
-                      >
-                        <td className="py-4 text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-3">
-                          <div
-                            className={`w-8 h-8 rounded-lg flex items-center justify-center text-white ${dossier.new_est_bloque || dossier.new_statut === 20 ? "bg-red-500" : isEnRetard ? "bg-orange-500" : "bg-slate-800 dark:bg-slate-700"}`}
-                          >
-                            {dossier.new_est_bloque ? (
-                              <Lock className="w-4 h-4" />
-                            ) : (
-                              <FileText className="w-4 h-4" />
-                            )}
-                          </div>
-                          {dossier.new_numero_dossier}
-                        </td>
-                        <td className="py-4">
-                          {getTypeBadge(dossier.new_type_document)}
-                        </td>
-                        <td className="py-4 text-sm font-medium text-slate-600 dark:text-slate-400">
-                          {dossier.new_fournisseur_nom || "-"}
-                        </td>
-                        <td className="py-4">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                              dossier.new_est_bloque ||
-                              dossier.new_statut === 20
-                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                : isEnRetard
-                                  ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                            }`}
-                          >
-                            {dossier.new_statut === 20
-                              ? "Rejeté 5J"
-                              : dossier.new_est_bloque
-                                ? "Bloqué"
-                                : isEnRetard
-                                  ? "En retard"
-                                  : "En cours"}
-                          </span>
-                        </td>
-                        <td className="py-4 text-right">
-                          <button
-                            onClick={() =>
-                              navigate(`/bo/dossiers/${dossier.new_dossierid}`)
-                            }
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm"
-                          >
-                            {inBoHand ? "Traiter" : "Consulter"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Timeline Activité */}
-        <div className="bg-card dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6">
-          <h3 className="font-semibold text-slate-800 dark:white text-lg mb-6 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-500" /> Flux Temps Réel
-          </h3>
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
-            {timelineEvents.map((evt, i) => (
-              <div key={i} className="relative flex items-start gap-4">
-                <div
-                  className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 ${
-                    i === 0
-                      ? "bg-emerald-50 dark:bg-emerald-900/20"
-                      : "bg-slate-50 dark:bg-slate-800"
-                  }`}
-                >
-                  {i === 0 && (
-                    <div className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-20"></div>
-                  )}
-                  <div
-                    className={`relative w-2 h-2 rounded-full ${i === 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
-                  ></div>
-                </div>
-                <div className="ml-10">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {evt.action}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    {evt.dossier}
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                    {evt.time}
-                  </p>
-                </div>
+      {successModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
+                <CheckCircle className="w-12 h-12 text-emerald-500" />
               </div>
-            ))}
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                Action Réussie
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                {successMessage}
+              </p>
+              <button
+                onClick={() => setSuccessModalOpen(false)}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                Continuer
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -729,6 +890,8 @@ function KPICard({
   icon,
   index = 0,
   variant = "default",
+  showTrend = true,
+  onClick,
 }: any) {
   const isBlue = variant === "blue";
   const isEmerald = variant === "emerald";
@@ -768,7 +931,8 @@ function KPICard({
 
   return (
     <div
-      className={`${bgClass} rounded-2xl p-5 relative overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 animate-in fade-in slide-in-from-bottom-6`}
+      onClick={onClick}
+      className={`${bgClass} rounded-2xl p-5 relative overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 animate-in fade-in slide-in-from-bottom-6 cursor-pointer`}
       style={{
         animationFillMode: "both",
         animationDelay: `${index * 100}ms`,
@@ -785,22 +949,26 @@ function KPICard({
         <span className={`${valueClass} text-3xl font-bold tracking-tight`}>
           {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
         </span>
-        <span
-          className={`flex items-center text-xs font-bold mb-1 px-1.5 py-0.5 rounded-md ${trendBgClass}`}
-        >
-          {positive ? (
-            <ArrowUpRight className="w-3 h-3 mr-0.5" />
-          ) : (
-            <ArrowDownRight className="w-3 h-3 mr-0.5" />
-          )}
-          {trend}
-        </span>
+        {showTrend && (
+          <span
+            className={`flex items-center text-xs font-bold mb-1 px-1.5 py-0.5 rounded-md ${trendBgClass}`}
+          >
+            {positive ? (
+              <ArrowUpRight className="w-3 h-3 mr-0.5" />
+            ) : (
+              <ArrowDownRight className="w-3 h-3 mr-0.5" />
+            )}
+            {trend}
+          </span>
+        )}
       </div>
-      <p
-        className={`text-[10px] font-medium mt-2 uppercase tracking-wider ${footerClass}`}
-      >
-        vs. mois dernier
-      </p>
+      {showTrend && (
+        <p
+          className={`text-[10px] font-medium mt-2 uppercase tracking-wider ${footerClass}`}
+        >
+          vs. mois dernier
+        </p>
+      )}
     </div>
   );
 }

@@ -7,9 +7,15 @@ import DossiersList from "@/pages/bo/DossiersList"
 import DossierDetail from "@/pages/bo/DossierDetail"
 import Relances from "@/pages/bo/Relances"
 import RemiseCheque from "@/pages/bo/RemiseCheque"
-import Blocages from "@/pages/bo/Blocages"
+import Corrections from "@/pages/bo/Corrections"
 import Settings from "@/pages/bo/Settings"
 import ErrorPage from "@/pages/ErrorPage"
+
+// Prescripteur Pages
+import DashboardPrescripteur from "@/pages/prescripteur/Dashboard"
+import DossiersListPrescripteur from "@/pages/prescripteur/DossiersList"
+import DossierDetailPrescripteur from "@/pages/prescripteur/DossierDetail"
+import CorrectionsPrescripteur from "@/pages/prescripteur/Corrections"
 
 // Normalize basename when hosted in Power Apps
 // We want to find the root directory regardless of current sub-path
@@ -40,8 +46,14 @@ export const router = createBrowserRouter([
       { path: "bo/dossiers/:id", element: <DossierDetail /> },
       { path: "bo/relances", element: <Relances /> },
       { path: "bo/remises", element: <RemiseCheque /> },
-      { path: "bo/blocages", element: <Blocages /> },
+      { path: "bo/corrections", element: <Corrections /> },
       { path: "bo/settings", element: <Settings /> },
+      
+      // Prescripteur Routes
+      { path: "prescripteur/dashboard", element: <DashboardPrescripteur /> },
+      { path: "prescripteur/dossiers", element: <DossiersListPrescripteur /> },
+      { path: "prescripteur/dossiers/:id", element: <DossierDetailPrescripteur /> },
+      { path: "prescripteur/corrections", element: <CorrectionsPrescripteur /> },
     ],
   },
 ], { 

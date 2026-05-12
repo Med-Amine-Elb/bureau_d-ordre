@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import {
@@ -11,19 +11,32 @@ import {
   FileText,
   AlertTriangle,
   Pencil,
+  Send,
+  CheckCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DossiersList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(
+    !!location.state?.filterStatus,
+  );
   const [filterType, setFilterType] = useState<number | "ALL">("ALL");
-  const [filterStatus, setFilterStatus] = useState<number | "ALL">("ALL");
+  const [filterStatus, setFilterStatus] = useState<number | string | "ALL">(
+    location.state?.filterStatus || "ALL",
+  );
   const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
   const [filterDate, setFilterDate] = useState<string>("");
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+
 
   useEffect(() => {
     const fetchDossiers = async () => {
@@ -38,6 +51,47 @@ export default function DossiersList() {
     };
     fetchDossiers();
   }, []);
+
+  const handleTransmit = async (dossier: Dossier) => {
+    const nextStatus =
+      dossier.new_type_document === 400 || dossier.new_type_document === 500
+        ? 70
+        : 30;
+
+    try {
+      await dataService.updateDossier(dossier.new_dossierid, {
+        new_statut: nextStatus,
+      });
+      setSuccessMessage(
+        `Le dossier ${dossier.new_numero_dossier} a été transmis avec succès vers ${nextStatus === 70 ? "la DCF" : "le Prescripteur"}.`,
+      );
+      setSuccessModalOpen(true);
+      const updated = await dataService.getDossiers();
+      setDossiers(updated);
+    } catch (err) {
+      toast.error("Erreur", {
+        description: "Impossible de transmettre le dossier.",
+      });
+    }
+  };
+
+  const handleAccuse = async (dossier: Dossier) => {
+    try {
+      await dataService.accuseReception(
+        dossier.new_dossierid,
+        60,
+        "Med Amine (Liste)",
+      );
+      setSuccessMessage(
+        `Réception accusée pour le dossier ${dossier.new_numero_dossier}. Il est maintenant prêt pour la DCF.`,
+      );
+      setSuccessModalOpen(true);
+      const updated = await dataService.getDossiers();
+      setDossiers(updated);
+    } catch (err) {
+      toast.error("Erreur", { description: "Impossible d'accuser réception." });
+    }
+  };
 
   const getTypeBadge = (type: number) => {
     switch (type) {
@@ -85,7 +139,7 @@ export default function DossiersList() {
       case 10:
         return (
           <span className="flex items-center gap-1.5 text-slate-600">
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Brouillon
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Sauvegarder
           </span>
         );
       case 20:
@@ -208,8 +262,16 @@ export default function DossiersList() {
       d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase());
     const matchesType =
       filterType === "ALL" || d.new_type_document === filterType;
-    const matchesStatus =
-      filterStatus === "ALL" || d.new_statut === filterStatus;
+
+    let matchesStatus = filterStatus === "ALL";
+    if (filterStatus === "EN_COURS") {
+      matchesStatus = d.new_statut !== 150 && d.new_statut !== 20;
+    } else if (filterStatus === "CHEQUES") {
+      matchesStatus = d.new_statut > 70 && d.new_statut < 150;
+    } else if (filterStatus !== "ALL") {
+      matchesStatus = d.new_statut === Number(filterStatus);
+    }
+
     const matchesFournisseur =
       filterFournisseur === "ALL" ||
       d.new_fournisseur_nom === filterFournisseur;
@@ -310,14 +372,11 @@ export default function DossiersList() {
             <select
               className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
               value={filterStatus}
-              onChange={(e) =>
-                setFilterStatus(
-                  e.target.value === "ALL" ? "ALL" : Number(e.target.value),
-                )
-              }
+              onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="ALL">Tous les statuts</option>
-              <option value="10">Brouillon</option>
+              <option value="EN_COURS">Dossiers en cours</option>
+              <option value="10">Sauvegarder</option>
               <option value="20">Rejeté 5 Jours</option>
               <option value="30">Transit Prescripteur</option>
               <option value="40">Chez Prescripteur</option>
@@ -325,6 +384,7 @@ export default function DossiersList() {
               <option value="60">Rejeté Prescripteur</option>
               <option value="70">Transit DCF</option>
               <option value="80">Chez DCF</option>
+              <option value="CHEQUES">Chèques en attente</option>
               <option value="150">Payé</option>
             </select>
           </div>
@@ -450,7 +510,7 @@ export default function DossiersList() {
                     <div className="flex flex-col items-start gap-1">
                       {getTypeBadge(dossier.new_type_document)}
                       <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase ml-2.5">
-                        {dossier.new_numero_facture || 'N/A'}
+                        {dossier.new_numero_facture || "N/A"}
                       </span>
                     </div>
                   </td>
@@ -460,10 +520,14 @@ export default function DossiersList() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                     <div className="flex flex-col">
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{dossier.new_societe_gbm || 'GBM'}</span>
-                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">{dossier.new_direction || 'N/A'}</span>
-                     </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        {dossier.new_societe_gbm || "GBM"}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+                        {dossier.new_direction || "N/A"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-slate-600 dark:text-slate-400 font-medium italic">
@@ -472,42 +536,108 @@ export default function DossiersList() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col text-[11px]">
-                      <span className="text-slate-400 dark:text-slate-500">Doc: {dossier.new_date_facture ? new Date(dossier.new_date_facture).toLocaleDateString('fr-FR') : 'N/A'}</span>
-                      <span className="text-slate-600 dark:text-slate-300 font-semibold">Réc: {new Date(dossier.new_date_reception).toLocaleDateString('fr-FR')}</span>
+                      <span className="text-slate-400 dark:text-slate-500">
+                        Doc:{" "}
+                        {dossier.new_date_facture
+                          ? new Date(
+                              dossier.new_date_facture,
+                            ).toLocaleDateString("fr-FR")
+                          : "N/A"}
+                      </span>
+                      <span className="text-slate-600 dark:text-slate-300 font-semibold">
+                        Réc:{" "}
+                        {new Date(
+                          dossier.new_date_reception,
+                        ).toLocaleDateString("fr-FR")}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {getStatusBadge(dossier.new_statut)}
                   </td>
                   <td className="px-6 py-4 text-right whitespace-nowrap">
-                    {dossier.new_statut === 10 && (
-                      <button
-                        onClick={() => {
-                          toast.info("Mode modification", {
-                            description: "Redirection vers le formulaire d'édition...",
-                          });
-                          navigate("/bo/dossiers/nouveau", {
-                            state: { editDossier: dossier },
-                          });
-                        }}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors mr-1"
-                        title="Modifier le brouillon"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() =>
-                        navigate(`/bo/dossiers/${dossier.new_dossierid}`)
-                      }
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      title="Consulter"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-1">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Bouton Transmettre: Visible uniquement si le dossier est Chez BO (Sauvegarder) */}
+                      {dossier.new_statut === 10 && (
+                        <button
+                          onClick={() => handleTransmit(dossier)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                        >
+                          <Send className="w-3.5 h-3.5" /> Transmettre
+                        </button>
+                      )}
+
+                      {/* Bouton Accuser Réception: Visible uniquement si le dossier est en Transit BO (Statut 50) */}
+                      {dossier.new_statut === 50 && (
+                        <button
+                          onClick={() => handleAccuse(dossier)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/20"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Accuser
+                          Réception
+                        </button>
+                      )}
+
+                      {/* Menu contextuel (3 points) */}
+                      <div className="relative">
+                        <button
+                          onClick={() =>
+                            setActiveDropdown(
+                              activeDropdown === dossier.new_dossierid
+                                ? null
+                                : dossier.new_dossierid,
+                            )
+                          }
+                          className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
+                            activeDropdown === dossier.new_dossierid
+                              ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white"
+                              : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                          }`}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </button>
+
+                        {activeDropdown === dossier.new_dossierid && (
+                          <>
+                            {/* Overlay invisible pour fermer au clic extérieur */}
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setActiveDropdown(null)}
+                            ></div>
+                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden py-1.5 animate-in zoom-in-95 duration-100">
+                              <button
+                                onClick={() => {
+                                  navigate(
+                                    `/bo/dossiers/${dossier.new_dossierid}`,
+                                  );
+                                  setActiveDropdown(null);
+                                }}
+                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                              >
+                                <Eye className="w-4 h-4 text-blue-500" /> Aperçu
+                                / Consulter
+                              </button>
+
+                              {/* Modifier uniquement si non encore transmis (Statut 10) */}
+                              {dossier.new_statut === 10 && (
+                                <button
+                                  onClick={() => {
+                                    navigate("/bo/dossiers/nouveau", {
+                                      state: { editDossier: dossier },
+                                    });
+                                    setActiveDropdown(null);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-t border-slate-50 dark:border-slate-800"
+                                >
+                                  <Pencil className="w-4 h-4 text-amber-500" />{" "}
+                                  Modifier le dossier
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -540,6 +670,29 @@ export default function DossiersList() {
           </div>
         </div>
       </div>
+      {successModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
+                <CheckCircle className="w-12 h-12 text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                Action Réussie
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+                {successMessage}
+              </p>
+              <button
+                onClick={() => setSuccessModalOpen(false)}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                Continuer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

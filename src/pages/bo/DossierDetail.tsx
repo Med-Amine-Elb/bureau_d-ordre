@@ -32,7 +32,7 @@ export default function DossierDetail() {
 
   const getStatusDisplay = (status: number) => {
     switch(status) {
-      case 10: return { label: "Brouillon", color: "slate" };
+      case 10: return { label: "Sauvegarder", color: "slate" };
       case 20: return { label: "En Retard (>5j)", color: "red" };
       case 30: return { label: "En Transit (Prescr.)", color: "blue" };
       case 40: return { label: "Chez Prescripteur", color: "indigo" };
@@ -90,6 +90,40 @@ export default function DossierDetail() {
 
         {/* Quick Actions based on status */}
         <div className="flex flex-wrap gap-3">
+          {/* Action: Accuser Réception (Traceability) */}
+          {[30, 50, 70, 100, 130].includes(dossier.new_statut) && (
+            <button 
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const mapping: Record<number, { next: number, role: string }> = {
+                    30: { next: 40, role: "Prescripteur" },
+                    50: { next: 60, role: "Bureau d'Ordre" },
+                    70: { next: 80, role: "DCF" },
+                    100: { next: 110, role: "Trésorerie" },
+                    130: { next: 140, role: "Agence" }
+                  };
+                  const { next, role } = mapping[dossier.new_statut];
+                  await dataService.accuseReception(dossier.new_dossierid, next, "Med Amine (Simulation)");
+                  toast.success("Réception accusée", {
+                    description: `Le dossier est maintenant marqué comme reçu par le ${role}.`
+                  });
+                  // Refresh data
+                  const updated = await dataService.getDossiers();
+                  const found = updated.find(d => d.new_dossierid === dossier.new_dossierid);
+                  if (found) setDossier(found);
+                } catch (e) {
+                  toast.error("Erreur", { description: "Impossible d'accuser la réception." });
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+            </button>
+          )}
+
           {dossier.new_statut === 10 && (
             <button onClick={handleTransmit} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
               <Send className="w-4 h-4" /> Transmettre à Prescripteur
@@ -167,7 +201,7 @@ export default function DossierDetail() {
              <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
                
                {[
-                 { id: 10, label: "Brouillon", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                 { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
                  { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_direction || ''}.`, icon: "send" },
                  { id: 40, label: "Chez Prescripteur", desc: dossier.new_prescripteur ? `Le dossier est chez ${dossier.new_prescripteur} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
                  { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },

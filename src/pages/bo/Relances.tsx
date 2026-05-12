@@ -26,8 +26,8 @@ export default function Relances() {
     fetchDossiers();
   }, []);
 
-  // Fournisseurs: Dossiers en "Transit Prescripteur" ou bloqués, on simplifie pour la démo
-  const fournisseursDossiers = dossiers.filter(d => d.new_statut === 10 || d.new_statut === 20 || d.new_est_bloque);
+  // Fournisseurs: Dossiers en "Brouillon" ou bloqués manuellement (on exclut les rejets 5j de la relance directe)
+  const fournisseursDossiers = dossiers.filter(d => d.new_statut === 10 || d.new_est_bloque);
   
   // Prescripteurs: Dossiers "Chez Prescripteur" (Statut 40)
   const prescripteursDossiers = dossiers.filter(d => d.new_statut === 40);
