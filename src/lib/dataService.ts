@@ -62,6 +62,13 @@ export interface Dossier {
   new_date_trans_dcf?: string;
   new_date_accuse_dcf?: string;
   new_date_val_dcf?: string;
+
+  // Real schema optional mapping fields
+  new_sharepoint_url?: string;
+  new_cancellation_reason?: string;
+  new_advance_phase?: number;
+  new_last_alert_date?: string;
+  new_linked_folder_id?: string;
 }
 
 export interface SystemUser {
@@ -624,7 +631,17 @@ const mapCrmEntityToDossier = (entity: any): Dossier => {
     new_date_accuse_dcf: entity.new_date_accuse_dcf || undefined,
     new_date_val_dcf: entity.new_date_val_dcf || undefined,
     new_cheque_recu_bo: entity.new_cheque_received_bo || false,
-    new_commentaire_reception: entity.new_reception_comment || undefined
+    new_commentaire_reception: entity.new_reception_comment || undefined,
+    new_est_comptabilise: !!entity.new_accountingdate,
+    new_collecteur_treso: entity._new_treasury_collector_id_value || undefined,
+    new_commentaire_treso: entity.new_treasury_comment || undefined,
+    new_motif_retour: entity.new_return_reason || undefined,
+    new_personne_a_livrer: entity.new_person_to_deliver || undefined,
+    new_sharepoint_url: entity.new_sharepointurl || undefined,
+    new_cancellation_reason: entity.new_cancellationstatus || undefined,
+    new_advance_phase: entity.new_advancephase || undefined,
+    new_last_alert_date: entity.new_lastalertdate || undefined,
+    new_linked_folder_id: entity._new_linkedfolder_value || undefined
   };
 };
 
@@ -664,6 +681,17 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   if (d.new_commentaire_reception !== undefined) entity.new_reception_comment = d.new_commentaire_reception;
   if (d.new_date_accuse !== undefined) entity.new_acknowledgment_date = d.new_date_accuse;
 
+  if (d.new_est_comptabilise !== undefined) {
+    entity.new_accountingdate = d.new_est_comptabilise ? new Date().toISOString() : null;
+  }
+  if (d.new_commentaire_treso !== undefined) entity.new_treasury_comment = d.new_commentaire_treso;
+  if (d.new_motif_retour !== undefined) entity.new_return_reason = d.new_motif_retour;
+  if (d.new_personne_a_livrer !== undefined) entity.new_person_to_deliver = d.new_personne_a_livrer;
+  if (d.new_sharepoint_url !== undefined) entity.new_sharepointurl = d.new_sharepoint_url;
+  if (d.new_cancellation_reason !== undefined) entity.new_cancellationstatus = d.new_cancellation_reason;
+  if (d.new_advance_phase !== undefined) entity.new_advancephase = d.new_advance_phase;
+  if (d.new_last_alert_date !== undefined) entity.new_lastalertdate = d.new_last_alert_date;
+
   // Bind Lookups
   if (d.new_supplier_id) {
     entity["new_supplier_id@odata.bind"] = `/new_suppliers(${d.new_supplier_id})`;
@@ -685,6 +713,12 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   }
   if (d.new_accuse_par) {
     entity["new_acknowledged_by_id@odata.bind"] = `/systemusers(${d.new_accuse_par})`;
+  }
+  if (d.new_linked_folder_id) {
+    entity["new_linkedfolder@odata.bind"] = `/new_folders(${d.new_linked_folder_id})`;
+  }
+  if (d.new_collecteur_treso) {
+    entity["new_treasury_collector_id@odata.bind"] = `/systemusers(${d.new_collecteur_treso})`;
   }
 
   return entity;
@@ -725,13 +759,22 @@ export const dataService = {
         "new_date_accuse_dcf",
         "new_date_val_dcf",
         "new_acknowledgment_date",
+        "new_person_to_deliver",
+        "new_return_reason",
+        "new_sharepointurl",
+        "new_cancellationstatus",
+        "new_advancephase",
+        "new_lastalertdate",
+        "new_treasury_comment",
         "_new_supplier_id_value",
         "_new_company_value",
         "_new_department_value",
         "_new_prescripteur_value",
         "_new_dcfcollector_value",
         "_new_destinationbranch_value",
-        "_new_acknowledged_by_id_value"
+        "_new_acknowledged_by_id_value",
+        "_new_linkedfolder_value",
+        "_new_treasury_collector_id_value"
       ].join(",");
 
       const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_folder", `?$select=${selectFields}`);
