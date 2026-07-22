@@ -585,12 +585,157 @@ const enrichDossierWithTrackingDates = (d: Dossier): Dossier => {
   return d;
 };
 
+const mapCrmEntityToDossier = (entity: any): Dossier => {
+  return {
+    new_folderid: entity.new_folderid,
+    new_folder_number: entity.new_folder_number,
+    new_document_type: entity.new_documenttype || 100,
+    new_status: entity.new_status || 10,
+    new_supplier_id: entity._new_supplier_id_value || undefined,
+    new_company_id: entity._new_company_value || undefined,
+    new_department_id: entity._new_department_value || undefined,
+    new_prescriber_id: entity._new_prescripteur_value || undefined,
+    new_dcf_collector_id: entity._new_dcfcollector_value || undefined,
+    new_destination_branch_id: entity._new_destinationbranch_value || undefined,
+    new_invoice_number: entity.new_invoicenumber || undefined,
+    new_po_number: entity.new_bcnumber || undefined,
+    new_invoice_date: entity.new_invoicedate || undefined,
+    new_description: entity.new_description || undefined,
+    new_reception_date: entity.new_receptiondate || new Date().toISOString(),
+    new_is_blocked: entity.new_isblocked || false,
+    new_documents_complements: entity.new_documents_complements ? (typeof entity.new_documents_complements === 'string' ? JSON.parse(entity.new_documents_complements) : entity.new_documents_complements) : [],
+    new_accuse_par: entity._new_acknowledged_by_id_value || undefined,
+    new_date_accuse: entity.new_acknowledgment_date || undefined,
+    new_payment_method: entity.new_paymentmethod || undefined,
+    new_cheque_number: entity.new_chequenumber || undefined,
+    new_wire_reference: entity.new_wirereference || undefined,
+    new_cheque_preparation_date: entity.new_chequepreparationdate || undefined,
+    new_final_delivery_date: entity.new_finaldeliverydate || undefined,
+    new_reception_date_agence: entity.new_delivery_date || undefined,
+    new_livreur_nom: entity.new_delivery_person || undefined,
+    new_recu_signe_scan: entity.new_signed_receipt_url || undefined,
+    new_fournisseur_signe: entity.new_supplier_signed || false,
+    new_commentaire_agence: entity.new_branch_comment || undefined,
+    new_date_trans_prescripteur: entity.new_date_trans_prescriber || undefined,
+    new_date_accuse_prescripteur: entity.new_date_accuse_prescriber || undefined,
+    new_date_val_prescripteur: entity.new_date_val_prescriber || undefined,
+    new_date_retour_bo: entity.new_date_retour_bo || undefined,
+    new_date_trans_dcf: entity.new_date_trans_dcf || undefined,
+    new_date_accuse_dcf: entity.new_date_accuse_dcf || undefined,
+    new_date_val_dcf: entity.new_date_val_dcf || undefined,
+    new_cheque_recu_bo: entity.new_cheque_received_bo || false,
+    new_commentaire_reception: entity.new_reception_comment || undefined
+  };
+};
+
+const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
+  const entity: any = {};
+  
+  if (d.new_folder_number !== undefined) entity.new_folder_number = d.new_folder_number;
+  if (d.new_document_type !== undefined) entity.new_documenttype = d.new_document_type;
+  if (d.new_status !== undefined) entity.new_status = d.new_status;
+  if (d.new_invoice_number !== undefined) entity.new_invoicenumber = d.new_invoice_number;
+  if (d.new_po_number !== undefined) entity.new_bcnumber = d.new_po_number;
+  if (d.new_invoice_date !== undefined) entity.new_invoicedate = d.new_invoice_date;
+  if (d.new_description !== undefined) entity.new_description = d.new_description;
+  if (d.new_reception_date !== undefined) entity.new_receptiondate = d.new_reception_date;
+  if (d.new_is_blocked !== undefined) entity.new_isblocked = d.new_is_blocked;
+  if (d.new_payment_method !== undefined) entity.new_paymentmethod = d.new_payment_method;
+  if (d.new_cheque_number !== undefined) entity.new_chequenumber = d.new_cheque_number;
+  if (d.new_wire_reference !== undefined) entity.new_wirereference = d.new_wire_reference;
+  if (d.new_cheque_preparation_date !== undefined) entity.new_chequepreparationdate = d.new_cheque_preparation_date;
+  if (d.new_final_delivery_date !== undefined) entity.new_finaldeliverydate = d.new_final_delivery_date;
+  
+  if (d.new_reception_date_agence !== undefined) entity.new_delivery_date = d.new_reception_date_agence;
+  if (d.new_livreur_nom !== undefined) entity.new_delivery_person = d.new_livreur_nom;
+  if (d.new_recu_signe_scan !== undefined) entity.new_signed_receipt_url = d.new_recu_signe_scan;
+  if (d.new_fournisseur_signe !== undefined) entity.new_supplier_signed = d.new_fournisseur_signe;
+  if (d.new_commentaire_agence !== undefined) entity.new_branch_comment = d.new_commentaire_agence;
+
+  if (d.new_date_trans_prescripteur !== undefined) entity.new_date_trans_prescriber = d.new_date_trans_prescripteur;
+  if (d.new_date_accuse_prescripteur !== undefined) entity.new_date_accuse_prescriber = d.new_date_accuse_prescripteur;
+  if (d.new_date_val_prescripteur !== undefined) entity.new_date_val_prescriber = d.new_date_val_prescripteur;
+  if (d.new_date_retour_bo !== undefined) entity.new_date_retour_bo = d.new_date_retour_bo;
+  if (d.new_date_trans_dcf !== undefined) entity.new_date_trans_dcf = d.new_date_trans_dcf;
+  if (d.new_date_accuse_dcf !== undefined) entity.new_date_accuse_dcf = d.new_date_accuse_dcf;
+  if (d.new_date_val_dcf !== undefined) entity.new_date_val_dcf = d.new_date_val_dcf;
+  
+  if (d.new_cheque_recu_bo !== undefined) entity.new_cheque_received_bo = d.new_cheque_recu_bo;
+  if (d.new_commentaire_reception !== undefined) entity.new_reception_comment = d.new_commentaire_reception;
+  if (d.new_date_accuse !== undefined) entity.new_acknowledgment_date = d.new_date_accuse;
+
+  // Bind Lookups
+  if (d.new_supplier_id) {
+    entity["new_supplier_id@odata.bind"] = `/new_suppliers(${d.new_supplier_id})`;
+  }
+  if (d.new_company_id) {
+    entity["new_company@odata.bind"] = `/new_companies(${d.new_company_id})`;
+  }
+  if (d.new_department_id) {
+    entity["new_department@odata.bind"] = `/new_departements(${d.new_department_id})`;
+  }
+  if (d.new_prescriber_id) {
+    entity["new_prescripteur@odata.bind"] = `/systemusers(${d.new_prescriber_id})`;
+  }
+  if (d.new_dcf_collector_id) {
+    entity["new_dcfcollector@odata.bind"] = `/systemusers(${d.new_dcf_collector_id})`;
+  }
+  if (d.new_destination_branch_id) {
+    entity["new_destinationbranch@odata.bind"] = `/new_branches(${d.new_destination_branch_id})`;
+  }
+  if (d.new_accuse_par) {
+    entity["new_acknowledged_by_id@odata.bind"] = `/systemusers(${d.new_accuse_par})`;
+  }
+
+  return entity;
+};
+
 export const dataService = {
   getDossiers: async (): Promise<Dossier[]> => {
     // Mode Power Apps
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_dossier", "?$select=new_folder_number,new_status,new_document_type,new_reception_date,new_supplier_id,new_company_id,new_department_id,new_prescriber_id,new_invoice_number,new_po_number,new_invoice_date,new_description,new_dcf_collector_id,new_documents_complements,new_destination_branch_id,new_accuse_par,new_date_accuse");
-      return result.entities;
+      const selectFields = [
+        "new_folder_number",
+        "new_status",
+        "new_documenttype",
+        "new_receptiondate",
+        "new_invoicenumber",
+        "new_bcnumber",
+        "new_invoicedate",
+        "new_description",
+        "new_isblocked",
+        "new_accountingdate",
+        "new_paymentmethod",
+        "new_chequenumber",
+        "new_wirereference",
+        "new_chequepreparationdate",
+        "new_finaldeliverydate",
+        "new_cheque_received_bo",
+        "new_reception_comment",
+        "new_delivery_date",
+        "new_delivery_person",
+        "new_signed_receipt_url",
+        "new_supplier_signed",
+        "new_branch_comment",
+        "new_date_trans_prescriber",
+        "new_date_accuse_prescriber",
+        "new_date_val_prescriber",
+        "new_date_retour_bo",
+        "new_date_trans_dcf",
+        "new_date_accuse_dcf",
+        "new_date_val_dcf",
+        "new_acknowledgment_date",
+        "_new_supplier_id_value",
+        "_new_company_value",
+        "_new_department_value",
+        "_new_prescripteur_value",
+        "_new_dcfcollector_value",
+        "_new_destinationbranch_value",
+        "_new_acknowledged_by_id_value"
+      ].join(",");
+
+      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_folder", `?$select=${selectFields}`);
+      return result.entities.map(mapCrmEntityToDossier);
     }
     
     // Mode Local
@@ -602,7 +747,8 @@ export const dataService = {
 
   createDossier: async (dossier: Partial<Dossier>): Promise<string> => {
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const result = await (window as any).Xrm.WebApi.createRecord("new_dossier", dossier);
+      const crmEntity = mapDossierToCrmEntity(dossier);
+      const result = await (window as any).Xrm.WebApi.createRecord("new_folder", crmEntity);
       return result.id;
     }
 
@@ -624,7 +770,6 @@ export const dataService = {
       new_po_number: dossier.new_po_number,
       new_invoice_date: dossier.new_invoice_date,
       new_description: dossier.new_description,
-      new_documents_complements: dossier.new_documents_complements,
       new_reception_date: dossier.new_reception_date || new Date().toISOString(),
       new_is_blocked: false,
       new_livreur_nom: dossier.new_livreur_nom,
@@ -640,7 +785,7 @@ export const dataService = {
 
   updateDossierStatut: async (id: string, status: number): Promise<void> => {
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      await (window as any).Xrm.WebApi.updateRecord("new_dossier", id, { new_status: status });
+      await (window as any).Xrm.WebApi.updateRecord("new_folder", id, { new_status: status });
       return;
     }
 
@@ -656,7 +801,8 @@ export const dataService = {
 
   updateDossier: async (id: string, dossier: Partial<Dossier>): Promise<void> => {
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      await (window as any).Xrm.WebApi.updateRecord("new_dossier", id, dossier);
+      const crmEntity = mapDossierToCrmEntity(dossier);
+      await (window as any).Xrm.WebApi.updateRecord("new_folder", id, crmEntity);
       return;
     }
 
@@ -690,13 +836,22 @@ export const dataService = {
 
   accuseReception: async (id: string, nextStatus: number, user: string): Promise<void> => {
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const updateData: any = { 
-        new_status: nextStatus,
-        new_accuse_par: user,
-        new_date_accuse: new Date().toISOString()
-      };
-      await (window as any).Xrm.WebApi.updateRecord("new_dossier", id, updateData);
-      return;
+      try {
+        const context = (window as any).Xrm.Utility.getGlobalContext();
+        const userId = context.userSettings.userId.replace(/[{}]/g, "");
+        const nowStr = new Date().toISOString();
+        
+        const updateData: any = { 
+          new_status: nextStatus,
+          new_acknowledgment_date: nowStr
+        };
+        updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
+        
+        await (window as any).Xrm.WebApi.updateRecord("new_folder", id, updateData);
+        return;
+      } catch (err) {
+        console.error("Failed to acknowledge receipt in CRM", err);
+      }
     }
 
     // Mode Local
@@ -721,6 +876,20 @@ export const dataService = {
 
   // User Management
   getUsers: async (): Promise<SystemUser[]> => {
+    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+      try {
+        const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("systemuser", "?$select=systemuserid,fullname,internalemailaddress");
+        return result.entities.map((e: any) => ({
+          systemuserid: e.systemuserid,
+          fullname: e.fullname,
+          internalemailaddress: e.internalemailaddress,
+          new_role: "BO", // default simulation role
+          new_status: "Actif"
+        }));
+      } catch (err) {
+        console.warn("Failed to retrieve systemusers from CRM", err);
+      }
+    }
     initMockData();
     const data = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
     return new Promise((resolve) => setTimeout(() => resolve(data), 300));
@@ -752,6 +921,15 @@ export const dataService = {
 
   // Fournisseur Reference
   getFournisseursLookup: async (): Promise<FournisseurLookup[]> => {
+    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_supplier", "?$select=new_supplierid,new_name,new_code,new_isactive");
+      return result.entities.map((e: any) => ({
+        new_supplierid: e.new_supplierid,
+        new_name: e.new_name,
+        new_code: e.new_code,
+        new_is_active: e.new_isactive
+      }));
+    }
     initMockData();
     const data = JSON.parse(localStorage.getItem(FOURNISSEURS_STORAGE_KEY) || "[]");
     return new Promise((resolve) => setTimeout(() => resolve(data), 300));
@@ -780,6 +958,15 @@ export const dataService = {
 
   // Agence Reference
   getAgencesLookup: async (): Promise<AgenceLookup[]> => {
+    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_branch", "?$select=new_branchid,new_name,new_code,new_city,new_is_active");
+      return result.entities.map((e: any) => ({
+        new_branchid: e.new_branchid,
+        new_name: e.new_name,
+        new_city: e.new_city,
+        new_is_active: e.new_is_active
+      }));
+    }
     initMockData();
     const data = JSON.parse(localStorage.getItem(AGENCES_STORAGE_KEY) || "[]");
     return new Promise((resolve) => setTimeout(() => resolve(data), 300));
@@ -822,7 +1009,7 @@ export const dataService = {
   // Admin Overrides
   deleteDossier: async (id: string): Promise<void> => {
     if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      await (window as any).Xrm.WebApi.deleteRecord("new_dossier", id);
+      await (window as any).Xrm.WebApi.deleteRecord("new_folder", id);
       return;
     }
     const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
