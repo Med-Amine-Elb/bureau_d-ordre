@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export default function CorrectionsPrescripteur() {
@@ -27,7 +27,7 @@ export default function CorrectionsPrescripteur() {
       try {
         const all = await dataService.getDossiers();
         // Filtrer les dossiers en retour correction (Statut 90) que le prescripteur a renvoyés
-        const inCorrection = all.filter(d => d.new_statut === 90);
+        const inCorrection = all.filter(d => d.new_status === 90);
         setDossiers(inCorrection);
       } catch (err) {
         console.error(err);
@@ -39,8 +39,8 @@ export default function CorrectionsPrescripteur() {
   }, []);
 
   const filteredDossiers = dossiers.filter(d => 
-    d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
-    d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase())
+    d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
+    d.new_supplier_id?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -101,16 +101,16 @@ export default function CorrectionsPrescripteur() {
                 </tr>
               ) : (
                 filteredDossiers.map((dossier) => (
-                  <tr key={dossier.new_dossierid} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                  <tr key={dossier.new_folderid} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
                           <AlertCircle className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-100">{dossier.new_numero_dossier}</div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100">{dossier.new_folder_number}</div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">
-                             {dossier.new_fournisseur_nom || 'N/A'}
+                             {dossier.new_supplier_id || 'N/A'}
                           </div>
                         </div>
                       </div>
@@ -132,7 +132,7 @@ export default function CorrectionsPrescripteur() {
                     </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
                        <button 
-                        onClick={() => navigate(`/prescripteur/dossiers/${dossier.new_dossierid}`)}
+                        onClick={() => navigate(`/prescripteur/dossiers/${dossier.new_folderid}`)}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-colors"
                        >
                          <Eye className="w-4 h-4" /> Détails
@@ -171,3 +171,5 @@ export default function CorrectionsPrescripteur() {
     </div>
   );
 }
+
+

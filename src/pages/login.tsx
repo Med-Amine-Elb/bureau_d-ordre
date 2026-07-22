@@ -5,6 +5,7 @@ import { Package, ShieldCheck, FileCheck, Landmark, Building2, LayoutDashboard }
 export default function Login() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState("BO");
+  const [selectedAgence, setSelectedAgence] = useState("Rabat Agdal");
 
   const roles = [
     { id: "BO", name: "Bureau d'Ordre", icon: Package, color: "text-blue-500", bg: "bg-blue-50", border: "border-blue-200" },
@@ -19,6 +20,9 @@ export default function Login() {
     e.preventDefault();
     // Simulate login by setting role in localStorage
     localStorage.setItem('userRole', selectedRole);
+    if (selectedRole === "Agence") {
+      localStorage.setItem('userAgence', selectedAgence);
+    }
     // Navigate to respective dashboard
     navigate(`/${selectedRole.toLowerCase()}/dashboard`);
   };
@@ -67,6 +71,23 @@ export default function Login() {
             </div>
           </div>
 
+          {selectedRole === "Agence" && (
+            <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">Sélectionner votre Agence</label>
+              <select
+                value={selectedAgence}
+                onChange={(e) => setSelectedAgence(e.target.value)}
+                className="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 bg-slate-50 text-slate-900 font-semibold"
+              >
+                <option value="Rabat Agdal">Rabat Agdal</option>
+                <option value="Casa Anfa">Casa Anfa</option>
+                <option value="Tanger Ville">Tanger Ville</option>
+                <option value="Marrakech Guéliz">Marrakech Guéliz</option>
+                <option value="Fès Ville">Fès Ville</option>
+              </select>
+            </div>
+          )}
+
           <button 
             type="submit"
             className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl py-3.5 font-medium transition-colors soft-shadow-hover flex justify-center items-center gap-2"
@@ -83,3 +104,5 @@ export default function Login() {
     </div>
   )
 }
+
+

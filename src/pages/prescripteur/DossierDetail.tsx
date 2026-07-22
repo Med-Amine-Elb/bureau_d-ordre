@@ -4,8 +4,8 @@ import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import { 
   ArrowLeft, FileText, CheckCircle2, RotateCcw, 
-  UploadCloud, AlertCircle, Building2, Calendar, 
-  CheckCircle, FileUp, Link as LinkIcon, Share2, AlertOctagon, Clock, PhoneCall
+  UploadCloud, AlertCircle, Building2, 
+  CheckCircle, FileUp, Link as LinkIcon, Share2, AlertOctagon, Clock, PhoneCall, User
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -31,7 +31,7 @@ export default function DossierDetailPrescripteur() {
   const fetchDossier = async () => {
     try {
       const result = await dataService.getDossiers();
-      const found = result.find(d => d.new_dossierid === id);
+      const found = result.find(d => d.new_folderid === id);
       setDossier(found || null);
     } catch (err) {
       console.error(err);
@@ -47,7 +47,7 @@ export default function DossierDetailPrescripteur() {
   const handleAccuse = async () => {
     if (!dossier) return;
     try {
-      await dataService.updateDossier(dossier.new_dossierid, { new_statut: 40 });
+      await dataService.accuseReception(dossier.new_folderid, 40, "Amine Elboubakri");
       setSuccessMessage(`Réception accusée. Vous pouvez maintenant traiter le dossier.`);
       setSuccessModalOpen(true);
       fetchDossier();
@@ -59,12 +59,12 @@ export default function DossierDetailPrescripteur() {
 
   const handleValider = async () => {
     if (!dossier) return;
-    if (!hasBR && dossier.new_type_document !== 200) { // Avoir (200) might not need BR, but others usually do
+    if (!hasBR && dossier.new_document_type !== 200) { // Avoir (200) might not need BR, but others usually do
       toast.error("Veuillez charger le Bon de Réception pour valider.");
       return;
     }
     try {
-      await dataService.updateDossier(dossier.new_dossierid, { new_statut: 50 }); // En transit vers BO
+      await dataService.updateDossier(dossier.new_folderid, { new_status: 50 }); // En transit vers BO
       setShowValidationModal(false);
       setSuccessMessage(`Dossier validé et renvoyé au Bureau d'Ordre.`);
       setSuccessModalOpen(true);
@@ -82,8 +82,8 @@ export default function DossierDetailPrescripteur() {
       return;
     }
     try {
-      await dataService.updateDossier(dossier.new_dossierid, { 
-        new_statut: 90, // Retour Correction
+      await dataService.updateDossier(dossier.new_folderid, { 
+        new_status: 90, // Retour Correction
         new_motif_blocage: retourMotif 
       });
       setShowRetourModal(false);
@@ -110,16 +110,24 @@ export default function DossierDetailPrescripteur() {
       <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            {dossier.new_numero_dossier}
+            {dossier.new_folder_number}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-            <Building2 className="w-4 h-4" /> {dossier.new_fournisseur_nom || "Fournisseur inconnu"}
+            {dossier.new_document_type === 600 ? (
+              <>
+                <User className="w-4 h-4" /> Destinataire: {dossier.new_prescriber_id || "Non renseigné"}
+              </>
+            ) : (
+              <>
+                <Building2 className="w-4 h-4" /> {dossier.new_supplier_id || "Fournisseur inconnu"}
+              </>
+            )}
           </p>
         </div>
         
         {/* Actions conditionnelles selon le statut */}
         <div className="flex gap-3">
-          {dossier.new_statut === 30 && (
+          {dossier.new_status === 30 && (
             <button
               onClick={handleAccuse}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
@@ -128,7 +136,7 @@ export default function DossierDetailPrescripteur() {
             </button>
           )}
 
-          {dossier.new_statut === 40 && (
+          {dossier.new_status === 40 && (
             <>
               <button
                 onClick={() => setShowRetourModal(true)}
@@ -177,12 +185,26 @@ export default function DossierDetailPrescripteur() {
           <div className="p-8">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">Informations Détaillées</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Fournisseur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_fournisseur_nom || 'N/A'}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_societe_gbm || 'N/A'}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_direction || 'N/A'}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescripteur || 'N/A'}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_facture ? format(parseISO(dossier.new_date_facture), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
-              <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Type Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_type_document === 100 ? "FACTURE" : dossier.new_type_document === 200 ? "AVOIR" : dossier.new_type_document === 300 ? "CONTRAT" : "AUTRE"}</p></div>
+              {dossier.new_document_type === 600 ? (
+                <>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Livreur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_livreur_nom || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société Destinataire</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Destinataire (Prescripteur)</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de Livraison</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_livraison ? format(parseISO(dossier.new_date_livraison), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
+                  <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description / Objet</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
+                </>
+              ) : (
+                <>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Fournisseur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_supplier_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Type Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_document_type === 100 ? "FACTURE" : dossier.new_document_type === 200 ? "AVOIR" : dossier.new_document_type === 500 ? "ACOMPTE" : "AUTRE"}</p></div>
+                  <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
+                </>
+              )}
             </div>
 
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces Jointes & Validation</h3>
@@ -218,7 +240,7 @@ export default function DossierDetailPrescripteur() {
                       <FileText className="w-5 h-5 text-slate-400" />
                       <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Bon de Réception (BR)</span>
                     </div>
-                    {dossier.new_statut >= 50 && dossier.new_statut !== 90 ? (
+                    {dossier.new_status >= 50 && dossier.new_status !== 90 ? (
                       <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Fourni & Validé</span>
                     ) : (
                       <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-md font-bold">À fournir lors de la validation</span>
@@ -238,17 +260,17 @@ export default function DossierDetailPrescripteur() {
              <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
                {[
                  { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
-                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_direction || ''}.`, icon: "send" },
+                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
                  { id: 40, label: "Chez Prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
                  { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
                  { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
                  { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
                  { id: 80, label: "Chez DCF", desc: "Vérification de la conformité comptable et fiscale.", icon: "shield" }
                ].map((step, index) => {
-                 const isCompleted = dossier.new_statut > step.id || (dossier.new_statut === 150 && step.id === 150);
-                 if (step.id === 90 && dossier.new_statut !== 90) return null;
-                 const actuallyCurrent = (dossier.new_statut === step.id);
-                 const isFuture = dossier.new_statut < step.id;
+                 const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
+                 if (step.id === 90 && dossier.new_status !== 90) return null;
+                 const actuallyCurrent = (dossier.new_status === step.id);
+                 const isFuture = dossier.new_status < step.id;
 
                  if (isFuture && !actuallyCurrent) {
                     return (
@@ -305,7 +327,7 @@ export default function DossierDetailPrescripteur() {
             </div>
             <div className="p-6 space-y-6">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Vous êtes sur le point de valider le dossier <strong className="text-slate-900 dark:text-white">{dossier.new_numero_dossier}</strong>.
+                Vous êtes sur le point de valider le dossier <strong className="text-slate-900 dark:text-white">{dossier.new_folder_number}</strong>.
                 Pour finaliser cette étape, vous devez obligatoirement joindre le Bon de Réception (BR).
               </p>
               
@@ -416,3 +438,5 @@ export default function DossierDetailPrescripteur() {
     </div>
   );
 }
+
+

@@ -17,6 +17,27 @@ import DossiersListPrescripteur from "@/pages/prescripteur/DossiersList"
 import DossierDetailPrescripteur from "@/pages/prescripteur/DossierDetail"
 import CorrectionsPrescripteur from "@/pages/prescripteur/Corrections"
 
+// DCF Pages
+import DashboardDCF from "@/pages/dcf/Dashboard"
+import DossiersListDCF from "@/pages/dcf/DossiersList"
+import DossierDetailDCF from "@/pages/dcf/DossierDetail"
+
+// Tresorerie Pages
+import DashboardTresorerie from "@/pages/tresorerie/Dashboard"
+import DossiersListTresorerie from "@/pages/tresorerie/DossiersList"
+import DossierDetailTresorerie from "@/pages/tresorerie/DossierDetail"
+
+// Agence Pages
+import DashboardAgence from "@/pages/agence/Dashboard"
+import DossiersListAgence from "@/pages/agence/DossiersList"
+
+// Admin Pages
+import DashboardAdmin from "@/pages/admin/Dashboard"
+import UtilisateursAdmin from "@/pages/admin/Utilisateurs"
+import DossiersAdmin from "@/pages/admin/Dossiers"
+import ReferencesAdmin from "@/pages/admin/References"
+import ConfigurationAdmin from "@/pages/admin/Configuration"
+
 // Normalize basename when hosted in Power Apps
 // We want to find the root directory regardless of current sub-path
 const getBasename = () => {
@@ -54,8 +75,31 @@ export const router = createBrowserRouter([
       { path: "prescripteur/dossiers", element: <DossiersListPrescripteur /> },
       { path: "prescripteur/dossiers/:id", element: <DossierDetailPrescripteur /> },
       { path: "prescripteur/corrections", element: <CorrectionsPrescripteur /> },
+
+      // DCF Routes
+      { path: "dcf/dashboard", element: <DashboardDCF /> },
+      { path: "dcf/dossiers", element: <DossiersListDCF /> },
+      { path: "dcf/dossiers/:id", element: <DossierDetailDCF /> },
+
+      // Tresorerie Routes
+      { path: "tresorerie/dashboard", element: <DashboardTresorerie /> },
+      { path: "tresorerie/dossiers", element: <DossiersListTresorerie /> },
+      { path: "tresorerie/dossiers/:id", element: <DossierDetailTresorerie /> },
+
+      // Agence Routes
+      { path: "agence/dashboard", element: <DashboardAgence /> },
+      { path: "agence/cheques", element: <DossiersListAgence /> },
+
+      // Admin Routes
+      { path: "admin/dashboard", element: <DashboardAdmin /> },
+      { path: "admin/dossiers", element: <DossiersAdmin /> },
+      { path: "admin/utilisateurs", element: <UtilisateursAdmin /> },
+      { path: "admin/references", element: <ReferencesAdmin /> },
+      { path: "admin/configuration", element: <ConfigurationAdmin /> },
     ],
   },
 ], { 
   basename: BASENAME 
-})
+});
+// Vite HMR trigger
+

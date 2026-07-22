@@ -20,32 +20,57 @@ export default function RemiseCheque() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
   const [signatureChecked, setSignatureChecked] = useState(false);
+  const [agenceDestination, setAgenceDestination] = useState("Rabat Agdal");
+  const [modeEnvoi, setModeEnvoi] = useState("");
+
+  // Cheque Accusé modal states
+  const [isAccuseChequeModalOpen, setIsAccuseChequeModalOpen] = useState(false);
+  const [selectedForAccuse, setSelectedForAccuse] = useState<Dossier | null>(null);
+  const [accuseComment, setAccuseComment] = useState("");
+
+  const fetchDossiers = async () => {
+    setLoading(true);
+    const data = await dataService.getDossiers();
+    // On filtre pour ne garder que ceux "En Attente Remise Finale" (120) et de type "Chèque" (new_payment_method === 1)
+    const aRemettre = data.filter(
+      (d) => d.new_status === 120 && d.new_payment_method === 1,
+    );
+    setDossiers(aRemettre);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const fetchDossiers = async () => {
-      const data = await dataService.getDossiers();
-      // On filtre pour ne garder que ceux "En Attente Remise Finale" ou un statut équivalent
-      // Pour la démo, on prend tout ce qui a un statut élevé mais pas 150 (Payé)
-      const aRemettre = data.filter(
-        (d) => d.new_statut > 70 && d.new_statut < 150,
-      );
-      setDossiers(aRemettre);
-      setLoading(false);
-    };
     fetchDossiers();
   }, []);
 
   const handleOpenRemise = (dossier: Dossier) => {
     setSelectedDossier(dossier);
     setSignatureChecked(false);
+    setAgenceDestination("Rabat Agdal");
+    setModeEnvoi("");
     setIsModalOpen(true);
+  };
+
+  const handleConfirmAccuseCheque = async () => {
+    if (!selectedForAccuse) return;
+    try {
+      await dataService.updateDossier(selectedForAccuse.new_folderid, {
+        new_cheque_recu_bo: true,
+        new_commentaire_reception: accuseComment || undefined
+      });
+      toast.success("Réception du chèque accusée avec succès.");
+      fetchDossiers();
+      setIsAccuseChequeModalOpen(false);
+      setSelectedForAccuse(null);
+    } catch (e) {
+      toast.error("Erreur", { description: "Impossible de valider la réception." });
+    }
   };
 
   const handleConfirmRemise = async () => {
     if (!selectedDossier) return;
 
     const isCasa = activeTab === "casa";
-    const newStatut = isCasa ? 150 : 130;
     const successMsg = isCasa
       ? "Chèque remis avec succès !"
       : "Chèque expédié avec succès !";
@@ -54,16 +79,21 @@ export default function RemiseCheque() {
       : "Le dossier est en transit vers l'agence.";
 
     try {
-      await dataService.updateDossierStatut(
-        selectedDossier.new_dossierid,
-        newStatut,
-      );
+      if (isCasa) {
+        await dataService.updateDossier(selectedDossier.new_folderid, {
+          new_status: 150,
+          new_fournisseur_signe: true,
+          new_final_delivery_date: new Date().toISOString()
+        });
+      } else {
+        await dataService.updateDossier(selectedDossier.new_folderid, {
+          new_status: 130,
+          new_destination_branch_id: agenceDestination,
+          new_commentaire_agence: `Expédié via ${modeEnvoi}`
+        });
+      }
       toast.success(successMsg, { description: successDesc });
-      setDossiers(
-        dossiers.filter(
-          (d) => d.new_dossierid !== selectedDossier.new_dossierid,
-        ),
-      );
+      fetchDossiers();
       setIsModalOpen(false);
     } catch (e) {
       toast.error("Erreur", { description: "Impossible de valider l'action." });
@@ -158,53 +188,67 @@ export default function RemiseCheque() {
                   </td>
                 </tr>
               ) : (
-                dossiers.map((dossier) => (
-                  <tr
-                    key={dossier.new_dossierid}
-                    className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                          <CreditCard className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
-                            CHQ-{(Math.random() * 10000).toFixed(0)}
+                dossiers.map((dossier) => {
+                  const isRecu = !!dossier.new_cheque_recu_bo;
+                  return (
+                    <tr
+                      key={dossier.new_folderid}
+                      className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                            <CreditCard className="w-4 h-4" />
                           </div>
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {dossier.new_numero_dossier}
+                          <div>
+                            <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">
+                              {dossier.new_cheque_number || "N/A"}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                              {dossier.new_folder_number}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                        {dossier.new_fournisseur_nom || "Fournisseur inconnu"}
-                      </div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">
-                        Prêt depuis 2 jours
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {activeTab === "casa" ? (
-                        <button
-                          onClick={() => handleOpenRemise(dossier)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors"
-                        >
-                          <UserCheck className="w-4 h-4" /> Remettre Chèque
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenRemise(dossier)}
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-semibold transition-colors"
-                        >
-                          <Truck className="w-4 h-4" /> Expédier
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                          {dossier.new_supplier_id || "Fournisseur inconnu"}
+                        </div>
+                        <div className="text-xs text-slate-400 dark:text-slate-500">
+                          Banque : {dossier.new_banque_emettrice || "Non renseignée"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {!isRecu ? (
+                          <button
+                            onClick={() => {
+                              setSelectedForAccuse(dossier);
+                              setAccuseComment("");
+                              setIsAccuseChequeModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                          >
+                            <UserCheck className="w-4 h-4" /> Accuser Réception
+                          </button>
+                        ) : activeTab === "casa" ? (
+                          <button
+                            onClick={() => handleOpenRemise(dossier)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                          >
+                            <UserCheck className="w-4 h-4" /> Remettre Chèque
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenRemise(dossier)}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-semibold transition-colors shadow-sm"
+                          >
+                            <Truck className="w-4 h-4" /> Expédier
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -239,7 +283,7 @@ export default function RemiseCheque() {
                     Bénéficiaire
                   </p>
                   <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {selectedDossier.new_fournisseur_nom}
+                    {selectedDossier.new_supplier_id}
                   </p>
                 </div>
               </div>
@@ -283,10 +327,16 @@ export default function RemiseCheque() {
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
                       Agence de Destination
                     </label>
-                    <select className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20">
-                      <option>Agence Tanger</option>
-                      <option>Agence Marrakech</option>
-                      <option>Agence Fès</option>
+                    <select 
+                      value={agenceDestination}
+                      onChange={(e) => setAgenceDestination(e.target.value)}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
+                    >
+                      <option value="Rabat Agdal">Rabat Agdal</option>
+                      <option value="Casa Anfa">Casa Anfa</option>
+                      <option value="Tanger Ville">Tanger Ville</option>
+                      <option value="Marrakech Guéliz">Marrakech Guéliz</option>
+                      <option value="Fès Ville">Fès Ville</option>
                     </select>
                   </div>
                   <div>
@@ -295,6 +345,8 @@ export default function RemiseCheque() {
                     </label>
                     <input
                       type="text"
+                      value={modeEnvoi}
+                      onChange={(e) => setModeEnvoi(e.target.value)}
                       placeholder="Ex: Amana Express (N° Suivi: AB12345)"
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
                     />
@@ -324,6 +376,95 @@ export default function RemiseCheque() {
           </div>
         </div>
       )}
+
+      {/* BO Accusé Réception Chèque Modal */}
+      {isAccuseChequeModalOpen && selectedForAccuse && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
+              <h2 className="text-lg font-bold text-slate-950 dark:text-white flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-amber-500" /> Accuser Réception du Chèque
+              </h2>
+              <button
+                onClick={() => {
+                  setIsAccuseChequeModalOpen(false);
+                  setSelectedForAccuse(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-amber-50 dark:bg-amber-950/10 p-4 rounded-xl border border-amber-100 dark:border-amber-900/30 text-amber-800 dark:text-amber-400 text-sm">
+                Veuillez accuser réception du chèque physique envoyé par la Trésorerie avant de pouvoir l'expédier ou le remettre au fournisseur.
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">N° Dossier :</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_folder_number}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">N° Chèque :</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_cheque_number || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Banque Émettrice :</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_banque_emettrice || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Bénéficiaire :</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_supplier_id || "N/A"}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Date de Réception (Automatique)
+                </label>
+                <div className="p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {new Date().toLocaleDateString('fr-FR')}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Commentaires (Optionnel)
+                </label>
+                <textarea
+                  rows={2}
+                  className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 rounded-xl text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  placeholder="Notes sur la réception du chèque physique..."
+                  value={accuseComment}
+                  onChange={(e) => setAccuseComment(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                onClick={() => {
+                  setIsAccuseChequeModalOpen(false);
+                  setSelectedForAccuse(null);
+                }}
+                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-850 rounded-lg transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleConfirmAccuseCheque}
+                className="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all"
+              >
+                <CheckCircle className="w-4 h-4" /> Confirmer la réception du chèque
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+

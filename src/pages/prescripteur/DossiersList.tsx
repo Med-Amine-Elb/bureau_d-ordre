@@ -11,7 +11,8 @@ import {
   Building2,
   ArrowDown,
   CheckCircle,
-  Download
+  Download,
+  User
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { format, parseISO } from "date-fns";
@@ -41,7 +42,7 @@ export default function DossiersListPrescripteur() {
     try {
       const result = await dataService.getDossiers();
       // On affiche tous les dossiers à partir du statut 30 pour que le prescripteur puisse faire le suivi
-      const assigned = result.filter(d => d.new_statut >= 30 || d.new_statut === 20);
+      const assigned = result.filter(d => d.new_status >= 30 || d.new_status === 20);
       setDossiers(assigned);
     } catch (err) {
       console.error(err);
@@ -56,11 +57,13 @@ export default function DossiersListPrescripteur() {
 
   const handleAccuse = async (dossier: Dossier) => {
     try {
-      await dataService.updateDossier(dossier.new_dossierid, {
-        new_statut: 40,
-      });
+      await dataService.accuseReception(
+        dossier.new_folderid,
+        40,
+        "Amine Elboubakri"
+      );
       setSuccessMessage(
-        `Réception accusée pour le dossier ${dossier.new_numero_dossier}. Il est maintenant chez vous.`,
+        `Réception accusée pour le dossier ${dossier.new_folder_number}. Il est maintenant chez vous.`,
       );
       setSuccessModalOpen(true);
       fetchDossiers();
@@ -71,32 +74,32 @@ export default function DossiersListPrescripteur() {
   };
 
   const uniqueFournisseurs = Array.from(
-    new Set(dossiers.map((d) => d.new_fournisseur_nom).filter(Boolean)),
+    new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
   ).sort();
 
   const filteredDossiers = dossiers.filter((d) => {
     const matchesSearch =
-      d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
-      d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase());
+      d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
+      d.new_supplier_id?.toLowerCase().includes(search.toLowerCase());
     
     const matchesType =
-      filterType === "ALL" || d.new_type_document === filterType;
+      filterType === "ALL" || d.new_document_type === filterType;
 
     let matchesStatus = filterStatus === "ALL";
     if (filterStatus === "30,40") {
-      matchesStatus = d.new_statut === 30 || d.new_statut === 40;
+      matchesStatus = d.new_status === 30 || d.new_status === 40;
     } else if (filterStatus === ">=50") {
-      matchesStatus = d.new_statut >= 50 && d.new_statut !== 90;
+      matchesStatus = d.new_status >= 50 && d.new_status !== 90;
     } else if (filterStatus !== "ALL") {
-      matchesStatus = d.new_statut === Number(filterStatus);
+      matchesStatus = d.new_status === Number(filterStatus);
     }
 
     const matchesFournisseur =
       filterFournisseur === "ALL" ||
-      d.new_fournisseur_nom === filterFournisseur;
+      d.new_supplier_id === filterFournisseur;
       
     const matchesDate =
-      !filterDate || d.new_date_reception.startsWith(filterDate);
+      !filterDate || d.new_reception_date.startsWith(filterDate);
 
     return matchesSearch && matchesType && matchesStatus && matchesFournisseur && matchesDate;
   });
@@ -165,9 +168,10 @@ export default function DossiersListPrescripteur() {
                 }
               >
                 <option value="ALL">Tous les types</option>
-                <option value="100">Facture</option>
-                <option value="200">Avoir</option>
-                <option value="300">Contrat</option>
+                <option value={100}>Facture</option>
+                <option value={200}>Avoir</option>
+                <option value={500}>Acompte</option>
+                <option value={600}>Courrier</option>
               </select>
             </div>
 
@@ -282,55 +286,73 @@ export default function DossiersListPrescripteur() {
               ) : (
                 filteredDossiers.map((dossier) => (
                   <tr
-                    key={dossier.new_dossierid}
+                    key={dossier.new_folderid}
                     className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
-                          {getTypeIcon(dossier.new_type_document)}
+                          {getTypeIcon(dossier.new_document_type)}
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 dark:text-slate-100">
-                            {dossier.new_numero_dossier}
+                            {dossier.new_folder_number}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Building2 className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
-                          {dossier.new_fournisseur_nom || "-"}
-                        </span>
-                      </div>
-                      <div className="mt-1">{getTypeBadge(dossier.new_type_document)}</div>
+                      {dossier.new_document_type === 600 ? (
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {dossier.new_livreur_nom || "-"}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building2 className="w-4 h-4 text-slate-400" />
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {dossier.new_supplier_id || "-"}
+                          </span>
+                        </div>
+                      )}
+                      <div className="mt-1">{getTypeBadge(dossier.new_document_type)}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1 text-sm">
                         <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                           <ArrowDown className="w-3.5 h-3.5 text-blue-500" />
-                          <span>Reçu: {format(parseISO(dossier.new_date_reception), "dd MMM yyyy", { locale: fr })}</span>
+                          <span>Reçu: {format(parseISO(dossier.new_reception_date), "dd MMM yyyy", { locale: fr })}</span>
                         </div>
-                        {dossier.new_date_facture && (
-                          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-500">
-                            <Calendar className="w-3.5 h-3.5" />
-                            <span>Doc: {format(parseISO(dossier.new_date_facture), "dd MMM yyyy", { locale: fr })}</span>
-                          </div>
+                        {dossier.new_document_type === 600 ? (
+                          dossier.new_date_livraison && (
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-500">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Livré: {format(parseISO(dossier.new_date_livraison), "dd MMM yyyy", { locale: fr })}</span>
+                            </div>
+                          )
+                        ) : (
+                          dossier.new_invoice_date && (
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-500">
+                              <Calendar className="w-3.5 h-3.5" />
+                              <span>Doc: {format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr })}</span>
+                            </div>
+                          )
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {dossier.new_numero_facture || "-"}
+                        {dossier.new_invoice_number || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {getStatutBadge(dossier.new_statut)}
+                      {getStatutBadge(dossier.new_status)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        {dossier.new_statut === 30 && (
+                        {dossier.new_status === 30 && (
                           <button
                             onClick={() => handleAccuse(dossier)}
                             className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-emerald-500/20"
@@ -339,10 +361,10 @@ export default function DossiersListPrescripteur() {
                           </button>
                         )}
                         <button
-                          onClick={() => navigate(`/prescripteur/dossiers/${dossier.new_dossierid}`)}
+                          onClick={() => navigate(`/prescripteur/dossiers/${dossier.new_folderid}`)}
                           className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-lg text-xs font-bold transition-all"
                         >
-                          <Eye className="w-4 h-4" /> {dossier.new_statut === 40 ? "Traiter" : "Détails"}
+                          <Eye className="w-4 h-4" /> {dossier.new_status === 40 ? "Traiter" : "Détails"}
                         </button>
                       </div>
                     </td>
@@ -379,7 +401,8 @@ function getTypeIcon(type: number) {
   switch (type) {
     case 100: return <FileText className="w-5 h-5" />;
     case 200: return <FileText className="w-5 h-5 text-orange-500" />;
-    case 300: return <FileText className="w-5 h-5 text-emerald-500" />;
+    case 500: return <FileText className="w-5 h-5 text-rose-500" />;
+    case 600: return <FileText className="w-5 h-5 text-slate-500" />;
     default: return <FileText className="w-5 h-5" />;
   }
 }
@@ -388,7 +411,8 @@ function getTypeBadge(type: number) {
   switch (type) {
     case 100: return <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">FACTURE</span>;
     case 200: return <span className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">AVOIR</span>;
-    case 300: return <span className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">CONTRAT</span>;
+    case 500: return <span className="bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">ACOMPTE</span>;
+    case 600: return <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide border border-slate-200">COURRIER</span>;
     default: return <span className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">AUTRE</span>;
   }
 }
@@ -401,3 +425,5 @@ function getStatutBadge(statut: number) {
     default: return <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold">En Cours</span>;
   }
 }
+
+

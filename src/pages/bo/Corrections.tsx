@@ -14,7 +14,6 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 export default function Corrections() {
   const navigate = useNavigate();
@@ -27,7 +26,7 @@ export default function Corrections() {
       try {
         const all = await dataService.getDossiers();
         // Filtrer les dossiers en retour correction (Statut 90)
-        const inCorrection = all.filter(d => d.new_statut === 90);
+        const inCorrection = all.filter(d => d.new_status === 90);
         setDossiers(inCorrection);
       } catch (err) {
         console.error(err);
@@ -43,8 +42,8 @@ export default function Corrections() {
   };
 
   const filteredDossiers = dossiers.filter(d => 
-    d.new_numero_dossier?.toLowerCase().includes(search.toLowerCase()) ||
-    d.new_fournisseur_nom?.toLowerCase().includes(search.toLowerCase())
+    d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
+    d.new_supplier_id?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -105,14 +104,14 @@ export default function Corrections() {
                 </tr>
               ) : (
                 filteredDossiers.map((dossier) => (
-                  <tr key={dossier.new_dossierid} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+                  <tr key={dossier.new_folderid} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                     <td className="px-6 py-5">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 flex items-center justify-center flex-shrink-0">
                           <AlertCircle className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-100">{dossier.new_numero_dossier}</div>
+                          <div className="font-bold text-slate-900 dark:text-slate-100">{dossier.new_folder_number}</div>
                           <div className="text-xs text-orange-600 dark:text-orange-400 font-medium mt-1 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded inline-block">
                              Anomalie détectée par le valideur
                           </div>
@@ -133,7 +132,7 @@ export default function Corrections() {
                     </td>
                     <td className="px-6 py-5 text-right whitespace-nowrap">
                        <button 
-                        onClick={() => navigate(`/bo/dossiers/${dossier.new_dossierid}`)}
+                        onClick={() => navigate(`/bo/dossiers/${dossier.new_folderid}`)}
                         className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mr-2"
                         title="Consulter"
                        >
@@ -189,3 +188,5 @@ export default function Corrections() {
     </div>
   );
 }
+
+

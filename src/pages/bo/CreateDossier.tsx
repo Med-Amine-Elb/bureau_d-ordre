@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import TransmissionModal from "@/components/TransmissionModal";
 import {
   ArrowLeft,
   Save,
@@ -26,30 +27,51 @@ export default function CreateDossier() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  // States for Transmission Modal
+  const [showTransmissionModal, setShowTransmissionModal] = useState(false);
+  const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
+  const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
 
   const [formData, setFormData] = useState({
     numero_dossier: editDossier
-      ? editDossier.new_numero_dossier
+      ? editDossier.new_folder_number
       : `DOS-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    date_reception: editDossier?.new_date_reception
-      ? new Date(editDossier.new_date_reception).toISOString().split("T")[0]
+    date_reception: editDossier?.new_reception_date
+      ? new Date(editDossier.new_reception_date).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
-    fournisseur: editDossier?.new_fournisseur_nom || "",
-    societe_gbm: editDossier?.new_societe_gbm || "",
-    direction: editDossier?.new_direction || "",
-    prescripteur: editDossier?.new_prescripteur || "",
-    type_document: editDossier?.new_type_document || 100, // Facture
-    numero_facture: editDossier?.new_numero_facture || "",
-    numero_bc: editDossier?.new_numero_bc || "",
-    date_facture: editDossier?.new_date_facture
-      ? new Date(editDossier.new_date_facture).toISOString().split("T")[0]
+    fournisseur: editDossier?.new_supplier_id || "",
+    societe_gbm: editDossier?.new_company_id || "",
+    direction: editDossier?.new_department_id || "",
+    prescripteur: editDossier?.new_prescriber_id || "",
+    type_document: editDossier?.new_document_type || 100, // Facture
+    numero_facture: editDossier?.new_invoice_number || "",
+    numero_bc: editDossier?.new_po_number || "",
+    date_facture: editDossier?.new_invoice_date
+      ? new Date(editDossier.new_invoice_date).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
     description: editDossier?.new_description || "",
     documents_complements:
       editDossier?.new_documents_complements || ([] as string[]),
     dossier_lie: "",
-    collecteur_dcf: editDossier?.new_collecteur_dcf || "",
+    collecteur_dcf: editDossier?.new_dcf_collector_id || "",
+    livreur_nom: editDossier?.new_livreur_nom || "",
+    personne_a_livrer: editDossier?.new_personne_a_livrer || "",
+    date_livraison: editDossier?.new_date_livraison
+      ? new Date(editDossier.new_date_livraison).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
   });
+
+  useEffect(() => {
+    if (!isEditing) {
+       const prefix = formData.type_document === 600 ? "CR" : "DOS";
+       if (!formData.numero_dossier.startsWith(prefix)) {
+           setFormData(prev => ({
+             ...prev,
+             numero_dossier: `${prefix}-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
+           }));
+       }
+    }
+  }, [formData.type_document, isEditing, formData.numero_dossier]);
 
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
 
@@ -67,88 +89,157 @@ export default function CreateDossier() {
       "Attestation Fiscale",
     ],
     200: ["Avoir Original"],
-    300: ["Facture", "Contrat", "Bon de Commande (BC)", "Attestation Fiscale"],
-    400: ["Demande de chèque signée", "Facture / Devis"],
     500: ["Demande d'acompte", "Facture / Devis"],
+  };
+
+  const validateForm = () => {
+    const isFluxCourt = formData.type_document === 400 || formData.type_document === 500;
+    const isAvoir = formData.type_document === 200;
+    const isCourrier = formData.type_document === 600;
+
+    if (!formData.numero_dossier) return "N° Dossier est obligatoire";
+    if (!formData.date_reception) return "Date de réception est obligatoire";
+
+    if (!isAvoir && !isCourrier) {
+      if (!formData.fournisseur) return "Le fournisseur est obligatoire";
+      if (!formData.societe_gbm) return "La société GBM est obligatoire";
+      if (!formData.direction) return "La direction est obligatoire";
+      if (!isFluxCourt && !formData.prescripteur) return "Le prescripteur est obligatoire";
+      if (formData.type_document === 100 && !formData.numero_facture) return "Le numéro de facture est obligatoire";
+      if (formData.type_document === 100 && !formData.date_facture) return "La date de facture est obligatoire";
+    }
+
+    if (isCourrier) {
+      if (!formData.livreur_nom) return "Le nom du livreur est obligatoire";
+      if (!formData.direction) return "La direction est obligatoire";
+      if (!formData.personne_a_livrer) return "Le destinataire est obligatoire";
+      if (!formData.description) return "L'objet/description du courrier est obligatoire";
+    }
+
+    if (isAvoir && !formData.dossier_lie) {
+      return "Le dossier d'origine est obligatoire pour un Avoir";
+    }
+
+    if (isFluxCourt && !formData.collecteur_dcf) {
+      return "Le collecteur DCF est obligatoire pour les flux courts";
+    }
+
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent, isDraft: boolean) => {
     e.preventDefault();
 
-    // Règle des 5 jours (pour Facture)
+    if (isDraft) {
+      // Direct submit for drafts, no validation
+      await executeSubmit(true, formData);
+    } else {
+      // Validate mandatory fields for submission
+      const errorMsg = validateForm();
+      if (errorMsg) {
+        toast.error("Champs manquants", { description: errorMsg });
+        return;
+      }
+
+      if (formData.type_document === 100 && isLate) {
+        await executeSubmit(false, formData);
+        return;
+      }
+
+      // Trigger the Transmission Modal (Skip if Courrier)
+      const isCourrier = formData.type_document === 600;
+      if (isCourrier) {
+        await executeSubmit(false, formData);
+        return;
+      }
+
+      const isFluxCourt = formData.type_document === 400 || formData.type_document === 500;
+      setTransmissionTargetRole(isFluxCourt ? "DCF" : "Prescripteur");
+      setTransmissionInitialCollector(isFluxCourt ? formData.collecteur_dcf : formData.prescripteur);
+      setShowTransmissionModal(true);
+    }
+  };
+
+  const handleConfirmTransmission = async (data: { collecteur: string; commentaire: string }) => {
+    setShowTransmissionModal(false);
+    
+    // Update local form state with selected collector
+    const isFluxCourt = formData.type_document === 400 || formData.type_document === 500;
+    const updatedData = {
+      ...formData,
+      ...(isFluxCourt ? { collecteur_dcf: data.collecteur } : { prescripteur: data.collecteur }),
+      description: data.commentaire 
+        ? `${formData.description ? formData.description + " | " : ""}Transmission : ${data.commentaire}`
+        : formData.description
+    };
+    
+    setFormData(updatedData);
+    await executeSubmit(false, updatedData);
+  };
+
+  const executeSubmit = async (isDraft: boolean, dataToSubmit: typeof formData) => {
     let statut = isDraft ? 10 : 30; // Brouillon ou En Transit Vers Prescripteur
     let isRejete = false;
 
-    if (formData.type_document === 100 && isLate) {
-      statut = 20; // Rejeté 5 Jours (En Retard)
+    if (dataToSubmit.type_document === 100 && isLate) {
+      statut = 20; // Hors Délai
       isRejete = true;
-
-      if (!isDraft) {
-        toast.error("Règle des 5 jours dépassée !", {
-          description: `Il y a ${daysDiff} jours d'écart entre la date de facture et la date de réception. Le dossier est enregistré en tant que 'Retard'.`,
-          duration: 6000,
-        });
-      }
     }
 
-    // Routage spécifique pour les flux courts
-    if (
+    // Routage spécifique pour les flux courts ou le courrier
+    const isCourrier = dataToSubmit.type_document === 600;
+    
+    if (!isDraft && isCourrier) {
+      statut = 150; // Courrier direct à Livré (Clôturé)
+    } else if (
       !isDraft &&
       !isRejete &&
-      (formData.type_document === 400 || formData.type_document === 500)
+      (dataToSubmit.type_document === 400 || dataToSubmit.type_document === 500)
     ) {
-      if (!formData.collecteur_dcf) {
-        toast.error("Champ manquant", {
-          description:
-            "Le collecteur DCF est obligatoire pour les flux courts.",
-        });
-        return;
-      }
       statut = 70; // En Transit Vers DCF directement
-    }
-
-    // Validation Avoir
-    if (!isDraft && formData.type_document === 200 && !formData.dossier_lie) {
-      toast.error("Champ manquant", {
-        description: "Le dossier d'origine est obligatoire pour un Avoir.",
-      });
-      return;
     }
 
     setLoading(true);
 
     try {
       const payload = {
-        new_numero_dossier: formData.numero_dossier,
-        new_fournisseur_nom: formData.fournisseur,
-        new_societe_gbm: formData.societe_gbm,
-        new_direction: formData.direction,
-        new_prescripteur: formData.prescripteur,
-        new_type_document: Number(formData.type_document),
-        new_numero_facture: formData.numero_facture,
-        new_numero_bc: formData.numero_bc,
-        new_date_facture: new Date(formData.date_facture).toISOString(),
-        new_description: formData.description,
-        new_statut: statut,
-        new_est_bloque: isRejete,
-        new_documents_complements: formData.documents_complements,
-        new_collecteur_dcf: formData.collecteur_dcf,
-        new_date_reception: new Date(formData.date_reception).toISOString(),
+        new_folder_number: dataToSubmit.numero_dossier,
+        new_supplier_id: isCourrier ? undefined : dataToSubmit.fournisseur,
+        new_company_id: isCourrier ? undefined : dataToSubmit.societe_gbm,
+        new_department_id: dataToSubmit.direction,
+        new_prescriber_id: isCourrier ? undefined : dataToSubmit.prescripteur,
+        new_document_type: Number(dataToSubmit.type_document),
+        new_invoice_number: isCourrier ? undefined : dataToSubmit.numero_facture,
+        new_po_number: isCourrier ? undefined : dataToSubmit.numero_bc,
+        new_invoice_date: (isCourrier || !dataToSubmit.date_facture) ? undefined : new Date(dataToSubmit.date_facture).toISOString(),
+        new_description: dataToSubmit.description,
+        new_status: statut,
+        new_is_blocked: isRejete,
+        new_documents_complements: isCourrier ? undefined : dataToSubmit.documents_complements,
+        new_dcf_collector_id: isCourrier ? undefined : dataToSubmit.collecteur_dcf,
+        new_reception_date: new Date(dataToSubmit.date_reception).toISOString(),
+        new_livreur_nom: isCourrier ? dataToSubmit.livreur_nom : undefined,
+        new_personne_a_livrer: isCourrier ? dataToSubmit.personne_a_livrer : undefined,
+        new_date_livraison: isCourrier ? new Date(dataToSubmit.date_livraison).toISOString() : undefined,
       };
 
       if (isEditing) {
-        await dataService.updateDossier(editDossier.new_dossierid, payload);
+        await dataService.updateDossier(editDossier.new_folderid, payload);
         setSuccessMessage(
           isDraft
-            ? `Le brouillon ${formData.numero_dossier} a été sauvegardé.`
-            : `Le dossier ${formData.numero_dossier} a été transmis avec succès.`,
+            ? `Le brouillon ${dataToSubmit.numero_dossier} a été sauvegardé.`
+            : (isLate && dataToSubmit.type_document === 100)
+            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai et a été archivé.`
+            : `Le dossier ${dataToSubmit.numero_dossier} a été transmis avec succès.`,
         );
       } else {
         await dataService.createDossier(payload);
         setSuccessMessage(
           isDraft
-            ? `Le dossier ${formData.numero_dossier} a été sauvegardé en tant que brouillon.`
-            : `Le dossier ${formData.numero_dossier} a été créé et transmis avec succès.`,
+            ? `Le dossier ${dataToSubmit.numero_dossier} a été sauvegardé en tant que brouillon.`
+            : (isLate && dataToSubmit.type_document === 100)
+            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai et a été archivé.`
+            : `Le dossier ${dataToSubmit.numero_dossier} a été créé et transmis avec succès.`,
         );
       }
 
@@ -166,6 +257,7 @@ export default function CreateDossier() {
   const isFluxCourt =
     formData.type_document === 400 || formData.type_document === 500;
   const isAvoir = formData.type_document === 200;
+  const isCourrier = formData.type_document === 600;
 
   return (
     <div className="w-full max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -189,7 +281,7 @@ export default function CreateDossier() {
         </p>
       </div>
 
-      <form className="space-y-8">
+      <form className="space-y-8" noValidate>
         {/* Section 1: Informations Générales */}
         <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
@@ -222,7 +314,7 @@ export default function CreateDossier() {
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
               />
             </div>
-            {!isAvoir && (
+            {!isAvoir && !isCourrier && (
               <>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -291,13 +383,104 @@ export default function CreateDossier() {
                     onChange={(e) =>
                       setFormData({ ...formData, prescripteur: e.target.value })
                     }
-                    required={!isAvoir}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
                     <option value="">Sélectionner un prescripteur...</option>
-                    <option value="user_1">User 1</option>
-                    <option value="user_2">User 2</option>
-                    <option value="user_3">User 3</option>
+                    <option value="Amine Elboubakri">Amine Elboubakri</option>
+                    <option value="Sarah Alaoui">Sarah Alaoui</option>
+                    <option value="Nabil Bennani">Nabil Bennani</option>
+                  </select>
+                </div>
+              </>
+            )}
+            {isCourrier && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Nom du Livreur <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: Ahmed Yassine"
+                    value={formData.livreur_nom}
+                    onChange={(e) =>
+                      setFormData({ ...formData, livreur_nom: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Société Destinataire <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.societe_gbm}
+                    onChange={(e) =>
+                      setFormData({ ...formData, societe_gbm: e.target.value })
+                    }
+                    required
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  >
+                    <option value="">Sélectionner...</option>
+                    <option value="SBM">SBM</option>
+                    <option value="SVCM">SVCM</option>
+                    <option value="CDC">CDC</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Destinataire <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.prescripteur}
+                    onChange={(e) =>
+                      setFormData({ ...formData, prescripteur: e.target.value })
+                    }
+                    required
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  >
+                    <option value="">Sélectionner un destinataire...</option>
+                    <option value="Amine Elboubakri">Amine Elboubakri</option>
+                    <option value="Sarah Alaoui">Sarah Alaoui</option>
+                    <option value="Nabil Bennani">Nabil Bennani</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Date de Livraison <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    readOnly
+                    value={formData.date_livraison}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-slate-100 font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                    Direction <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={formData.direction}
+                    required
+                    onChange={(e) =>
+                      setFormData({ ...formData, direction: e.target.value })
+                    }
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                  >
+                    <option value="">Sélectionner...</option>
+                    <option value="Direction Informatique">
+                      Direction Informatique
+                    </option>
+                    <option value="Direction Ressources Humaines">
+                      Direction Ressources Humaines
+                    </option>
+                    <option value="Direction Achats">Direction Achats</option>
+                    <option value="Direction Juridique">
+                      Direction Juridique
+                    </option>
                   </select>
                 </div>
               </>
@@ -319,9 +502,8 @@ export default function CreateDossier() {
               {[
                 { id: 100, label: "Facture", color: "blue" },
                 { id: 200, label: "Avoir", color: "orange" },
-                { id: 300, label: "Facture Contrat", color: "emerald" },
-                { id: 400, label: "Demande de Chèque", color: "purple" },
-                { id: 500, label: "Acompte Facture", color: "rose" },
+                { id: 500, label: "Acompte", color: "rose" },
+                { id: 600, label: "Courrier", color: "slate" },
               ].map((type) => (
                 <label
                   key={type.id}
@@ -350,7 +532,7 @@ export default function CreateDossier() {
             </div>
           </div>
 
-          {!isAvoir && (
+          {!isAvoir && !isCourrier && (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
                 <div className="space-y-2">
@@ -400,22 +582,24 @@ export default function CreateDossier() {
                   />
                 </div>
               </div>
-
-              <div className="mt-6 space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Description / Objet
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Précisions sur la nature de la dépense..."
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none"
-                />
-              </div>
             </>
+          )}
+
+          {(!isAvoir || isCourrier) && (
+            <div className="mt-6 space-y-2">
+              <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Description / Objet {isCourrier && <span className="text-red-500">*</span>}
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Précisions sur la nature de la dépense ou l'objet du courrier..."
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none resize-none"
+              />
+            </div>
           )}
         </div>
 
@@ -471,14 +655,13 @@ export default function CreateDossier() {
                         collecteur_dcf: e.target.value,
                       })
                     }
-                    required
                     className="w-full px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none"
                   >
                     <option value="">
                       Sélectionner la personne de la DCF...
                     </option>
-                    <option value="dcf_1">Karim Idrissi</option>
-                    <option value="dcf_2">Nadia Tazi</option>
+                    <option value="Karim Idrissi">Karim Idrissi</option>
+                    <option value="Nadia Tazi">Nadia Tazi</option>
                   </select>
                 </div>
               )}
@@ -487,8 +670,9 @@ export default function CreateDossier() {
         )}
 
         {/* Section 3: Documents Requis */}
-        <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
-          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
+        {!isCourrier && (
+          <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
+            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
             3. Documents Requis{" "}
             <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
               (Spécifiques au type de document)
@@ -575,50 +759,45 @@ export default function CreateDossier() {
             })}
           </div>
         </div>
+      )}
 
         {/* Actions */}
         <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-xl flex items-center justify-end gap-4 sticky bottom-6 z-10">
-          {isLate ? (
-            <button
-              type="button"
-              onClick={(e) => handleSubmit(e, false)}
-              disabled={loading}
-              className="px-8 py-2.5 rounded-xl bg-orange-600 text-white font-semibold hover:bg-orange-700 shadow-lg shadow-orange-500/30 transition-all flex items-center gap-2"
-            >
-              <AlertCircle className="w-4 h-4" /> Enregistrer le dossier (Hors
-              délai)
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, true)}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
-              >
-                <Save className="w-4 h-4" /> Sauvegarder
-              </button>
-              <button
-                type="button"
-                onClick={(e) => handleSubmit(e, false)}
-                disabled={loading}
-                className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" /> Transmettre Dossier
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={(e) => handleSubmit(e, true)}
+            disabled={loading}
+            className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" /> Sauvegarder
+          </button>
+          <button
+            type="button"
+            onClick={(e) => handleSubmit(e, false)}
+            disabled={loading}
+            className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" /> Transmettre Dossier
+          </button>
         </div>
       </form>
       {successModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
-                <CheckCircle className="w-12 h-12 text-emerald-500" />
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle ${
+                isLate && formData.type_document === 100 
+                  ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-500' 
+                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500'
+              }`}>
+                {isLate && formData.type_document === 100 ? (
+                   <AlertCircle className="w-12 h-12" />
+                ) : (
+                   <CheckCircle className="w-12 h-12" />
+                )}
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Action Réussie
+                {isLate && formData.type_document === 100 ? "Dossier Hors Délai" : "Action Réussie"}
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
                 {successMessage}
@@ -636,6 +815,17 @@ export default function CreateDossier() {
           </div>
         </div>
       )}
+
+      <TransmissionModal
+        isOpen={showTransmissionModal}
+        onClose={() => setShowTransmissionModal(false)}
+        onConfirm={handleConfirmTransmission}
+        dossierNumber={formData.numero_dossier}
+        targetRole={transmissionTargetRole}
+        initialCollector={transmissionInitialCollector}
+      />
     </div>
   );
 }
+
+

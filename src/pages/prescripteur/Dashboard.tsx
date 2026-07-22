@@ -5,9 +5,9 @@ import {
   CheckCircle,
   Activity,
   CheckCircle2,
-  AlertTriangle,
   RotateCcw,
   Eye,
+  ArrowRight
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -43,6 +43,125 @@ const AnimatedNumber = ({ value }: { value: number }) => {
   return <>{count}</>;
 };
 
+function KPIPill({
+  title,
+  value,
+  icon,
+  index = 0,
+  variant = "default",
+  onClick,
+}: any) {
+  const isBlue = variant === "blue";
+  const isEmerald = variant === "emerald";
+  
+  const iconBg = isBlue ? "bg-[#2b4c7e]/10 text-[#2b4c7e] dark:bg-blue-900/30 dark:text-blue-400" 
+    : isEmerald ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
+
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white dark:bg-[#0F172B] rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 dark:border-slate-800 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer group animate-in fade-in slide-in-from-bottom-6"
+      style={{ animationFillMode: "both", animationDelay: `${index * 100}ms`, animationDuration: "700ms" }}
+    >
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${iconBg}`}>
+          {icon}
+        </div>
+        <div>
+          <h3 className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{title}</h3>
+          <span className="text-slate-900 dark:text-slate-100 text-xl font-bold block leading-none mt-1">
+            {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
+          </span>
+        </div>
+      </div>
+      <ArrowRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-[#2b4c7e] dark:group-hover:text-blue-400 transition-colors" />
+    </div>
+  );
+}
+
+const ProfileProgressCard = ({ dossiersTraites, objTraites }: any) => {
+  const percentage = Math.round((dossiersTraites / objTraites) * 100) || 0;
+  const avatarUrl = localStorage.getItem("userAvatar") || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
+  const role = localStorage.getItem("userRole") || "Prescripteur";
+
+  return (
+    <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
+       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl transition-colors group-hover:bg-blue-500/20"></div>
+       
+       <div className="flex items-center gap-4 mb-6 relative z-10">
+         <div className="relative">
+           <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-2xl object-cover shadow-sm border-2 border-white dark:border-slate-700 bg-slate-100 dark:bg-slate-800" />
+           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-[#0F172B] rounded-full"></div>
+         </div>
+         <div>
+           <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Bonjour !</h3>
+           <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{role}</p>
+         </div>
+       </div>
+
+       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/50 relative z-10">
+         <div className="flex justify-between items-end mb-3">
+           <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Objectif du mois</span>
+           <span className="text-xl font-black text-[#2b4c7e] dark:text-blue-400">{percentage}%</span>
+         </div>
+         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-3 overflow-hidden relative">
+           <div className="bg-[#2b4c7e] dark:bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out relative" style={{ width: `${percentage}%` }}>
+              <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
+           </div>
+         </div>
+         <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 text-center uppercase tracking-wider">
+            {dossiersTraites} traités / {objTraites} cible
+         </p>
+       </div>
+    </div>
+  );
+}
+
+
+
+const ActivityTimeline = ({ timelineEvents }: any) => {
+  return (
+    <div className="bg-white dark:bg-[#0F172B] rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
+      <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
+        <Activity className="w-5 h-5 text-emerald-500" /> Flux d'Activité
+      </h3>
+      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
+        {timelineEvents.map((evt: any, i: number) => (
+          <div key={i} className="relative flex items-start gap-4">
+            <div
+              className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 ${
+                i === 0
+                  ? "bg-emerald-50 dark:bg-emerald-900/20"
+                  : "bg-slate-50 dark:bg-slate-800"
+              }`}
+            >
+              {i === 0 && (
+                <div className="absolute w-full h-full rounded-full bg-emerald-400 animate-ping opacity-20"></div>
+              )}
+              <div
+                className={`relative w-2 h-2 rounded-full ${i === 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}
+              ></div>
+            </div>
+            <div className="ml-10 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl rounded-tl-sm border border-slate-100 dark:border-slate-800 flex-1">
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {evt.action}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
+                {evt.dossier}
+              </p>
+              <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wider font-bold">
+                {evt.time}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPrescripteur() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,7 +175,9 @@ export default function DashboardPrescripteur() {
       const result = await dataService.getDossiers();
       // On simule le filtrage Dataverse côté client :
       // On affiche tous les dossiers assignés ou en suivi
-      const assigned = result.filter(d => d.new_statut >= 30 || d.new_statut === 20);
+      const assigned = result.filter(
+        (d) => d.new_status >= 30 || d.new_status === 20,
+      );
       setDossiers(assigned);
     } catch (err: any) {
       console.error(err);
@@ -69,26 +190,35 @@ export default function DashboardPrescripteur() {
     fetchDossiers();
   }, []);
 
-  // --- KPI Calculations ---
-  const aValider = dossiers.filter((d) => d.new_statut === 30 || d.new_statut === 40).length;
-  const enCorrection = dossiers.filter((d) => d.new_statut === 90).length;
-  const validesCeMois = dossiers.filter((d) => d.new_statut >= 50 && d.new_statut !== 90).length;
-  const enRetard = dossiers.filter((d) => differenceInDays(new Date(), parseISO(d.new_date_reception)) > 10).length;
+  const aValider = dossiers.filter(
+    (d) => d.new_status === 30 || d.new_status === 40,
+  ).length;
+  const enCorrection = dossiers.filter((d) => d.new_status === 90).length;
+  const validesCeMois = dossiers.filter(
+    (d) => d.new_status >= 50 && d.new_status !== 90,
+  ).length;
+  const horsDelai = dossiers.filter(
+    (d) => differenceInDays(new Date(), parseISO(d.new_reception_date)) > 5,
+  ).length;
+
 
   const timelineEvents = dossiers.slice(0, 4).map((d, i) => ({
-    id: d.new_dossierid,
-    action: d.new_statut === 30 ? "Nouveau dossier reçu" : "Dossier en traitement",
-    dossier: d.new_numero_dossier,
+    id: d.new_folderid,
+    action:
+      d.new_status === 30 ? "Nouveau dossier reçu" : "Dossier en traitement",
+    dossier: d.new_folder_number,
     time: i === 0 ? "A l'instant" : `Il y a ${i * 2} heures`,
   }));
 
   const handleAccuse = async (dossier: Dossier) => {
     try {
-      await dataService.updateDossier(dossier.new_dossierid, {
-        new_statut: 40, // Chez Prescripteur
-      });
+      await dataService.accuseReception(
+        dossier.new_folderid,
+        40, // Chez Prescripteur
+        "Amine Elboubakri"
+      );
       setSuccessMessage(
-        `Réception physique confirmée pour le dossier ${dossier.new_numero_dossier}.`,
+        `Réception physique confirmée pour le dossier ${dossier.new_folder_number}.`,
       );
       setSuccessModalOpen(true);
       fetchDossiers();
@@ -98,60 +228,91 @@ export default function DashboardPrescripteur() {
     }
   };
 
+
+
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
-            Espace Prescripteur
-          </h1>
-          <p className="text-slate-500 mt-1 dark:text-slate-400">
-            Validation des factures et contrats assignés
-          </p>
-        </div>
-      </div>
+      
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        
+        {/* Main Left Content */}
+        <div className="xl:col-span-2 flex flex-col gap-8">
+          
+          {/* Hero Banner SBM Design */}
+          <div className="bg-[#2b4c7e] rounded-3xl p-8 md:p-10 text-white relative overflow-hidden shadow-lg shadow-[#2b4c7e]/20 flex justify-between items-center">
+            <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+            
+            <div className="relative z-10 w-full lg:w-2/3">
+              <span className="inline-block py-1.5 px-3 rounded-lg bg-white/10 text-blue-100 text-xs font-bold tracking-wider mb-6 border border-white/20 backdrop-blur-md">
+                ESPACE PRESCRIPTEUR
+              </span>
+              <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
+                Validation des Saisies
+              </h1>
+              <p className="text-blue-100/90 text-sm md:text-base mb-8 max-w-xl">
+                Vous avez <strong className="text-white">{aValider} dossiers</strong> en attente de validation et <strong className="text-white">{enCorrection} retours</strong> à corriger.
+              </p>
+              <button 
+                onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: "30,40" } })}
+                className="bg-white text-[#2b4c7e] hover:bg-blue-50 px-8 py-3 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2 group"
+              >
+                Traiter les dossiers
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KPICard
-          title="À Valider"
-          value={aValider}
-          onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: "30,40" } })}
-          icon={<FileText className="w-5 h-5 text-white group-hover:-translate-y-1 transition-transform duration-300" />}
-          variant="blue"
-          index={0}
-        />
-        <KPICard
-          title="Validés ce mois"
-          value={validesCeMois}
-          onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: ">=50" } })}
-          icon={<CheckCircle className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" />}
-          variant="emerald"
-          index={1}
-        />
-        <KPICard
-          title="Retours Correction"
-          value={enCorrection}
-          onClick={() => navigate("/prescripteur/corrections")}
-          icon={<RotateCcw className="w-5 h-5 text-white group-hover:-translate-y-1 transition-transform duration-300" />}
-          variant="orange"
-          index={2}
-        />
-        <KPICard
-          title="En Retard"
-          value={enRetard}
-          onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: 20 } })}
-          icon={<Clock className="w-5 h-5 text-red-500 group-hover:rotate-12 transition-transform duration-300" />}
-          variant="default"
-          index={3}
-        />
-      </div>
+            {/* Right Illustration: Floating Glassmorphism Cards */}
+            <div className="hidden lg:block relative w-48 h-48 z-10 mr-4">
+              <div className="absolute top-4 right-4 w-32 h-40 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl transform rotate-12 transition-transform hover:rotate-6 flex flex-col p-4 gap-3">
+                 <div className="w-8 h-8 rounded-full bg-white/20"></div>
+                 <div className="w-full h-2 rounded bg-white/20 mt-auto"></div>
+                 <div className="w-2/3 h-2 rounded bg-white/20"></div>
+              </div>
+              <div className="absolute bottom-2 -left-4 w-36 h-20 bg-blue-500/30 backdrop-blur-xl rounded-2xl border border-blue-300/30 shadow-2xl transform -rotate-6 flex items-center justify-center">
+                 <CheckCircle2 className="w-10 h-10 text-white opacity-90 drop-shadow-md" />
+              </div>
+            </div>
+          </div>
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Table - Dossiers Récents */}
-        <div className="lg:col-span-2 bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6 flex flex-col min-h-[400px]">
+          {/* KPI Pills */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <KPIPill
+              title="À Valider"
+              value={aValider}
+              onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: "30,40" } })}
+              icon={<FileText className="w-5 h-5" />}
+              variant="blue"
+              index={0}
+            />
+            <KPIPill
+              title="Validés ce mois"
+              value={validesCeMois}
+              onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: ">=50" } })}
+              icon={<CheckCircle className="w-5 h-5" />}
+              variant="emerald"
+              index={1}
+            />
+            <KPIPill
+              title="Retours Correction"
+              value={enCorrection}
+              onClick={() => navigate("/prescripteur/corrections")}
+              icon={<RotateCcw className="w-5 h-5" />}
+              variant="default"
+              index={2}
+            />
+            <KPIPill
+              title="Hors Délai"
+              value={horsDelai}
+              onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: 20 } })}
+              icon={<Clock className="w-5 h-5" />}
+              variant="default"
+              index={3}
+            />
+          </div>
+
+          {/* Table - Dossiers Récents */}
+          <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6 flex flex-col flex-1 min-h-[400px]">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-semibold text-slate-800 dark:text-white text-lg">
               Dossiers en attente d'action
@@ -196,7 +357,7 @@ export default function DashboardPrescripteur() {
                 </tr>
               ) : (
                 dossiers
-                  .filter((d) => d.new_statut === 30 || d.new_statut === 40)
+                  .filter((d) => d.new_status === 30 || d.new_status === 40)
                   .slice(0, 5)
                   .map((dossier, i) => (
                     <tr
@@ -211,36 +372,52 @@ export default function DashboardPrescripteur() {
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-blue-800 dark:bg-blue-900">
                           <FileText className="w-4 h-4" />
                         </div>
-                        {dossier.new_numero_dossier}
+                        {dossier.new_folder_number}
                       </td>
                       <td className="py-4 text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {dossier.new_numero_facture || "-"}
+                        {dossier.new_invoice_number || "-"}
                       </td>
                       <td className="py-4">
                         <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                          {dossier.new_fournisseur_nom || "-"}
+                          {dossier.new_supplier_id || "-"}
                         </div>
                         <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                          {dossier.new_type_document === 100 ? "FACTURE" : dossier.new_type_document === 200 ? "AVOIR" : dossier.new_type_document === 300 ? "CONTRAT" : "AUTRE"}
+                          {dossier.new_document_type === 100
+                            ? "FACTURE"
+                            : dossier.new_document_type === 200
+                              ? "AVOIR"
+                              : dossier.new_document_type === 500
+                                ? "ACOMPTE"
+                                : dossier.new_document_type === 600
+                                  ? "COURRIER"
+                                  : "AUTRE"}
                         </div>
                       </td>
                       <td className="py-4 text-sm text-slate-500 dark:text-slate-400">
-                        {dossier.new_date_reception ? format(parseISO(dossier.new_date_reception), "dd MMM yyyy", { locale: fr }) : "-"}
+                        {dossier.new_reception_date
+                          ? format(
+                              parseISO(dossier.new_reception_date),
+                              "dd MMM yyyy",
+                              { locale: fr },
+                            )
+                          : "-"}
                       </td>
                       <td className="py-4">
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                            dossier.new_statut === 30
+                            dossier.new_status === 30
                               ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                               : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                           }`}
                         >
-                          {dossier.new_statut === 30 ? "À réceptionner" : "Chez vous"}
+                          {dossier.new_status === 30
+                            ? "À réceptionner"
+                            : "Chez vous"}
                         </span>
                       </td>
                       <td className="py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {dossier.new_statut === 30 && (
+                          {dossier.new_status === 30 && (
                             <button
                               onClick={() => handleAccuse(dossier)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-emerald-500/20"
@@ -250,7 +427,9 @@ export default function DashboardPrescripteur() {
                           )}
                           <button
                             onClick={() =>
-                              navigate(`/prescripteur/dossiers/${dossier.new_dossierid}`)
+                              navigate(
+                                `/prescripteur/dossiers/${dossier.new_folderid}`,
+                              )
                             }
                             className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1"
                             title="Consulter"
@@ -262,53 +441,29 @@ export default function DashboardPrescripteur() {
                     </tr>
                   ))
               )}
-              {!loading && dossiers.filter((d) => d.new_statut === 30 || d.new_statut === 40).length === 0 && (
-                <tr>
-                   <td colSpan={6} className="py-12 text-center text-slate-500">
-                     Aucun dossier en attente d'action.
-                   </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              {!loading &&
+                dossiers.filter(
+                  (d) => d.new_status === 30 || d.new_status === 40,
+                ).length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="py-12 text-center text-slate-500"
+                    >
+                      Aucun dossier en attente d'action.
+                    </td>
+                  </tr>
+                  )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* Timeline Activité */}
-        <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-700 soft-shadow p-6">
-          <h3 className="font-semibold text-slate-800 dark:text-white text-lg mb-6 flex items-center gap-2">
-            <Activity className="w-5 h-5 text-emerald-500" /> Vos flux récents
-          </h3>
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
-            {timelineEvents.map((evt, i) => (
-              <div key={i} className="relative flex items-start gap-4">
-                <div
-                  className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 ${
-                    i === 0
-                      ? "bg-blue-50 dark:bg-blue-900/20"
-                      : "bg-slate-50 dark:bg-slate-800"
-                  }`}
-                >
-                  {i === 0 && (
-                    <div className="absolute w-full h-full rounded-full bg-blue-400 animate-ping opacity-20"></div>
-                  )}
-                  <div
-                    className={`relative w-2 h-2 rounded-full ${i === 0 ? "bg-blue-500" : "bg-slate-300 dark:bg-slate-600"}`}
-                  ></div>
-                </div>
-                <div className="ml-10">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                    {evt.action}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
-                    {evt.dossier}
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                    {evt.time}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* Right Sidebar */}
+        <div className="xl:col-span-1 space-y-8">
+            <ProfileProgressCard dossiersTraites={validesCeMois} objTraites={validesCeMois + aValider > 0 ? validesCeMois + aValider : 10} />
+
+            <ActivityTimeline timelineEvents={timelineEvents} />
         </div>
       </div>
 
@@ -333,64 +488,4 @@ export default function DashboardPrescripteur() {
   );
 }
 
-function KPICard({
-  title,
-  value,
-  icon,
-  variant = "default",
-  index = 0,
-  onClick
-}: any) {
-  const isBlue = variant === "blue";
-  const isEmerald = variant === "emerald";
-  const isOrange = variant === "orange";
-  const isColored = isBlue || isEmerald || isOrange;
 
-  const bgClass = isBlue
-    ? "bg-blue-600 border-blue-500 dark:bg-blue-800 dark:border-blue-700"
-    : isEmerald
-      ? "bg-emerald-500 border-emerald-400 dark:bg-emerald-800 dark:border-emerald-700"
-      : isOrange
-        ? "bg-orange-500 border-orange-400 dark:bg-orange-800 dark:border-orange-700"
-        : "bg-white border-slate-100 dark:bg-[#0F172B] dark:border-slate-700";
-
-  const titleClass = isColored
-    ? "text-blue-50 dark:text-blue-100"
-    : "text-slate-500 dark:text-slate-400";
-
-  const valueClass = isColored
-    ? "text-white"
-    : "text-slate-900 dark:text-slate-100";
-
-  const iconBgClass = isBlue
-    ? "bg-blue-500/50"
-    : isEmerald
-      ? "bg-emerald-600/30"
-      : isOrange
-        ? "bg-orange-600/30"
-        : "bg-red-50 dark:bg-red-900/20";
-
-  return (
-    <div 
-      onClick={onClick}
-      className={`${bgClass} rounded-2xl p-5 relative overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-500 cursor-pointer animate-in fade-in slide-in-from-bottom-6`}
-      style={{
-        animationFillMode: "both",
-        animationDelay: `${index * 100}ms`,
-        animationDuration: "700ms",
-      }}
-    >
-      <div className="flex justify-between items-start mb-4">
-        <h3 className={`${titleClass} text-sm font-semibold`}>{title}</h3>
-        <div className={`p-2 rounded-xl transition-colors ${iconBgClass}`}>
-          {icon}
-        </div>
-      </div>
-      <div className="flex items-end gap-3">
-        <span className={`${valueClass} text-3xl font-bold tracking-tight`}>
-          {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
-        </span>
-      </div>
-    </div>
-  );
-}
