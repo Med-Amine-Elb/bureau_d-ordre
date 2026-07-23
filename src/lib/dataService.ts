@@ -2,6 +2,96 @@
 // En mode local (sur votre PC), il utilise le LocalStorage pour simuler la base de données.
 // En production (Power Apps), il utilisera window.Xrm.WebApi.
 
+const getXrm = (): any => {
+  if (typeof window === "undefined") return null;
+  if ((window as any).Xrm) return (window as any).Xrm;
+  if (window.parent && (window.parent as any).Xrm) return (window.parent as any).Xrm;
+  return null;
+};
+
+const getEntitySetName = (logicalName: string): string => {
+  switch (logicalName) {
+    case "new_folder": return "new_folders";
+    case "systemuser": return "systemusers";
+    case "new_supplier": return "new_suppliers";
+    case "new_branch": return "new_branches";
+    default: return `${logicalName}s`;
+  }
+};
+
+const callCrmWebApi = async (method: string, logicalName: string, id: string | null, data: any): Promise<any> => {
+  const xrm = getXrm();
+  if (!xrm) throw new Error("No CRM context");
+  
+  try {
+    if (xrm.WebApi) {
+      if (method === "GET") {
+        if (id) {
+          return await xrm.WebApi.retrieveRecord(logicalName, id, data);
+        } else {
+          return await xrm.WebApi.retrieveMultipleRecords(logicalName, data);
+        }
+      } else if (method === "POST") {
+        return await xrm.WebApi.createRecord(logicalName, data);
+      } else if (method === "PATCH" && id) {
+        return await xrm.WebApi.updateRecord(logicalName, id, data);
+      } else if (method === "DELETE" && id) {
+        return await xrm.WebApi.deleteRecord(logicalName, id);
+      }
+    }
+  } catch (err: any) {
+    console.warn(`Xrm.WebApi.${method} failed, falling back to direct fetch:`, err);
+  }
+
+  const clientUrl = xrm.Utility.getGlobalContext().getClientUrl();
+  const entitySet = getEntitySetName(logicalName);
+  const url = `${clientUrl}/api/data/v9.2/${entitySet}${id ? `(${id})` : ""}${method === "GET" && !id && data ? data : ""}`;
+  
+  const headers: any = {
+    "OData-MaxVersion": "4.0",
+    "OData-Version": "4.0",
+    "Accept": "application/json",
+    "Content-Type": "application/json; charset=utf-8"
+  };
+
+  const options: RequestInit = {
+    method: method === "PATCH" ? "PATCH" : (method === "POST" ? "POST" : (method === "DELETE" ? "DELETE" : "GET")),
+    headers
+  };
+
+  if (data && method !== "GET") {
+    options.body = JSON.stringify(data);
+  }
+
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Dataverse Web API error: ${response.status} - ${errText}`);
+  }
+
+  if (method === "DELETE" || method === "PATCH") {
+    return;
+  }
+
+  const resultJson = await response.json();
+  if (method === "POST") {
+    const entityIdHeader = response.headers.get("OData-EntityId");
+    let createdId = "";
+    if (entityIdHeader) {
+      const match = entityIdHeader.match(/\(([^)]+)\)/);
+      if (match) createdId = match[1];
+    }
+    return { id: createdId || resultJson.new_folderid || "" };
+  }
+
+  if (method === "GET" && !id) {
+    return { entities: resultJson.value };
+  }
+
+  return resultJson;
+};
+
+
 export interface Dossier {
   new_folderid: string;
   new_folder_number: string;
@@ -697,25 +787,25 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
     entity["new_supplier_id@odata.bind"] = `/new_suppliers(${d.new_supplier_id})`;
   }
   if (d.new_company_id) {
-    entity["new_company@odata.bind"] = `/new_companies(${d.new_company_id})`;
+    entity["new_Company@odata.bind"] = `/new_companies(${d.new_company_id})`;
   }
   if (d.new_department_id) {
-    entity["new_department@odata.bind"] = `/new_departements(${d.new_department_id})`;
+    entity["new_Department@odata.bind"] = `/new_departements(${d.new_department_id})`;
   }
   if (d.new_prescriber_id) {
-    entity["new_prescripteur@odata.bind"] = `/systemusers(${d.new_prescriber_id})`;
+    entity["new_Prescripteur@odata.bind"] = `/systemusers(${d.new_prescriber_id})`;
   }
   if (d.new_dcf_collector_id) {
-    entity["new_dcfcollector@odata.bind"] = `/systemusers(${d.new_dcf_collector_id})`;
+    entity["new_DCFCollector@odata.bind"] = `/systemusers(${d.new_dcf_collector_id})`;
   }
   if (d.new_destination_branch_id) {
-    entity["new_destinationbranch@odata.bind"] = `/new_branches(${d.new_destination_branch_id})`;
+    entity["new_DestinationBranch@odata.bind"] = `/new_branches(${d.new_destination_branch_id})`;
   }
   if (d.new_accuse_par) {
     entity["new_acknowledged_by_id@odata.bind"] = `/systemusers(${d.new_accuse_par})`;
   }
   if (d.new_linked_folder_id) {
-    entity["new_linkedfolder@odata.bind"] = `/new_folders(${d.new_linked_folder_id})`;
+    entity["new_LinkedFolder@odata.bind"] = `/new_folders(${d.new_linked_folder_id})`;
   }
   if (d.new_collecteur_treso) {
     entity["new_treasury_collector_id@odata.bind"] = `/systemusers(${d.new_collecteur_treso})`;
@@ -727,7 +817,8 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 export const dataService = {
   getDossiers: async (): Promise<Dossier[]> => {
     // Mode Power Apps
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+    const xrm = getXrm();
+    if (xrm) {
       const selectFields = [
         "new_folder_number",
         "new_status",
@@ -777,7 +868,7 @@ export const dataService = {
         "_new_treasury_collector_id_value"
       ].join(",");
 
-      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_folder", `?$select=${selectFields}`);
+      const result = await callCrmWebApi("GET", "new_folder", null, `?$select=${selectFields}`);
       return result.entities.map(mapCrmEntityToDossier);
     }
     
@@ -789,9 +880,10 @@ export const dataService = {
   },
 
   createDossier: async (dossier: Partial<Dossier>): Promise<string> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+    const xrm = getXrm();
+    if (xrm) {
       const crmEntity = mapDossierToCrmEntity(dossier);
-      const result = await (window as any).Xrm.WebApi.createRecord("new_folder", crmEntity);
+      const result = await callCrmWebApi("POST", "new_folder", null, crmEntity);
       return result.id;
     }
 
@@ -827,8 +919,9 @@ export const dataService = {
   },
 
   updateDossierStatut: async (id: string, status: number): Promise<void> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      await (window as any).Xrm.WebApi.updateRecord("new_folder", id, { new_status: status });
+    const xrm = getXrm();
+    if (xrm) {
+      await callCrmWebApi("PATCH", "new_folder", id, { new_status: status });
       return;
     }
 
@@ -843,9 +936,10 @@ export const dataService = {
   },
 
   updateDossier: async (id: string, dossier: Partial<Dossier>): Promise<void> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+    const xrm = getXrm();
+    if (xrm) {
       const crmEntity = mapDossierToCrmEntity(dossier);
-      await (window as any).Xrm.WebApi.updateRecord("new_folder", id, crmEntity);
+      await callCrmWebApi("PATCH", "new_folder", id, crmEntity);
       return;
     }
 
@@ -878,9 +972,10 @@ export const dataService = {
   },
 
   accuseReception: async (id: string, nextStatus: number, user: string): Promise<void> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+    const xrm = getXrm();
+    if (xrm) {
       try {
-        const context = (window as any).Xrm.Utility.getGlobalContext();
+        const context = xrm.Utility.getGlobalContext();
         const userId = context.userSettings.userId.replace(/[{}]/g, "");
         const nowStr = new Date().toISOString();
         
@@ -890,7 +985,7 @@ export const dataService = {
         };
         updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
         
-        await (window as any).Xrm.WebApi.updateRecord("new_folder", id, updateData);
+        await callCrmWebApi("PATCH", "new_folder", id, updateData);
         return;
       } catch (err) {
         console.error("Failed to acknowledge receipt in CRM", err);
@@ -919,9 +1014,10 @@ export const dataService = {
 
   // User Management
   getUsers: async (): Promise<SystemUser[]> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
+    const xrm = getXrm();
+    if (xrm) {
       try {
-        const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("systemuser", "?$select=systemuserid,fullname,internalemailaddress");
+        const result = await callCrmWebApi("GET", "systemuser", null, "?$select=systemuserid,fullname,internalemailaddress");
         return result.entities.map((e: any) => ({
           systemuserid: e.systemuserid,
           fullname: e.fullname,
@@ -964,8 +1060,9 @@ export const dataService = {
 
   // Fournisseur Reference
   getFournisseursLookup: async (): Promise<FournisseurLookup[]> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_supplier", "?$select=new_supplierid,new_name,new_code,new_isactive");
+    const xrm = getXrm();
+    if (xrm) {
+      const result = await callCrmWebApi("GET", "new_supplier", null, "?$select=new_supplierid,new_name,new_code,new_isactive");
       return result.entities.map((e: any) => ({
         new_supplierid: e.new_supplierid,
         new_name: e.new_name,
@@ -1001,8 +1098,9 @@ export const dataService = {
 
   // Agence Reference
   getAgencesLookup: async (): Promise<AgenceLookup[]> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      const result = await (window as any).Xrm.WebApi.retrieveMultipleRecords("new_branch", "?$select=new_branchid,new_name,new_code,new_city,new_is_active");
+    const xrm = getXrm();
+    if (xrm) {
+      const result = await callCrmWebApi("GET", "new_branch", null, "?$select=new_branchid,new_name,new_code,new_city,new_is_active");
       return result.entities.map((e: any) => ({
         new_branchid: e.new_branchid,
         new_name: e.new_name,
@@ -1051,8 +1149,9 @@ export const dataService = {
 
   // Admin Overrides
   deleteDossier: async (id: string): Promise<void> => {
-    if (typeof window !== "undefined" && (window as any).Xrm && (window as any).Xrm.WebApi) {
-      await (window as any).Xrm.WebApi.deleteRecord("new_folder", id);
+    const xrm = getXrm();
+    if (xrm) {
+      await callCrmWebApi("DELETE", "new_folder", id, null);
       return;
     }
     const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
