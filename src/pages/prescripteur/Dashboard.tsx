@@ -162,6 +162,81 @@ const ActivityTimeline = ({ timelineEvents }: any) => {
   )
 }
 
+const formatEventTime = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr);
+    const diffMs = new Date().getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "À l'instant";
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Il y a ${diffHours} h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return "Hier";
+    return `Il y a ${diffDays} j`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const buildTimelineEvents = (dossiers: Dossier[]) => {
+  const events: { action: string; dossier: string; time: string; timestamp: string }[] = [];
+  
+  dossiers.forEach((d) => {
+    if (d.new_reception_date) {
+      events.push({ action: "Réception au BO", dossier: d.new_folder_number, time: "", timestamp: d.new_reception_date });
+    }
+    if (d.new_date_accuse) {
+      events.push({ action: "Accusé de réception BO", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse });
+    }
+    if (d.new_date_trans_prescripteur) {
+      events.push({ action: "Transmis au Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_prescripteur });
+    }
+    if (d.new_date_accuse_prescripteur) {
+      events.push({ action: "Accusé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_prescripteur });
+    }
+    if (d.new_date_val_prescripteur) {
+      events.push({ action: "Validé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_prescripteur });
+    }
+    if (d.new_date_retour_bo) {
+      events.push({ action: "Retourné pour Correction", dossier: d.new_folder_number, time: "", timestamp: d.new_date_retour_bo });
+    }
+    if (d.new_date_trans_dcf) {
+      events.push({ action: "Transmis à la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_dcf });
+    }
+    if (d.new_date_accuse_dcf) {
+      events.push({ action: "Accusé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_dcf });
+    }
+    if (d.new_date_val_dcf) {
+      events.push({ action: "Validé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_dcf });
+    }
+    if (d.new_accounting_date) {
+      events.push({ action: "Comptabilisé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_accounting_date });
+    }
+    if (d.new_cheque_preparation_date) {
+      events.push({ action: "Chèque préparé (Trésorerie)", dossier: d.new_folder_number, time: "", timestamp: d.new_cheque_preparation_date });
+    }
+    if (d.new_date_virement) {
+      events.push({ action: "Réglé par Virement", dossier: d.new_folder_number, time: "", timestamp: d.new_date_virement });
+    }
+    const deliveryDate = d.new_delivery_date || d.new_reception_date_agence || d.new_date_livraison;
+    if (deliveryDate) {
+      events.push({ action: "Chèque reçu par l'Agence", dossier: d.new_folder_number, time: "", timestamp: deliveryDate });
+    }
+    if (d.new_final_delivery_date) {
+      events.push({ action: "Chèque remis au Fournisseur", dossier: d.new_folder_number, time: "", timestamp: d.new_final_delivery_date });
+    }
+  });
+
+  return events
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
+    .map((evt) => ({
+      ...evt,
+      time: formatEventTime(evt.timestamp)
+    }));
+};
+
 export default function DashboardPrescripteur() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,13 +277,7 @@ export default function DashboardPrescripteur() {
   ).length;
 
 
-  const timelineEvents = dossiers.slice(0, 4).map((d, i) => ({
-    id: d.new_folderid,
-    action:
-      d.new_status === 30 ? "Nouveau dossier reçu" : "Dossier en traitement",
-    dossier: d.new_folder_number,
-    time: i === 0 ? "A l'instant" : `Il y a ${i * 2} heures`,
-  }));
+  const timelineEvents = buildTimelineEvents(dossiers);
 
   const handleAccuse = async (dossier: Dossier) => {
     try {

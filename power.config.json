@@ -10,5 +10,35 @@
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
   "connectionReferences": {},
-  "databaseReferences": {}
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "folders": {
+          "entitySetName": "new_folders",
+          "logicalName": "new_folder"
+        },
+        "suppliers": {
+          "entitySetName": "new_suppliers",
+          "logicalName": "new_supplier"
+        },
+        "branches": {
+          "entitySetName": "new_branchs",
+          "logicalName": "new_branch"
+        },
+        "users": {
+          "entitySetName": "systemusers",
+          "logicalName": "systemuser"
+        },
+        "companies": {
+          "entitySetName": "new_companies",
+          "logicalName": "new_company"
+        },
+        "departements": {
+          "entitySetName": "new_departements",
+          "logicalName": "new_departement"
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
 }

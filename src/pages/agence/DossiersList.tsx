@@ -300,7 +300,21 @@ export default function DossiersListAgence() {
                       {getStatusBadge(dossier.new_status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                      {dossier.new_date_transmission_bo ? format(parseISO(dossier.new_date_transmission_bo), "dd MMM yyyy", { locale: fr }) : "-"}
+                      <div className="flex flex-col">
+                        <span className="font-medium text-slate-900 dark:text-slate-100">
+                          {dossier.new_date_transmission_bo ? format(parseISO(dossier.new_date_transmission_bo), "dd MMM yyyy", { locale: fr }) : "-"}
+                        </span>
+                        {dossier.new_commentaire_agence && (
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                            {dossier.new_commentaire_agence}
+                          </span>
+                        )}
+                        {dossier.new_livreur_nom && (
+                          <span className="text-[11px] text-blue-600 dark:text-blue-400 font-bold">
+                            Chauffeur : {dossier.new_livreur_nom}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                       {dossier.new_status === 150 && dossier.new_final_delivery_date ? (

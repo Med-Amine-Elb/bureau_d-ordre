@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Send, CheckCircle, X } from "lucide-react";
+import { Send, X } from "lucide-react";
+import { dataService } from "../lib/dataService";
 
 interface TransmissionModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface TransmissionModalProps {
   dossierNumber: string;
   targetRole: "Prescripteur" | "DCF" | "Trésorerie";
   initialCollector?: string;
+  directionId?: string;
 }
 
 export default function TransmissionModal({
@@ -17,37 +19,45 @@ export default function TransmissionModal({
   dossierNumber,
   targetRole,
   initialCollector = "",
+  directionId,
 }: TransmissionModalProps) {
   const [collector, setCollector] = useState(initialCollector);
   const [comment, setComment] = useState("");
   const [physicalHandoffConfirmed, setPhysicalHandoffConfirmed] = useState(false);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setCollector(initialCollector);
       setComment("");
       setPhysicalHandoffConfirmed(false);
+      setLoading(true);
+      
+      dataService.getUsers()
+        .then((res) => {
+          setUsers(res);
+        })
+        .catch((err) => {
+          console.error("Failed to load users for transmission modal:", err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
     }
   }, [isOpen, initialCollector]);
 
   if (!isOpen) return null;
 
-  const collectorsList =
-    targetRole === "Prescripteur"
-      ? [
-          { value: "Amine Elboubakri", label: "Amine Elboubakri" },
-          { value: "Sarah Alaoui", label: "Sarah Alaoui" },
-          { value: "Nabil Bennani", label: "Nabil Bennani" },
-        ]
-      : targetRole === "DCF"
-      ? [
-          { value: "Karim Idrissi", label: "Karim Idrissi" },
-          { value: "Nadia Tazi", label: "Nadia Tazi" },
-        ]
-      : [
-          { value: "Yassine Mansouri", label: "Yassine Mansouri" },
-          { value: "Houda Chraibi", label: "Houda Chraibi" },
-        ];
+  // Filter users based on targetRole and directionId
+  const filteredUsers = users.filter((u) => {
+    if (targetRole === "Prescripteur") {
+      // Filter by direction if directionId is specified
+      return !directionId || u.new_department_id === directionId;
+    }
+    // For DCF and Trésorerie, show all users
+    return true;
+  });
 
   const canConfirm = collector !== "" && physicalHandoffConfirmed;
 
@@ -93,10 +103,16 @@ export default function TransmissionModal({
                 required
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               >
-                <option value="">Sélectionner un destinataire...</option>
-                {collectorsList.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
+                <option value="">
+                  {loading
+                    ? "Chargement des destinataires..."
+                    : filteredUsers.length === 0
+                    ? "Aucun destinataire disponible pour cette direction"
+                    : "Sélectionner un destinataire..."}
+                </option>
+                {filteredUsers.map((item) => (
+                  <option key={item.systemuserid} value={item.systemuserid}>
+                    {item.fullname}
                   </option>
                 ))}
               </select>
@@ -148,7 +164,7 @@ export default function TransmissionModal({
                   : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
               }`}
             >
-              <CheckCircle className="w-4 h-4" /> Confirmer la transmission
+              <Send className="w-4 h-4" /> Transmettre
             </button>
           </div>
         </form>
@@ -156,5 +172,3 @@ export default function TransmissionModal({
     </div>
   );
 }
-
-

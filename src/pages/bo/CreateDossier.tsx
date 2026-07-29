@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
+import { filterDossiers } from "@/lib/normalization";
 
 export default function CreateDossier() {
   const navigate = useNavigate();
@@ -32,6 +33,58 @@ export default function CreateDossier() {
   const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
   const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
 
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [allDossiers, setAllDossiers] = useState<Dossier[]>([]);
+  const [dossierLieInput, setDossierLieInput] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        const [sups, comps, depts, usrs, folders] = await Promise.all([
+          dataService.getFournisseursLookup(),
+          dataService.getCompaniesLookup(),
+          dataService.getDepartmentsLookup(),
+          dataService.getUsers(),
+          dataService.getDossiers()
+        ]);
+        setSuppliers(sups);
+        setCompanies(comps);
+        setDepartments(depts);
+        setUsers(usrs);
+        setAllDossiers(folders);
+      } catch (err) {
+        console.error("Failed to load lookups", err);
+      }
+    };
+    loadLookups();
+  }, []);
+
+  useEffect(() => {
+    if (editDossier && allDossiers.length > 0) {
+      const found = allDossiers.find(d => d.new_folderid === editDossier.new_linked_folder_id);
+      if (found) {
+        setDossierLieInput(`${found.new_folder_number} ${found.new_po_number ? '(BC: ' + found.new_po_number + ')' : ''}`);
+      } else if (editDossier.new_linked_folder_id) {
+        setDossierLieInput(editDossier.new_linked_folder_id);
+      }
+    }
+  }, [editDossier, allDossiers]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".linked-folder-container")) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const [formData, setFormData] = useState({
     numero_dossier: editDossier
       ? editDossier.new_folder_number
@@ -39,10 +92,10 @@ export default function CreateDossier() {
     date_reception: editDossier?.new_reception_date
       ? new Date(editDossier.new_reception_date).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
-    fournisseur: editDossier?.new_supplier_id || "",
-    societe_gbm: editDossier?.new_company_id || "",
-    direction: editDossier?.new_department_id || "",
-    prescripteur: editDossier?.new_prescriber_id || "",
+    fournisseur: editDossier?.new_supplier_guid || editDossier?.new_supplier_id || "",
+    societe_gbm: editDossier?.new_company_guid || editDossier?.new_company_id || "",
+    direction: editDossier?.new_department_guid || editDossier?.new_department_id || "",
+    prescripteur: editDossier?.new_prescriber_guid || editDossier?.new_prescriber_id || "",
     type_document: editDossier?.new_document_type || 100, // Facture
     numero_facture: editDossier?.new_invoice_number || "",
     numero_bc: editDossier?.new_po_number || "",
@@ -53,7 +106,7 @@ export default function CreateDossier() {
     documents_complements:
       editDossier?.new_documents_complements || ([] as string[]),
     dossier_lie: "",
-    collecteur_dcf: editDossier?.new_dcf_collector_id || "",
+    collecteur_dcf: editDossier?.new_dcf_collector_guid || editDossier?.new_dcf_collector_id || "",
     livreur_nom: editDossier?.new_livreur_nom || "",
     personne_a_livrer: editDossier?.new_personne_a_livrer || "",
     date_livraison: editDossier?.new_date_livraison
@@ -72,6 +125,30 @@ export default function CreateDossier() {
        }
     }
   }, [formData.type_document, isEditing, formData.numero_dossier]);
+
+  const [isDuplicateInvoice, setIsDuplicateInvoice] = useState(false);
+
+  useEffect(() => {
+    const checkDuplicate = async () => {
+      if (Number(formData.type_document) === 100 && formData.fournisseur && formData.numero_facture) {
+        try {
+          const isDup = await dataService.checkDuplicateInvoice(
+            formData.fournisseur,
+            formData.numero_facture,
+            editDossier?.new_folderid
+          );
+          setIsDuplicateInvoice(isDup);
+        } catch (e) {
+          console.error("Failed to check duplicate invoice", e);
+        }
+      } else {
+        setIsDuplicateInvoice(false);
+      }
+    };
+
+    const timer = setTimeout(checkDuplicate, 500);
+    return () => clearTimeout(timer);
+  }, [formData.fournisseur, formData.numero_facture, formData.type_document, editDossier]);
 
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
 
@@ -106,6 +183,7 @@ export default function CreateDossier() {
       if (!formData.direction) return "La direction est obligatoire";
       if (!isFluxCourt && !formData.prescripteur) return "Le prescripteur est obligatoire";
       if (formData.type_document === 100 && !formData.numero_facture) return "Le numéro de facture est obligatoire";
+      if (formData.type_document === 100 && isDuplicateInvoice) return "Ce numéro de facture existe déjà pour ce fournisseur";
       if (formData.type_document === 100 && !formData.date_facture) return "La date de facture est obligatoire";
     }
 
@@ -181,7 +259,22 @@ export default function CreateDossier() {
     let statut = isDraft ? 10 : 30; // Brouillon ou En Transit Vers Prescripteur
     let isRejete = false;
 
-    if (dataToSubmit.type_document === 100 && isLate) {
+    const diff = differenceInDays(
+      parseISO(dataToSubmit.date_reception),
+      parseISO(dataToSubmit.date_facture)
+    );
+    const dossierIsLate = Number(dataToSubmit.type_document) === 100 && diff > 5;
+    
+    console.log("DEBUG LATE CHECK:", {
+      type_doc: dataToSubmit.type_document,
+      date_reception: dataToSubmit.date_reception,
+      date_facture: dataToSubmit.date_facture,
+      days_diff: diff,
+      is_late_calculated: dossierIsLate,
+      isDraft
+    });
+
+    if (Number(dataToSubmit.type_document) === 100 && dossierIsLate) {
       statut = 20; // Hors Délai
       isRejete = true;
     }
@@ -221,6 +314,7 @@ export default function CreateDossier() {
         new_livreur_nom: isCourrier ? dataToSubmit.livreur_nom : undefined,
         new_personne_a_livrer: isCourrier ? dataToSubmit.personne_a_livrer : undefined,
         new_date_livraison: isCourrier ? new Date(dataToSubmit.date_livraison).toISOString() : undefined,
+        new_linked_folder_id: isAvoir ? dataToSubmit.dossier_lie : undefined,
       };
 
       if (isEditing) {
@@ -252,6 +346,10 @@ export default function CreateDossier() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFilteredDossiers = () => {
+    return filterDossiers(allDossiers, dossierLieInput);
   };
 
   const isFluxCourt =
@@ -320,16 +418,19 @@ export default function CreateDossier() {
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Fournisseur <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required={!isAvoir}
-                    placeholder="Ex: GBM IT Services"
+                  <select
                     value={formData.fournisseur}
                     onChange={(e) =>
                       setFormData({ ...formData, fournisseur: e.target.value })
                     }
+                    required={!isAvoir}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
-                  />
+                  >
+                    <option value="">Sélectionner un fournisseur...</option>
+                    {suppliers.map(s => (
+                      <option key={s.new_supplierid} value={s.new_supplierid}>{s.new_name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -343,10 +444,10 @@ export default function CreateDossier() {
                     required={!isAvoir}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner...</option>
-                    <option value="SBM">SBM</option>
-                    <option value="SVCM">SVCM</option>
-                    <option value="CDC">CDC</option>
+                    <option value="">Sélectionner une société...</option>
+                    {companies.map(c => (
+                      <option key={c.new_companyid} value={c.new_companyid}>{c.new_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -360,17 +461,10 @@ export default function CreateDossier() {
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner...</option>
-                    <option value="Direction Informatique">
-                      Direction Informatique
-                    </option>
-                    <option value="Direction Ressources Humaines">
-                      Direction Ressources Humaines
-                    </option>
-                    <option value="Direction Achats">Direction Achats</option>
-                    <option value="Direction Juridique">
-                      Direction Juridique
-                    </option>
+                    <option value="">Sélectionner une direction...</option>
+                    {departments.map(d => (
+                      <option key={d.new_departmentid} value={d.new_departmentid}>{d.new_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -386,9 +480,9 @@ export default function CreateDossier() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
                     <option value="">Sélectionner un prescripteur...</option>
-                    <option value="Amine Elboubakri">Amine Elboubakri</option>
-                    <option value="Sarah Alaoui">Sarah Alaoui</option>
-                    <option value="Nabil Bennani">Nabil Bennani</option>
+                    {users.filter(u => !formData.direction || u.new_department_id === formData.direction).map(u => (
+                      <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
+                    ))}
                   </select>
                 </div>
               </>
@@ -422,10 +516,10 @@ export default function CreateDossier() {
                     required
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner...</option>
-                    <option value="SBM">SBM</option>
-                    <option value="SVCM">SVCM</option>
-                    <option value="CDC">CDC</option>
+                    <option value="">Sélectionner une société...</option>
+                    {companies.map(c => (
+                      <option key={c.new_companyid} value={c.new_companyid}>{c.new_name}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -441,9 +535,9 @@ export default function CreateDossier() {
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
                     <option value="">Sélectionner un destinataire...</option>
-                    <option value="Amine Elboubakri">Amine Elboubakri</option>
-                    <option value="Sarah Alaoui">Sarah Alaoui</option>
-                    <option value="Nabil Bennani">Nabil Bennani</option>
+                    {users.filter(u => !formData.direction || u.new_department_id === formData.direction).map(u => (
+                      <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -470,17 +564,10 @@ export default function CreateDossier() {
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner...</option>
-                    <option value="Direction Informatique">
-                      Direction Informatique
-                    </option>
-                    <option value="Direction Ressources Humaines">
-                      Direction Ressources Humaines
-                    </option>
-                    <option value="Direction Achats">Direction Achats</option>
-                    <option value="Direction Juridique">
-                      Direction Juridique
-                    </option>
+                    <option value="">Sélectionner une direction...</option>
+                    {departments.map(d => (
+                      <option key={d.new_departmentid} value={d.new_departmentid}>{d.new_name}</option>
+                    ))}
                   </select>
                 </div>
               </>
@@ -550,8 +637,17 @@ export default function CreateDossier() {
                         numero_facture: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 outline-none transition-all ${
+                      isDuplicateInvoice
+                        ? "border-red-500 focus:ring-red-500/20"
+                        : "border-slate-200 dark:border-slate-700 focus:ring-primary/20 focus:border-primary"
+                    }`}
                   />
+                  {isDuplicateInvoice && (
+                    <p className="text-xs text-red-500 font-semibold mt-1">
+                      ⚠️ Cette facture existe déjà pour ce fournisseur.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -569,7 +665,7 @@ export default function CreateDossier() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                    Date du Document <span className="text-red-500">*</span>
+                    Date de la Facture <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="date"
@@ -612,7 +708,7 @@ export default function CreateDossier() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {isAvoir && (
-                <div className="space-y-2">
+                <div className="space-y-2 relative linked-folder-container">
                   <label className="text-sm font-semibold text-amber-900 dark:text-amber-300">
                     Dossier d'origine (Lié){" "}
                     <span className="text-red-500">*</span>
@@ -625,16 +721,59 @@ export default function CreateDossier() {
                       type="text"
                       required
                       placeholder="Rechercher par N° Dossier ou N° BC..."
-                      value={formData.dossier_lie}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          dossier_lie: e.target.value,
-                        })
-                      }
+                      value={dossierLieInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setDossierLieInput(val);
+                        if (!val) {
+                          setFormData({ ...formData, dossier_lie: "" });
+                        }
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none"
                     />
                   </div>
+
+                  {showSuggestions && dossierLieInput.trim().length >= 2 && (() => {
+                    const filtered = getFilteredDossiers();
+                    return (
+                      <div className="absolute z-50 left-0 right-0 mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800 animate-in fade-in slide-in-from-top-1 duration-200">
+                        {filtered.slice(0, 6).map((d) => (
+                          <div
+                            key={d.new_folderid}
+                            className="p-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors flex flex-col gap-0.5 text-left text-xs text-slate-500"
+                            onClick={() => {
+                              setFormData({ ...formData, dossier_lie: d.new_folderid });
+                              setDossierLieInput(`${d.new_folder_number} ${d.new_po_number ? '(BC: ' + d.new_po_number + ')' : ''}`);
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            <div className="flex justify-between items-center mb-0.5">
+                              <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                                {d.new_folder_number}
+                              </span>
+                              {d.new_po_number && (
+                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold uppercase tracking-wider text-[9px]">
+                                  {d.new_po_number}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex justify-between items-center text-[11px]">
+                              <span>Fournisseur : {d.new_supplier_id || "-"}</span>
+                              <span className="italic">{d.new_invoice_number || "-"}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {filtered.length === 0 && (
+                          <div className="p-4 text-center text-xs text-slate-400">
+                            Aucun dossier trouvé correspondant.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   <p className="text-xs text-amber-700 dark:text-amber-500 mt-1">
                     Saisissez le N° de Dossier ou le Bon de Commande pour lier
                     cet Avoir.
@@ -660,8 +799,9 @@ export default function CreateDossier() {
                     <option value="">
                       Sélectionner la personne de la DCF...
                     </option>
-                    <option value="Karim Idrissi">Karim Idrissi</option>
-                    <option value="Nadia Tazi">Nadia Tazi</option>
+                    {users.map(u => (
+                      <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -823,6 +963,7 @@ export default function CreateDossier() {
         dossierNumber={formData.numero_dossier}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
+        directionId={formData.direction}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
-import type { Dossier } from "@/lib/dataService";
+import type { Dossier, AgenceLookup } from "@/lib/dataService";
 import {
   Package,
   Search,
@@ -22,6 +22,9 @@ export default function RemiseCheque() {
   const [signatureChecked, setSignatureChecked] = useState(false);
   const [agenceDestination, setAgenceDestination] = useState("Rabat Agdal");
   const [modeEnvoi, setModeEnvoi] = useState("");
+  const [agences, setAgences] = useState<AgenceLookup[]>([]);
+  const [typeExpedition, setTypeExpedition] = useState("camion"); // "camion" | "courrier"
+  const [nomChauffeur, setNomChauffeur] = useState("");
 
   // Cheque Accusé modal states
   const [isAccuseChequeModalOpen, setIsAccuseChequeModalOpen] = useState(false);
@@ -41,13 +44,24 @@ export default function RemiseCheque() {
 
   useEffect(() => {
     fetchDossiers();
+    const loadAgences = async () => {
+      try {
+        const list = await dataService.getAgencesLookup();
+        setAgences(list.filter(a => a.new_is_active));
+      } catch (e) {
+        console.error("Erreur de chargement des agences", e);
+      }
+    };
+    loadAgences();
   }, []);
 
   const handleOpenRemise = (dossier: Dossier) => {
     setSelectedDossier(dossier);
     setSignatureChecked(false);
-    setAgenceDestination("Rabat Agdal");
+    setAgenceDestination(dossier.new_destination_branch_id || (agences.length > 0 ? agences[0].new_name : "Rabat Agdal"));
     setModeEnvoi("");
+    setTypeExpedition("camion");
+    setNomChauffeur("");
     setIsModalOpen(true);
   };
 
@@ -86,10 +100,17 @@ export default function RemiseCheque() {
           new_final_delivery_date: new Date().toISOString()
         });
       } else {
+        const selectedAg = agences.find(a => a.new_name === agenceDestination);
+        const commentary = typeExpedition === "camion" 
+          ? "Expédié via Camion de la société" 
+          : `Expédié via Courrier (${modeEnvoi})`;
+        
         await dataService.updateDossier(selectedDossier.new_folderid, {
           new_status: 130,
           new_destination_branch_id: agenceDestination,
-          new_commentaire_agence: `Expédié via ${modeEnvoi}`
+          new_destination_branch_guid: selectedAg ? selectedAg.new_branchid : undefined,
+          new_commentaire_agence: commentary,
+          new_livreur_nom: typeExpedition === "camion" ? nomChauffeur : undefined
         });
       }
       toast.success(successMsg, { description: successDesc });
@@ -99,6 +120,17 @@ export default function RemiseCheque() {
       toast.error("Erreur", { description: "Impossible de valider l'action." });
     }
   };
+
+  const filteredDossiers = dossiers.filter((d) => {
+    const isCasaBranch = !d.new_destination_branch_id || 
+                         d.new_destination_branch_id === "Casa Anfa" || 
+                         d.new_destination_branch_id.toLowerCase().includes("casa");
+    if (activeTab === "casa") {
+      return isCasaBranch;
+    } else {
+      return !isCasaBranch;
+    }
+  });
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -177,7 +209,7 @@ export default function RemiseCheque() {
                     Chargement...
                   </td>
                 </tr>
-              ) : dossiers.length === 0 ? (
+              ) : filteredDossiers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
@@ -188,7 +220,7 @@ export default function RemiseCheque() {
                   </td>
                 </tr>
               ) : (
-                dossiers.map((dossier) => {
+                filteredDossiers.map((dossier) => {
                   const isRecu = !!dossier.new_cheque_recu_bo;
                   return (
                     <tr
@@ -215,7 +247,7 @@ export default function RemiseCheque() {
                           {dossier.new_supplier_id || "Fournisseur inconnu"}
                         </div>
                         <div className="text-xs text-slate-400 dark:text-slate-500">
-                          Banque : {dossier.new_banque_emettrice || "Non renseignée"}
+                          Banque : {dossier.new_banque_emettrice || "Non renseignée"} | Agence : <span className="font-semibold text-blue-600 dark:text-blue-400">{dossier.new_destination_branch_id || "Casa Anfa (Siège)"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -332,24 +364,79 @@ export default function RemiseCheque() {
                       onChange={(e) => setAgenceDestination(e.target.value)}
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
                     >
-                      <option value="Rabat Agdal">Rabat Agdal</option>
-                      <option value="Casa Anfa">Casa Anfa</option>
-                      <option value="Tanger Ville">Tanger Ville</option>
-                      <option value="Marrakech Guéliz">Marrakech Guéliz</option>
-                      <option value="Fès Ville">Fès Ville</option>
+                      {agences.map(ag => (
+                        <option key={ag.new_branchid} value={ag.new_name}>{ag.new_name}</option>
+                      ))}
+                      {agences.length === 0 && (
+                        <>
+                          <option value="Rabat Agdal">Rabat Agdal</option>
+                          <option value="Casa Anfa">Casa Anfa</option>
+                          <option value="Tanger Ville">Tanger Ville</option>
+                          <option value="Marrakech Guéliz">Marrakech Guéliz</option>
+                          <option value="Fès Ville">Fès Ville</option>
+                        </>
+                      )}
                     </select>
                   </div>
+
                   <div>
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
-                      Mode d'Envoi
+                      Moyen d'Expédition
                     </label>
-                    <input
-                      type="text"
-                      value={modeEnvoi}
-                      onChange={(e) => setModeEnvoi(e.target.value)}
-                      placeholder="Ex: Amana Express (N° Suivi: AB12345)"
-                      className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
+                    <div className="flex gap-4 mb-3">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="typeExpedition"
+                          value="camion"
+                          checked={typeExpedition === "camion"}
+                          onChange={() => setTypeExpedition("camion")}
+                          className="text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Camion de la société</span>
+                      </label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="typeExpedition"
+                          value="courrier"
+                          checked={typeExpedition === "courrier"}
+                          onChange={() => setTypeExpedition("courrier")}
+                          className="text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Courrier / Autre</span>
+                      </label>
+                    </div>
+
+                    {typeExpedition === "camion" ? (
+                      <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
+                          Nom du Chauffeur
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={nomChauffeur}
+                          onChange={(e) => setNomChauffeur(e.target.value)}
+                          placeholder="Saisir le nom du chauffeur du camion..."
+                          className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-300">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
+                          Détails d'envoi / N° de Suivi
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={modeEnvoi}
+                          onChange={(e) => setModeEnvoi(e.target.value)}
+                          placeholder="Ex: Amana Express (N° Suivi: AB12345)"
+                          className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    )}
                   </div>
                 </>
               )}

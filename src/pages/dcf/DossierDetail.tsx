@@ -80,13 +80,28 @@ export default function DossierDetailDCF() {
   const handleAccuse = async () => {
     try {
       setLoading(true);
-      await dataService.accuseReception(dossier.new_folderid, 80, "Utilisateur DCF");
+      const getXrm = () => {
+        if ((window as any).Xrm) return (window as any).Xrm;
+        try {
+          if (window.parent && (window.parent as any).Xrm) {
+            return (window.parent as any).Xrm;
+          }
+        } catch (e) {}
+        return null;
+      };
+      const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
+      const userName = context ? context.userSettings.userName : "Utilisateur DCF";
+
+      await dataService.accuseReception(dossier.new_folderid, 80, userName);
       toast.success("Réception accusée", {
         description: `Vous pouvez maintenant procéder à la comptabilisation.`,
       });
       fetchDossier();
-    } catch (err) {
-      toast.error("Erreur", { description: "Impossible d'accuser réception." });
+    } catch (err: any) {
+      console.error("DEBUG ACCUSE ERROR:", err);
+      toast.error("Erreur", { 
+        description: err.message || "Impossible d'accuser réception." 
+      });
     } finally {
       setLoading(false);
     }
@@ -433,6 +448,7 @@ export default function DossierDetailDCF() {
           dossierNumber={dossier.new_folder_number}
           targetRole="Trésorerie"
           onClose={() => setIsTransmitModalOpen(false)}
+          directionId={dossier.new_department_id}
           onConfirm={async (data) => {
             setIsTransmitModalOpen(false);
             setLoading(true);

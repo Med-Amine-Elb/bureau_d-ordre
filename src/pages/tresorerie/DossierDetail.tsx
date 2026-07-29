@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
-import type { Dossier } from "@/lib/dataService";
+import type { Dossier, AgenceLookup } from "@/lib/dataService";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -36,6 +36,9 @@ export default function DossierDetailTresorerie() {
   const [dateVirement, setDateVirement] = useState(new Date().toISOString().split('T')[0]);
   const [compteBancaireDest, setCompteBancaireDest] = useState("");
   const [commentaireTreso, setCommentaireTreso] = useState("");
+  const [agences, setAgences] = useState<AgenceLookup[]>([]);
+  const [selectedAgenceGuid, setSelectedAgenceGuid] = useState("");
+  const [selectedAgenceName, setSelectedAgenceName] = useState("");
 
   // Blocage states
   const [isBlocageFormOpen, setIsBlocageFormOpen] = useState(false);
@@ -59,6 +62,8 @@ export default function DossierDetailTresorerie() {
         if (found.new_commentaire_treso) setCommentaireTreso(found.new_commentaire_treso);
         if (found.new_motif_blocage) setMotifBlocage(found.new_motif_blocage);
         if (found.new_source_blocage) setSourceBlocage(found.new_source_blocage);
+        if (found.new_destination_branch_guid) setSelectedAgenceGuid(found.new_destination_branch_guid);
+        if (found.new_destination_branch_id) setSelectedAgenceName(found.new_destination_branch_id);
       }
     } catch (err) {
       console.error(err);
@@ -67,6 +72,18 @@ export default function DossierDetailTresorerie() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const loadAgences = async () => {
+      try {
+        const list = await dataService.getAgencesLookup();
+        setAgences(list.filter(a => a.new_is_active));
+      } catch (err) {
+        console.error("Erreur lors de la récupération des agences", err);
+      }
+    };
+    loadAgences();
+  }, []);
 
   useEffect(() => {
     fetchDossier();
@@ -105,7 +122,19 @@ export default function DossierDetailTresorerie() {
       setLoading(true);
       await dataService.updateDossier(dossier.new_folderid, {
         new_status: 110, // Chez Trésorerie
-        new_accuse_par: "Utilisateur Trésorerie",
+        new_accuse_par: (() => {
+          const getXrm = () => {
+            if ((window as any).Xrm) return (window as any).Xrm;
+            try {
+              if (window.parent && (window.parent as any).Xrm) {
+                return (window.parent as any).Xrm;
+              }
+            } catch (e) {}
+            return null;
+          };
+          const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
+          return context ? context.userSettings.userName : "Utilisateur Trésorerie";
+        })(),
         new_date_accuse: new Date().toISOString(),
         new_commentaire_reception: data.commentaire
       });
@@ -126,6 +155,10 @@ export default function DossierDetailTresorerie() {
     if (!dossier) return;
 
     if (modePaiement === 1) {
+      if (!selectedAgenceGuid) {
+        toast.error("Erreur", { description: "Veuillez choisir une agence de destination pour le chèque." });
+        return;
+      }
       if (!numeroCheque || !datePrepCheque || !banqueEmettrice) {
         toast.error("Erreur", { description: "Veuillez remplir tous les champs du chèque." });
         return;
@@ -155,6 +188,8 @@ export default function DossierDetailTresorerie() {
         new_cheque_number: isCheque ? numeroCheque : undefined,
         new_cheque_preparation_date: isCheque ? datePrepCheque : undefined,
         new_banque_emettrice: isCheque ? banqueEmettrice : undefined,
+        new_destination_branch_guid: isCheque ? selectedAgenceGuid : undefined,
+        new_destination_branch_id: isCheque ? selectedAgenceName : undefined,
         new_date_virement: !isCheque ? dateVirement : undefined,
         new_compte_bancaire_dest: !isCheque ? ribCleaned : undefined,
         new_date_transmission_bo: isCheque ? new Date().toISOString().split('T')[0] : undefined,
@@ -503,38 +538,68 @@ export default function DossierDetailTresorerie() {
                   </div>
 
                   {modePaiement === 1 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/20 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Numéro de Chèque</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                          value={numeroCheque}
-                          onChange={(e) => setNumeroCheque(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de Préparation</label>
-                        <input
-                          type="date"
-                          required
-                          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                          value={datePrepCheque}
-                          onChange={(e) => setDatePrepCheque(e.target.value)}
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/20 p-5 rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in">
                       <div className="md:col-span-2 space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Banque Émettrice</label>
-                        <input
-                          type="text"
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Agence de Destination du Chèque</label>
+                        <select
                           required
-                          placeholder="e.g. Attijariwafa Bank, BCP..."
                           className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                          value={banqueEmettrice}
-                          onChange={(e) => setBanqueEmettrice(e.target.value)}
-                        />
+                          value={selectedAgenceGuid}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSelectedAgenceGuid(val);
+                            const foundAg = agences.find(a => a.new_branchid === val);
+                            setSelectedAgenceName(foundAg ? foundAg.new_name : "");
+                          }}
+                        >
+                          <option value="">-- Choisir l'agence de destination --</option>
+                          {agences.map((ag) => (
+                            <option key={ag.new_branchid} value={ag.new_branchid}>
+                              {ag.new_name} ({ag.new_city})
+                            </option>
+                          ))}
+                        </select>
                       </div>
+
+                      {selectedAgenceGuid ? (
+                        <>
+                          <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Numéro de Chèque</label>
+                            <input
+                              type="text"
+                              required
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                              value={numeroCheque}
+                              onChange={(e) => setNumeroCheque(e.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de Préparation</label>
+                            <input
+                              type="date"
+                              required
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                              value={datePrepCheque}
+                              onChange={(e) => setDatePrepCheque(e.target.value)}
+                            />
+                          </div>
+                          <div className="md:col-span-2 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Banque Émettrice</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Attijariwafa Bank, BCP..."
+                              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                              value={banqueEmettrice}
+                              onChange={(e) => setBanqueEmettrice(e.target.value)}
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="md:col-span-2 text-center py-4 text-xs font-medium text-slate-400 bg-slate-100/50 dark:bg-slate-900/30 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
+                          Veuillez choisir une agence pour émettre le chèque et afficher la suite du formulaire.
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/20 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -584,7 +649,12 @@ export default function DossierDetailTresorerie() {
 
                   <button
                     type="submit"
-                    className="w-full py-3 bg-[#2b4c7e] hover:bg-[#203a61] text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
+                    disabled={modePaiement === 1 && !selectedAgenceGuid}
+                    className={`w-full py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${
+                      (modePaiement === 1 && !selectedAgenceGuid)
+                        ? "bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
+                        : "bg-[#2b4c7e] hover:bg-[#203a61] text-white"
+                    }`}
                   >
                     <CheckCircle2 className="w-5 h-5" /> Enregistrer et transmettre au BO
                   </button>

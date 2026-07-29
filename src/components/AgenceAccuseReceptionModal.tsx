@@ -82,6 +82,18 @@ export default function AgenceAccuseReceptionModal({
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Expédié par le BO le :</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-300">{dateExpedStr}</span>
               </div>
+              {dossier.new_commentaire_agence && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Mode d'Expédition :</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">{dossier.new_commentaire_agence}</span>
+                </div>
+              )}
+              {dossier.new_livreur_nom && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Chauffeur :</span>
+                  <span className="font-bold text-blue-600 dark:text-blue-400">{dossier.new_livreur_nom}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Agence Destination :</span>
                 <span className="font-semibold text-[#2b4c7e] dark:text-blue-400">{dossier.new_destination_branch_id || "-"}</span>

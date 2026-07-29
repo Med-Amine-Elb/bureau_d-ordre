@@ -47,13 +47,28 @@ export default function DossierDetailPrescripteur() {
   const handleAccuse = async () => {
     if (!dossier) return;
     try {
-      await dataService.accuseReception(dossier.new_folderid, 40, "Amine Elboubakri");
+      const getXrm = () => {
+        if ((window as any).Xrm) return (window as any).Xrm;
+        try {
+          if (window.parent && (window.parent as any).Xrm) {
+            return (window.parent as any).Xrm;
+          }
+        } catch (e) {}
+        return null;
+      };
+      const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
+      const userName = context ? context.userSettings.userName : "Prescripteur";
+
+      await dataService.accuseReception(dossier.new_folderid, 40, userName);
       setSuccessMessage(`Réception accusée. Vous pouvez maintenant traiter le dossier.`);
       setSuccessModalOpen(true);
       fetchDossier();
       setTimeout(() => setSuccessModalOpen(false), 2000);
-    } catch (err) {
-      toast.error("Erreur d'accusé réception");
+    } catch (err: any) {
+      console.error("DEBUG ACCUSE ERROR:", err);
+      toast.error("Erreur d'accusé réception", {
+        description: err.message || "Impossible d'accuser réception."
+      });
     }
   };
 
@@ -200,7 +215,7 @@ export default function DossierDetailPrescripteur() {
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la Facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Type Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_document_type === 100 ? "FACTURE" : dossier.new_document_type === 200 ? "AVOIR" : dossier.new_document_type === 500 ? "ACOMPTE" : "AUTRE"}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>

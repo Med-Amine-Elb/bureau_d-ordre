@@ -1,96 +1,29 @@
 // Ce service fait le pont entre l'application React et Dataverse.
-// En mode local (sur votre PC), il utilise le LocalStorage pour simuler la base de données.
-// En production (Power Apps), il utilisera window.Xrm.WebApi.
+// Il utilise exclusivement les services officiels générés par PAC CLI.
+
+import { New_foldersService } from '../generated/services/New_foldersService';
+import { New_suppliersService } from '../generated/services/New_suppliersService';
+import { New_branchsService } from '../generated/services/New_branchsService';
+import { SystemusersService } from '../generated/services/SystemusersService';
+import { New_companiesService } from '../generated/services/New_companiesService';
+import { New_departementsService } from '../generated/services/New_departementsService';
 
 const getXrm = (): any => {
   if (typeof window === "undefined") return null;
   if ((window as any).Xrm) return (window as any).Xrm;
-  if (window.parent && (window.parent as any).Xrm) return (window.parent as any).Xrm;
+  try {
+    if (window.parent && (window.parent as any).Xrm) {
+      return (window.parent as any).Xrm;
+    }
+  } catch (e) {
+    // Ignore cross-origin frame access restriction
+  }
   return null;
 };
 
-const getEntitySetName = (logicalName: string): string => {
-  switch (logicalName) {
-    case "new_folder": return "new_folders";
-    case "systemuser": return "systemusers";
-    case "new_supplier": return "new_suppliers";
-    case "new_branch": return "new_branches";
-    default: return `${logicalName}s`;
-  }
+export const isCrmMode = (): boolean => {
+  return typeof window !== "undefined" && (!!getXrm() || (window as any).__vite_powerapps_plugin__ !== undefined);
 };
-
-const callCrmWebApi = async (method: string, logicalName: string, id: string | null, data: any): Promise<any> => {
-  const xrm = getXrm();
-  if (!xrm) throw new Error("No CRM context");
-  
-  try {
-    if (xrm.WebApi) {
-      if (method === "GET") {
-        if (id) {
-          return await xrm.WebApi.retrieveRecord(logicalName, id, data);
-        } else {
-          return await xrm.WebApi.retrieveMultipleRecords(logicalName, data);
-        }
-      } else if (method === "POST") {
-        return await xrm.WebApi.createRecord(logicalName, data);
-      } else if (method === "PATCH" && id) {
-        return await xrm.WebApi.updateRecord(logicalName, id, data);
-      } else if (method === "DELETE" && id) {
-        return await xrm.WebApi.deleteRecord(logicalName, id);
-      }
-    }
-  } catch (err: any) {
-    console.warn(`Xrm.WebApi.${method} failed, falling back to direct fetch:`, err);
-  }
-
-  const clientUrl = xrm.Utility.getGlobalContext().getClientUrl();
-  const entitySet = getEntitySetName(logicalName);
-  const url = `${clientUrl}/api/data/v9.2/${entitySet}${id ? `(${id})` : ""}${method === "GET" && !id && data ? data : ""}`;
-  
-  const headers: any = {
-    "OData-MaxVersion": "4.0",
-    "OData-Version": "4.0",
-    "Accept": "application/json",
-    "Content-Type": "application/json; charset=utf-8"
-  };
-
-  const options: RequestInit = {
-    method: method === "PATCH" ? "PATCH" : (method === "POST" ? "POST" : (method === "DELETE" ? "DELETE" : "GET")),
-    headers
-  };
-
-  if (data && method !== "GET") {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Dataverse Web API error: ${response.status} - ${errText}`);
-  }
-
-  if (method === "DELETE" || method === "PATCH") {
-    return;
-  }
-
-  const resultJson = await response.json();
-  if (method === "POST") {
-    const entityIdHeader = response.headers.get("OData-EntityId");
-    let createdId = "";
-    if (entityIdHeader) {
-      const match = entityIdHeader.match(/\(([^)]+)\)/);
-      if (match) createdId = match[1];
-    }
-    return { id: createdId || resultJson.new_folderid || "" };
-  }
-
-  if (method === "GET" && !id) {
-    return { entities: resultJson.value };
-  }
-
-  return resultJson;
-};
-
 
 export interface Dossier {
   new_folderid: string;
@@ -102,63 +35,86 @@ export interface Dossier {
   new_department_id?: string;
   new_prescriber_id?: string;
   new_dcf_collector_id?: string;
+  new_supplier_guid?: string;
+  new_company_guid?: string;
+  new_department_guid?: string;
+  new_prescriber_guid?: string;
+  new_dcf_collector_guid?: string;
+  new_destination_branch_guid?: string;
   new_invoice_number?: string;
   new_po_number?: string;
   new_invoice_date?: string;
   new_description?: string;
   new_reception_date: string;
   new_is_blocked?: boolean;
-  new_documents_complements?: string[];
-  new_destination_branch_id?: string;
-  new_accuse_par?: string;
+
+  // Additional tracking columns
   new_date_accuse?: string;
-  new_motif_blocage?: string;
-  new_est_comptabilise?: boolean;
-  new_collecteur_treso?: string;
-  new_motif_retour?: string;
-  new_livreur_nom?: string;
-  new_personne_a_livrer?: string;
-  new_date_livraison?: string;
-  
-  // Trésorerie specific fields
-  new_payment_method?: number; // 1 = Chèque, 2 = Virement
+  new_accuse_par?: string;
+  new_date_accuse_prescripteur?: string;
+  new_date_val_prescripteur?: string;
+  new_date_accuse_dcf?: string;
+  new_date_val_dcf?: string;
+
+  // Action history details
+  new_transmission_comment_bo?: string;
+  new_validation_comment_prescriber?: string;
+  new_rectification_comment_dcf?: string;
+  new_accounting_date?: string;
+
+  // Treasury specific columns
+  new_payment_method?: number;
   new_cheque_number?: string;
   new_wire_reference?: string;
   new_cheque_preparation_date?: string;
   new_final_delivery_date?: string;
-  new_date_virement?: string;
-  new_compte_bancaire_dest?: string;
-  new_banque_emettrice?: string;
-  new_date_transmission_bo?: string;
-  new_commentaire_treso?: string;
-  new_source_blocage?: string; // Fournisseur, Document, Système, Autre
-  new_date_deblocage?: string;
-  new_resolution_blocage?: string;
   new_cheque_recu_bo?: boolean;
-  new_commentaire_reception?: string;
-  
-  // Agence specific fields
-  new_reception_date_agence?: string;
-  new_accuse_reception_agence_par?: string;
-  new_recu_signe_scan?: string;
-  new_fournisseur_signe?: boolean;
+  new_reception_comment?: string;
+
+  // Delivery / Agence columns
+  new_delivery_date?: string;
+  new_delivery_person?: string;
+  new_signed_receipt_url?: string;
+  new_supplier_signed?: boolean;
   new_commentaire_agence?: string;
+  new_person_to_deliver?: string;
 
-  // Tracking dates for each stage
-  new_date_trans_prescripteur?: string;
-  new_date_accuse_prescripteur?: string;
-  new_date_val_prescripteur?: string;
-  new_date_retour_bo?: string;
-  new_date_trans_dcf?: string;
-  new_date_accuse_dcf?: string;
-  new_date_val_dcf?: string;
-
-  // Real schema optional mapping fields
+  // Alerts, reason, links
+  new_return_reason?: string;
   new_sharepoint_url?: string;
   new_cancellation_reason?: string;
+  new_cancellation_status?: number;
   new_advance_phase?: number;
   new_last_alert_date?: string;
   new_linked_folder_id?: string;
+  new_treasury_comment?: string;
+  new_collecteur_treso?: string;
+
+  // React Pages Required Fields
+  new_destination_branch_id?: string;
+  new_reception_date_agence?: string;
+  new_date_trans_prescripteur?: string;
+  new_date_retour_bo?: string;
+  new_date_trans_dcf?: string;
+  new_fournisseur_signe?: boolean;
+  new_recu_signe_scan?: string;
+  new_personne_a_livrer?: string;
+  new_commentaire_treso?: string;
+  new_banque_emettrice?: string;
+  new_date_virement?: string;
+  new_compte_bancaire_dest?: string;
+  new_resolution_blocage?: string;
+  new_date_deblocage?: string;
+  new_source_blocage?: string;
+  new_motif_blocage?: string;
+  new_livreur_nom?: string;
+  new_date_livraison?: string;
+  new_documents_complements?: string[];
+  new_est_comptabilise?: boolean;
+  new_motif_retour?: string;
+  new_commentaire_reception?: string;
+  new_date_transmission_bo?: string;
+  new_accuse_reception_agence_par?: string;
 }
 
 export interface SystemUser {
@@ -169,6 +125,7 @@ export interface SystemUser {
   new_destination_branch_id?: string;
   new_status: string; // Actif, Inactif
   new_derniere_connexion?: string;
+  new_department_id?: string;
 }
 
 export interface FournisseurLookup {
@@ -185,6 +142,20 @@ export interface AgenceLookup {
   new_is_active: boolean;
 }
 
+export interface CompanyLookup {
+  new_companyid: string;
+  new_name: string;
+  new_code: string;
+  new_is_active: boolean;
+}
+
+export interface DepartmentLookup {
+  new_departmentid: string;
+  new_name: string;
+  new_code: string;
+  new_is_active: boolean;
+}
+
 export interface SystemConfig {
   new_systemconfigid: string;
   new_regle_5_jours_limite: number;
@@ -192,541 +163,103 @@ export interface SystemConfig {
   new_alerte_blocage_jours: number;
 }
 
-const LOCAL_STORAGE_KEY = "gbm_mock_dossiers_v8";
-const USERS_STORAGE_KEY = "gbm_mock_users";
-const FOURNISSEURS_STORAGE_KEY = "gbm_mock_fournisseurs";
-const AGENCES_STORAGE_KEY = "gbm_mock_agences";
-const CONFIG_STORAGE_KEY = "gbm_mock_config";
-
-// Initialisation de fausses données si le local storage est vide
-const initMockData = () => {
-  if (!localStorage.getItem(LOCAL_STORAGE_KEY)) {
-    const mockData: Dossier[] = [
-      { 
-        new_folderid: "DOS-001", 
-        new_folder_number: "DOS-2026-001", 
-        new_document_type: 100, 
-        new_status: 150, 
-        new_supplier_id: "MAROC TELECOM",
-        new_company_id: "GBM_CASA",
-        new_department_id: "IT",
-        new_prescriber_id: "Amine Elboubakri",
-        new_reception_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "FACT-MT-998",
-        new_documents_complements: ["Facture originale.pdf", "Bon de commande.pdf", "Bon de réception (BR).pdf"]
-      },
-      { 
-        new_folderid: "DOS-002", 
-        new_folder_number: "DOS-2026-002", 
-        new_document_type: 100, 
-        new_status: 40, 
-        new_supplier_id: "OFFICE DEPOT",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "OD-2026-ABC",
-        new_documents_complements: ["Facture originale.pdf", "Bon de commande.pdf"]
-      },
-      { 
-        new_folderid: "DOS-003", 
-        new_folder_number: "DOS-2026-003", 
-        new_document_type: 300, 
-        new_status: 70, 
-        new_supplier_id: "SGS MAROC",
-        new_company_id: "GBM_CASA",
-        new_department_id: "RH",
-        new_prescriber_id: "Youssef Naciri",
-        new_reception_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "SGS-INV-001",
-        new_documents_complements: ["Contrat cadre.pdf", "Annexe technique.pdf"]
-      },
-      { 
-        new_folderid: "DOS-004", 
-        new_folder_number: "DOS-2026-004", 
-        new_document_type: 100, 
-        new_status: 20, 
-        new_supplier_id: "LYDEC",
-        new_company_id: "GBM_CASA",
-        new_department_id: "MOYENS GENERAUX",
-        new_prescriber_id: "Rida Benali",
-        new_reception_date: new Date().toISOString(), 
-        new_invoice_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // > 5 days diff
-        new_invoice_number: "LYD-09-2026",
-        new_is_blocked: true,
-        new_documents_complements: ["Facture originale.pdf", "Bon de commande.pdf", "Bon de réception (BR).pdf"]
-      },
-      { 
-        new_folderid: "DOS-005", 
-        new_folder_number: "DOS-2026-005", 
-        new_document_type: 400, 
-        new_status: 120, 
-        new_supplier_id: "CLEANING SERVICES SARL",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "RH",
-        new_prescriber_id: "Mouna El Fassi",
-        new_reception_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "DEM-CHQ-001",
-        new_documents_complements: ["Demande de chèque.pdf", "Proforma.pdf"]
-      },
-      { 
-        new_folderid: "DOS-006", 
-        new_folder_number: "DOS-2026-006", 
-        new_document_type: 200, 
-        new_status: 10, 
-        new_supplier_id: "ACER MAROC",
-        new_company_id: "GBM_CASA",
-        new_department_id: "IT",
-        new_prescriber_id: "Amine Elboubakri",
-        new_reception_date: new Date().toISOString(), 
-        new_invoice_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "AVOIR-ACER-12",
-        new_documents_complements: ["Note de crédit.pdf"]
-      },
-      { 
-        new_folderid: "DOS-007", 
-        new_folder_number: "DOS-2026-007", 
-        new_document_type: 100, 
-        new_status: 30, 
-        new_supplier_id: "LABEL VIE",
-        new_company_id: "GBM_CASA",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "LV-P12",
-        new_documents_complements: ["Facture originale.pdf", "Bon de réception (BR).pdf"]
-      },
-      { 
-        new_folderid: "DOS-008", 
-        new_folder_number: "DOS-2026-008", 
-        new_document_type: 500, 
-        new_status: 80, 
-        new_supplier_id: "COSUMAR",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "IT",
-        new_prescriber_id: "Hicham Berrada",
-        new_dcf_collector_id: "Karim Idrissi",
-        new_reception_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "ACP-COS-01",
-        new_documents_complements: ["Document divers.pdf"]
-      },
-      { 
-        new_folderid: "DOS-009", 
-        new_folder_number: "DOS-2026-009", 
-        new_document_type: 100, 
-        new_status: 90, 
-        new_supplier_id: "HPS",
-        new_company_id: "GBM_CASA",
-        new_department_id: "IT",
-        new_prescriber_id: "Amine Elboubakri",
-        new_reception_date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "HPS-INV-01",
-        new_documents_complements: ["Facture originale.pdf", "Bon de commande.pdf"]
-      },
-      { 
-        new_folderid: "DOS-010", 
-        new_folder_number: "DOS-2026-010", 
-        new_document_type: 100, 
-        new_status: 140, 
-        new_supplier_id: "AFRIQUIA",
-        new_company_id: "GBM_CASA",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Sarah Alaoui",
-        new_destination_branch_id: "Casa Anfa",
-        new_reception_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "AFR-GAS-01",
-        new_documents_complements: ["Facture originale.pdf", "Bon de réception (BR).pdf"]
-      },
-      { 
-        new_folderid: "DOS-011", 
-        new_folder_number: "DOS-2026-011", 
-        new_document_type: 100, 
-        new_status: 100, 
-        new_supplier_id: "INWI",
-        new_company_id: "GBM_CASA",
-        new_department_id: "IT",
-        new_prescriber_id: "Tariq Bensouda",
-        new_reception_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "FACT-INWI-2026-90",
-        new_documents_complements: ["Facture INWI.pdf"]
-      },
-      { 
-        new_folderid: "DOS-012", 
-        new_folder_number: "DOS-2026-012", 
-        new_document_type: 100, 
-        new_status: 110, 
-        new_supplier_id: "SOCIETE GENERALE",
-        new_company_id: "GBM_CASA",
-        new_department_id: "FINANCE",
-        new_prescriber_id: "Meryem Touimi",
-        new_reception_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "SG-FAC-887",
-        new_documents_complements: ["Facture Frais.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      { 
-        new_folderid: "DOS-013", 
-        new_folder_number: "DOS-2026-013", 
-        new_document_type: 100, 
-        new_status: 110, 
-        new_supplier_id: "IMPRIMERIE NATIONALE",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "MOYENS GENERAUX",
-        new_prescriber_id: "Adil Cherkaoui",
-        new_reception_date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "IMP-2026-45",
-        new_documents_complements: ["Facture Imp.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      { 
-        new_folderid: "DOS-014", 
-        new_folder_number: "DOS-2026-014", 
-        new_document_type: 100, 
-        new_status: 120, 
-        new_supplier_id: "DESK MAROC",
-        new_company_id: "GBM_CASA",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "DESK-9902",
-        new_documents_complements: ["Facture Mobilier.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-889021",
-        new_banque_emettrice: "ATTIJARIWAFA BANK",
-        new_cheque_preparation_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: false,
-        new_commentaire_treso: "Chèque signé et prêt. Transmis au Bureau d'Ordre pour remise."
-      },
-      { 
-        new_folderid: "DOS-015", 
-        new_folder_number: "DOS-2026-015", 
-        new_document_type: 100, 
-        new_status: 120, 
-        new_supplier_id: "COPY RAPIDE",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "RH",
-        new_prescriber_id: "Mouna El Fassi",
-        new_reception_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-        new_invoice_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_number: "CR-0021",
-        new_documents_complements: ["Facture Imp.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-773121",
-        new_banque_emettrice: "BMCE",
-        new_cheque_preparation_date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_commentaire_treso: "Chèque pour agence de Rabat."
-      },
-      {
-        new_folderid: "DOS-016",
-        new_folder_number: "DOS-2026-016",
-        new_document_type: 100,
-        new_status: 130, // En Transport Vers Agence
-        new_supplier_id: "BRICOMA",
-        new_company_id: "GBM_RABAT",
-        new_department_id: "MOYENS GENERAUX",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
-        new_documents_complements: ["Facture Bricoma.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-112233",
-        new_banque_emettrice: "SOCIETE GENERALE",
-        new_cheque_preparation_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_date_transmission_bo: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        new_destination_branch_id: "Rabat Agdal"
-      },
-      {
-        new_folderid: "DOS-017",
-        new_folder_number: "DOS-2026-017",
-        new_document_type: 100,
-        new_status: 140, // Disponible Agence
-        new_supplier_id: "ELECTROPLANET",
-        new_company_id: "GBM_CASA",
-        new_department_id: "MOYENS GENERAUX",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_date: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
-        new_documents_complements: ["Facture Electro.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-445566",
-        new_banque_emettrice: "ATTIJARIWAFA BANK",
-        new_cheque_preparation_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_date_transmission_bo: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        new_destination_branch_id: "Casa Anfa",
-        new_reception_date_agence: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        new_accuse_reception_agence_par: "Agent Casa Anfa"
-      },
-      {
-        new_folderid: "DOS-018",
-        new_folder_number: "DOS-2026-018",
-        new_document_type: 100,
-        new_status: 150, // Payé / Remis
-        new_supplier_id: "KITEA",
-        new_company_id: "GBM_TANGER",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Sarah Alaoui",
-        new_reception_date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-        new_documents_complements: ["Facture Kitea.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-778899",
-        new_banque_emettrice: "BMCI",
-        new_cheque_preparation_date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_date_transmission_bo: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        new_destination_branch_id: "Tanger Ville",
-        new_reception_date_agence: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_accuse_reception_agence_par: "Agent Tanger",
-        new_final_delivery_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_recu_signe_scan: "recu_kitea_signe.pdf",
-        new_fournisseur_signe: true,
-        new_commentaire_agence: "Chèque remis en mains propres au responsable régional de KITEA."
-      },
-      {
-        new_folderid: "DOS-019",
-        new_folder_number: "DOS-2026-019",
-        new_document_type: 100,
-        new_status: 130, // En Transport Vers Agence
-        new_supplier_id: "SOPRIAM",
-        new_company_id: "GBM_MARRAKECH",
-        new_department_id: "MOYENS GENERAUX",
-        new_prescriber_id: "Hicham Berrada",
-        new_reception_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        new_documents_complements: ["Facture Sopriam.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-112244",
-        new_banque_emettrice: "CIH BANK",
-        new_cheque_preparation_date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_date_transmission_bo: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        new_destination_branch_id: "Marrakech Guéliz"
-      },
-      {
-        new_folderid: "DOS-020",
-        new_folder_number: "DOS-2026-020",
-        new_document_type: 100,
-        new_status: 130, // En Transport Vers Agence
-        new_supplier_id: "AUTO HALL",
-        new_company_id: "GBM_FES",
-        new_department_id: "ACHATS",
-        new_prescriber_id: "Mouna El Fassi",
-        new_reception_date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
-        new_invoice_date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        new_documents_complements: ["Facture Auto Hall.pdf"],
-        new_accuse_par: "Trésorier Ahmed",
-        new_date_accuse: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        new_payment_method: 1,
-        new_cheque_number: "CHQ-998877",
-        new_banque_emettrice: "AL BARID BANK",
-        new_cheque_preparation_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        new_cheque_recu_bo: true,
-        new_date_transmission_bo: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        new_destination_branch_id: "Fès Ville"
-      }
-    ];
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(mockData));
-  }
-
-  // 2. Users
-  if (!localStorage.getItem(USERS_STORAGE_KEY)) {
-    const mockUsers: SystemUser[] = [
-      { systemuserid: "usr-001", fullname: "Ahmed Alami", internalemailaddress: "a.alami@gbm.ma", new_role: "BO", new_status: "Actif", new_derniere_connexion: new Date(Date.now() - 1 * 3600000).toISOString() },
-      { systemuserid: "usr-002", fullname: "Meryem Touimi", internalemailaddress: "m.touimi@gbm.ma", new_role: "Tresorerie", new_status: "Actif", new_derniere_connexion: new Date(Date.now() - 2 * 3600000).toISOString() },
-      { systemuserid: "usr-003", fullname: "Karim Idrissi", internalemailaddress: "k.idrissi@gbm.ma", new_role: "DCF", new_status: "Actif", new_derniere_connexion: new Date(Date.now() - 24 * 3600000).toISOString() },
-      { systemuserid: "usr-004", fullname: "Rachid Agdal", internalemailaddress: "r.agdal@gbm.ma", new_role: "Agence", new_destination_branch_id: "Rabat Agdal", new_status: "Actif", new_derniere_connexion: new Date(Date.now() - 4 * 3600000).toISOString() },
-      { systemuserid: "usr-005", fullname: "Yassine Anfa", internalemailaddress: "y.anfa@gbm.ma", new_role: "Agence", new_destination_branch_id: "Casa Anfa", new_status: "Actif", new_derniere_connexion: new Date(Date.now() - 30 * 60000).toISOString() },
-      { systemuserid: "usr-006", fullname: "Adil Admin", internalemailaddress: "a.admin@gbm.ma", new_role: "Admin", new_status: "Actif", new_derniere_connexion: new Date().toISOString() },
-      { systemuserid: "usr-007", fullname: "Fatima Bennani", internalemailaddress: "f.bennani@gbm.ma", new_role: "Prescripteur", new_status: "Inactif", new_derniere_connexion: new Date(Date.now() - 10 * 24 * 3600000).toISOString() }
-    ];
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(mockUsers));
-  }
-
-  // 3. Fournisseurs lookup
-  if (!localStorage.getItem(FOURNISSEURS_STORAGE_KEY)) {
-    const mockFournisseurs: FournisseurLookup[] = [
-      { new_supplierid: "four-001", new_name: "MAROC TELECOM", new_code: "FR-IAM-01", new_is_active: true },
-      { new_supplierid: "four-002", new_name: "OFFICE DEPOT", new_code: "FR-OD-02", new_is_active: true },
-      { new_supplierid: "four-003", new_name: "SGS MAROC", new_code: "FR-SGS-03", new_is_active: true },
-      { new_supplierid: "four-004", new_name: "LYDEC", new_code: "FR-LYDEC-04", new_is_active: true },
-      { new_supplierid: "four-005", new_name: "CLEANING SERVICES SARL", new_code: "FR-CLEAN-05", new_is_active: true },
-      { new_supplierid: "four-006", new_name: "ACER MAROC", new_code: "FR-ACER-06", new_is_active: true },
-      { new_supplierid: "four-007", new_name: "LABEL VIE", new_code: "FR-LVIE-07", new_is_active: true },
-      { new_supplierid: "four-008", new_name: "COSUMAR", new_code: "FR-COSU-08", new_is_active: true },
-      { new_supplierid: "four-009", new_name: "HPS", new_code: "FR-HPS-09", new_is_active: true },
-      { new_supplierid: "four-010", new_name: "AFRIQUIA", new_code: "FR-AFR-10", new_is_active: true },
-      { new_supplierid: "four-011", new_name: "INWI", new_code: "FR-INWI-11", new_is_active: true },
-      { new_supplierid: "four-012", new_name: "SOCIETE GENERALE", new_code: "FR-SG-12", new_is_active: true },
-      { new_supplierid: "four-013", new_name: "IMPRIMERIE NATIONALE", new_code: "FR-IMP-13", new_is_active: true },
-      { new_supplierid: "four-014", new_name: "DESK MAROC", new_code: "FR-DESK-14", new_is_active: true },
-      { new_supplierid: "four-015", new_name: "COPY RAPIDE", new_code: "FR-COPY-15", new_is_active: true },
-      { new_supplierid: "four-016", new_name: "BRICOMA", new_code: "FR-BRIC-16", new_is_active: true },
-      { new_supplierid: "four-017", new_name: "ELECTROPLANET", new_code: "FR-EPLANET-17", new_is_active: true },
-      { new_supplierid: "four-018", new_name: "KITEA", new_code: "FR-KITEA-18", new_is_active: true },
-      { new_supplierid: "four-019", new_name: "SOPRIAM", new_code: "FR-SOPR-19", new_is_active: true },
-      { new_supplierid: "four-020", new_name: "AUTO HALL", new_code: "FR-AH-20", new_is_active: true }
-    ];
-    localStorage.setItem(FOURNISSEURS_STORAGE_KEY, JSON.stringify(mockFournisseurs));
-  }
-
-  // 4. Agences lookup
-  if (!localStorage.getItem(AGENCES_STORAGE_KEY)) {
-    const mockAgences: AgenceLookup[] = [
-      { new_branchid: "age-001", new_name: "Rabat Agdal", new_city: "Rabat", new_is_active: true },
-      { new_branchid: "age-002", new_name: "Casa Anfa", new_city: "Casablanca", new_is_active: true },
-      { new_branchid: "age-003", new_name: "Tanger Ville", new_city: "Tanger", new_is_active: true },
-      { new_branchid: "age-004", new_name: "Marrakech Guéliz", new_city: "Marrakech", new_is_active: true },
-      { new_branchid: "age-005", new_name: "Fès Ville", new_city: "Fès", new_is_active: true }
-    ];
-    localStorage.setItem(AGENCES_STORAGE_KEY, JSON.stringify(mockAgences));
-  }
-
-  // 5. Config
-  if (!localStorage.getItem(CONFIG_STORAGE_KEY)) {
-    const mockConfig: SystemConfig = {
-      new_systemconfigid: "cfg-001",
-      new_regle_5_jours_limite: 5,
-      new_relance_seuil_jours: 15,
-      new_alerte_blocage_jours: 7
-    };
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(mockConfig));
+export const mapCrmDocumentTypeToFrontend = (crmVal: number): number => {
+  switch (crmVal) {
+    case 871840000: return 100; // Facture
+    case 871840001: return 200; // Avoir
+    case 871840002: return 500; // Acompte (also acts as 500 in frontend)
+    case 871840003: return 600; // Courrier
+    default: return 100;
   }
 };
 
-const enrichDossierWithTrackingDates = (d: Dossier): Dossier => {
-  if (!d.new_reception_date) return d;
-  
-  const baseTime = new Date(d.new_reception_date).getTime();
-  
-  // 1. Transmission to Prescripteur (1 hour after reception)
-  if (d.new_status >= 30 && !d.new_date_trans_prescripteur) {
-    d.new_date_trans_prescripteur = new Date(baseTime + 1 * 3600 * 1000).toISOString();
+export const mapFrontendDocumentTypeToCrm = (frontVal: number): number => {
+  switch (frontVal) {
+    case 100: return 871840000; // Facture
+    case 200: return 871840001; // Avoir
+    case 400: return 871840000; // Flux Court (Facture) -> Maps to Facture in CRM
+    case 500: return 871840002; // Acompte -> Maps to Acompte in CRM
+    case 600: return 871840003; // Courrier -> Maps to Courrier in CRM
+    default: return 871840000;
   }
-  
-  // 2. Accused by Prescripteur (4 hours after transmission)
-  if (d.new_status >= 40 && !d.new_date_accuse_prescripteur) {
-    const transTime = d.new_date_trans_prescripteur ? new Date(d.new_date_trans_prescripteur).getTime() : baseTime + 1 * 3600 * 1000;
-    d.new_date_accuse_prescripteur = new Date(transTime + 4 * 3600 * 1000).toISOString();
-  }
-  
-  // 3. Validated by Prescripteur (1.5 days after accusation)
-  if (d.new_status >= 50 && !d.new_date_val_prescripteur) {
-    const accuseTime = d.new_date_accuse_prescripteur ? new Date(d.new_date_accuse_prescripteur).getTime() : baseTime + 5 * 3600 * 1000;
-    d.new_date_val_prescripteur = new Date(accuseTime + 36 * 3600 * 1000).toISOString();
-  }
-  
-  // 4. BO prep / retour (2 hours after prescripteur validation)
-  if (d.new_status >= 60 && !d.new_date_retour_bo) {
-    const valTime = d.new_date_val_prescripteur ? new Date(d.new_date_val_prescripteur).getTime() : baseTime + 41 * 3600 * 1000;
-    d.new_date_retour_bo = new Date(valTime + 2 * 3600 * 1000).toISOString();
-  }
-  
-  // 5. Transmitted to DCF (1 hour after BO prep or direct creation if flux court)
-  if (d.new_status >= 70 && !d.new_date_trans_dcf) {
-    const isFluxCourt = d.new_document_type === 400 || d.new_document_type === 500;
-    if (isFluxCourt) {
-      d.new_date_trans_dcf = new Date(baseTime + 1 * 3600 * 1000).toISOString();
-    } else {
-      const boTime = d.new_date_retour_bo ? new Date(d.new_date_retour_bo).getTime() : baseTime + 43 * 3600 * 1000;
-      d.new_date_trans_dcf = new Date(boTime + 1 * 3600 * 1000).toISOString();
-    }
-  }
-  
-  // 6. Accused by DCF (6 hours after transmission to DCF)
-  if (d.new_status >= 80 && !d.new_date_accuse_dcf) {
-    const transDcfTime = d.new_date_trans_dcf ? new Date(d.new_date_trans_dcf).getTime() : baseTime + 44 * 3600 * 1000;
-    d.new_date_accuse_dcf = new Date(transDcfTime + 6 * 3600 * 1000).toISOString();
-  }
-  
-  // 7. Validated by DCF (2 days after DCF accusation)
-  if (d.new_status >= 100 && !d.new_date_val_dcf) {
-    const accuseDcfTime = d.new_date_accuse_dcf ? new Date(d.new_date_accuse_dcf).getTime() : baseTime + 50 * 3600 * 1000;
-    d.new_date_val_dcf = new Date(accuseDcfTime + 48 * 3600 * 1000).toISOString();
-  }
-  
-  // 8. Accused by Trésorerie (if not present and status >= 110, compute as 4 hours after DCF validation)
-  if (d.new_status >= 110 && !d.new_date_accuse) {
-    const valDcfTime = d.new_date_val_dcf ? new Date(d.new_date_val_dcf).getTime() : baseTime + 98 * 3600 * 1000;
-    d.new_date_accuse = new Date(valDcfTime + 4 * 3600 * 1000).toISOString();
-  }
-  
-  return d;
 };
 
-const mapCrmEntityToDossier = (entity: any): Dossier => {
+export const mapCrmPaymentMethodToFrontend = (crmVal: any): number | undefined => {
+  if (crmVal === undefined || crmVal === null) return undefined;
+  switch (Number(crmVal)) {
+    case 871840000: return 1; // Chèque
+    case 871840001: return 2; // Virement
+    default: return undefined;
+  }
+};
+
+export const mapFrontendPaymentMethodToCrm = (frontVal: any): number | undefined => {
+  if (frontVal === undefined || frontVal === null) return undefined;
+  switch (Number(frontVal)) {
+    case 1: return 871840000; // Chèque
+    case 2: return 871840001; // Virement
+    default: return undefined;
+  }
+};
+
+export const mapCrmEntityToDossier = (entity: any): Dossier => {
   return {
     new_folderid: entity.new_folderid,
     new_folder_number: entity.new_folder_number,
-    new_document_type: entity.new_documenttype || 100,
+    new_document_type: mapCrmDocumentTypeToFrontend(entity.new_documenttype || 871840000),
     new_status: entity.new_status || 10,
-    new_supplier_id: entity._new_supplier_id_value || undefined,
-    new_company_id: entity._new_company_value || undefined,
-    new_department_id: entity._new_department_value || undefined,
-    new_prescriber_id: entity._new_prescripteur_value || undefined,
-    new_dcf_collector_id: entity._new_dcfcollector_value || undefined,
-    new_destination_branch_id: entity._new_destinationbranch_value || undefined,
+    new_supplier_id: entity["_new_supplier_id_value@OData.Community.Display.V1.FormattedValue"] || entity._new_supplier_id_value || undefined,
+    new_company_id: entity["_new_company_value@OData.Community.Display.V1.FormattedValue"] || entity._new_company_value || undefined,
+    new_department_id: entity["_new_department_value@OData.Community.Display.V1.FormattedValue"] || entity._new_department_value || undefined,
+    new_prescriber_id: entity["_new_prescripteur_value@OData.Community.Display.V1.FormattedValue"] || entity._new_prescripteur_value || undefined,
+    new_dcf_collector_id: entity["_new_dcfcollector_value@OData.Community.Display.V1.FormattedValue"] || entity._new_dcfcollector_value || undefined,
+    new_destination_branch_id: entity["_new_destinationbranch_value@OData.Community.Display.V1.FormattedValue"] || entity._new_destinationbranch_value || undefined,
+    new_supplier_guid: entity._new_supplier_id_value || undefined,
+    new_company_guid: entity._new_company_value || undefined,
+    new_department_guid: entity._new_department_value || undefined,
+    new_prescriber_guid: entity._new_prescripteur_value || undefined,
+    new_dcf_collector_guid: entity._new_dcfcollector_value || undefined,
+    new_destination_branch_guid: entity._new_destinationbranch_value || undefined,
     new_invoice_number: entity.new_invoicenumber || undefined,
     new_po_number: entity.new_bcnumber || undefined,
     new_invoice_date: entity.new_invoicedate || undefined,
     new_description: entity.new_description || undefined,
     new_reception_date: entity.new_receptiondate || new Date().toISOString(),
     new_is_blocked: entity.new_isblocked || false,
-    new_documents_complements: entity.new_documents_complements ? (typeof entity.new_documents_complements === 'string' ? JSON.parse(entity.new_documents_complements) : entity.new_documents_complements) : [],
+    new_documents_complements: [],
     new_accuse_par: entity._new_acknowledged_by_id_value || undefined,
     new_date_accuse: entity.new_acknowledgment_date || undefined,
-    new_payment_method: entity.new_paymentmethod || undefined,
+    new_payment_method: mapCrmPaymentMethodToFrontend(entity.new_paymentmethod),
     new_cheque_number: entity.new_chequenumber || undefined,
     new_wire_reference: entity.new_wirereference || undefined,
     new_cheque_preparation_date: entity.new_chequepreparationdate || undefined,
+    new_date_virement: entity.new_date_virement || undefined,
+    new_compte_bancaire_dest: entity.new_compte_bancaire_dest || undefined,
+    new_banque_emettrice: entity.new_banque_emettrice || undefined,
+    new_commentaire_treso: entity.new_treasury_comment || undefined,
     new_final_delivery_date: entity.new_finaldeliverydate || undefined,
     new_reception_date_agence: entity.new_delivery_date || undefined,
+    new_date_livraison: entity.new_delivery_date || undefined,
     new_livreur_nom: entity.new_delivery_person || undefined,
-    new_recu_signe_scan: entity.new_signed_receipt_url || undefined,
-    new_fournisseur_signe: entity.new_supplier_signed || false,
+    new_signed_receipt_url: entity.new_signed_receipt_url || undefined,
+    new_supplier_signed: entity.new_supplier_signed || false,
     new_commentaire_agence: entity.new_branch_comment || undefined,
     new_date_trans_prescripteur: entity.new_date_trans_prescriber || undefined,
     new_date_accuse_prescripteur: entity.new_date_accuse_prescriber || undefined,
     new_date_val_prescripteur: entity.new_date_val_prescriber || undefined,
-    new_date_retour_bo: entity.new_date_retour_bo || undefined,
+    new_date_retour_bo: entity.new_date_return_bo || undefined,
     new_date_trans_dcf: entity.new_date_trans_dcf || undefined,
     new_date_accuse_dcf: entity.new_date_accuse_dcf || undefined,
     new_date_val_dcf: entity.new_date_val_dcf || undefined,
     new_cheque_recu_bo: entity.new_cheque_received_bo || false,
-    new_commentaire_reception: entity.new_reception_comment || undefined,
+    new_reception_comment: entity.new_reception_comment || undefined,
+    new_date_transmission_bo: entity.new_bo_transmission_date || undefined,
+    new_accounting_date: entity.new_accountingdate || undefined,
     new_est_comptabilise: !!entity.new_accountingdate,
     new_collecteur_treso: entity._new_treasury_collector_id_value || undefined,
-    new_commentaire_treso: entity.new_treasury_comment || undefined,
-    new_motif_retour: entity.new_return_reason || undefined,
-    new_personne_a_livrer: entity.new_person_to_deliver || undefined,
+    new_treasury_comment: entity.new_treasury_comment || undefined,
+    new_return_reason: entity.new_return_reason || undefined,
+    new_person_to_deliver: entity.new_person_to_deliver || undefined,
     new_sharepoint_url: entity.new_sharepointurl || undefined,
     new_cancellation_reason: entity.new_cancellationstatus || undefined,
     new_advance_phase: entity.new_advancephase || undefined,
@@ -735,11 +268,11 @@ const mapCrmEntityToDossier = (entity: any): Dossier => {
   };
 };
 
-const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
+export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   const entity: any = {};
   
   if (d.new_folder_number !== undefined) entity.new_folder_number = d.new_folder_number;
-  if (d.new_document_type !== undefined) entity.new_documenttype = d.new_document_type;
+  if (d.new_document_type !== undefined) entity.new_documenttype = mapFrontendDocumentTypeToCrm(d.new_document_type);
   if (d.new_status !== undefined) entity.new_status = d.new_status;
   if (d.new_invoice_number !== undefined) entity.new_invoicenumber = d.new_invoice_number;
   if (d.new_po_number !== undefined) entity.new_bcnumber = d.new_po_number;
@@ -747,67 +280,90 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   if (d.new_description !== undefined) entity.new_description = d.new_description;
   if (d.new_reception_date !== undefined) entity.new_receptiondate = d.new_reception_date;
   if (d.new_is_blocked !== undefined) entity.new_isblocked = d.new_is_blocked;
-  if (d.new_payment_method !== undefined) entity.new_paymentmethod = d.new_payment_method;
+  if (d.new_payment_method !== undefined) entity.new_paymentmethod = mapFrontendPaymentMethodToCrm(d.new_payment_method);
   if (d.new_cheque_number !== undefined) entity.new_chequenumber = d.new_cheque_number;
   if (d.new_wire_reference !== undefined) entity.new_wirereference = d.new_wire_reference;
   if (d.new_cheque_preparation_date !== undefined) entity.new_chequepreparationdate = d.new_cheque_preparation_date;
+  if (d.new_date_virement !== undefined) entity.new_date_virement = d.new_date_virement;
+  if (d.new_compte_bancaire_dest !== undefined) entity.new_compte_bancaire_dest = d.new_compte_bancaire_dest;
+  if (d.new_banque_emettrice !== undefined) entity.new_banque_emettrice = d.new_banque_emettrice;
+  if (d.new_commentaire_treso !== undefined) entity.new_treasury_comment = d.new_commentaire_treso;
   if (d.new_final_delivery_date !== undefined) entity.new_finaldeliverydate = d.new_final_delivery_date;
   
   if (d.new_reception_date_agence !== undefined) entity.new_delivery_date = d.new_reception_date_agence;
+  if (d.new_date_livraison !== undefined) entity.new_delivery_date = d.new_date_livraison;
   if (d.new_livreur_nom !== undefined) entity.new_delivery_person = d.new_livreur_nom;
+  if (d.new_signed_receipt_url !== undefined) entity.new_signed_receipt_url = d.new_signed_receipt_url;
   if (d.new_recu_signe_scan !== undefined) entity.new_signed_receipt_url = d.new_recu_signe_scan;
-  if (d.new_fournisseur_signe !== undefined) entity.new_supplier_signed = d.new_fournisseur_signe;
+  if (d.new_supplier_signed !== undefined) entity.new_supplier_signed = d.new_supplier_signed;
   if (d.new_commentaire_agence !== undefined) entity.new_branch_comment = d.new_commentaire_agence;
 
   if (d.new_date_trans_prescripteur !== undefined) entity.new_date_trans_prescriber = d.new_date_trans_prescripteur;
   if (d.new_date_accuse_prescripteur !== undefined) entity.new_date_accuse_prescriber = d.new_date_accuse_prescripteur;
   if (d.new_date_val_prescripteur !== undefined) entity.new_date_val_prescriber = d.new_date_val_prescripteur;
-  if (d.new_date_retour_bo !== undefined) entity.new_date_retour_bo = d.new_date_retour_bo;
+  if (d.new_date_retour_bo !== undefined) entity.new_date_return_bo = d.new_date_retour_bo;
   if (d.new_date_trans_dcf !== undefined) entity.new_date_trans_dcf = d.new_date_trans_dcf;
   if (d.new_date_accuse_dcf !== undefined) entity.new_date_accuse_dcf = d.new_date_accuse_dcf;
   if (d.new_date_val_dcf !== undefined) entity.new_date_val_dcf = d.new_date_val_dcf;
   
   if (d.new_cheque_recu_bo !== undefined) entity.new_cheque_received_bo = d.new_cheque_recu_bo;
-  if (d.new_commentaire_reception !== undefined) entity.new_reception_comment = d.new_commentaire_reception;
+  if (d.new_reception_comment !== undefined) entity.new_reception_comment = d.new_reception_comment;
   if (d.new_date_accuse !== undefined) entity.new_acknowledgment_date = d.new_date_accuse;
+  if (d.new_date_transmission_bo !== undefined) entity.new_bo_transmission_date = d.new_date_transmission_bo;
 
+  if (d.new_accounting_date !== undefined) entity.new_accountingdate = d.new_accounting_date;
   if (d.new_est_comptabilise !== undefined) {
     entity.new_accountingdate = d.new_est_comptabilise ? new Date().toISOString() : null;
   }
-  if (d.new_commentaire_treso !== undefined) entity.new_treasury_comment = d.new_commentaire_treso;
-  if (d.new_motif_retour !== undefined) entity.new_return_reason = d.new_motif_retour;
-  if (d.new_personne_a_livrer !== undefined) entity.new_person_to_deliver = d.new_personne_a_livrer;
+  if (d.new_treasury_comment !== undefined) entity.new_treasury_comment = d.new_treasury_comment;
+  if (d.new_return_reason !== undefined) entity.new_return_reason = d.new_return_reason;
+  if (d.new_person_to_deliver !== undefined) entity.new_person_to_deliver = d.new_person_to_deliver;
   if (d.new_sharepoint_url !== undefined) entity.new_sharepointurl = d.new_sharepoint_url;
   if (d.new_cancellation_reason !== undefined) entity.new_cancellationstatus = d.new_cancellation_reason;
   if (d.new_advance_phase !== undefined) entity.new_advancephase = d.new_advance_phase;
   if (d.new_last_alert_date !== undefined) entity.new_lastalertdate = d.new_last_alert_date;
 
   // Bind Lookups
-  if (d.new_supplier_id) {
-    entity["new_supplier_id@odata.bind"] = `/new_suppliers(${d.new_supplier_id})`;
+  const isGuid = (val: string): boolean => {
+    return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val);
+  };
+
+  const sup = d.new_supplier_guid || d.new_supplier_id;
+  if (sup && isGuid(sup)) {
+    entity["new_supplier_id@odata.bind"] = `/new_suppliers(${sup})`;
   }
-  if (d.new_company_id) {
-    entity["new_Company@odata.bind"] = `/new_companies(${d.new_company_id})`;
+  const comp = d.new_company_guid || d.new_company_id;
+  if (comp && isGuid(comp)) {
+    entity["new_Company@odata.bind"] = `/new_companies(${comp})`;
   }
-  if (d.new_department_id) {
-    entity["new_Department@odata.bind"] = `/new_departements(${d.new_department_id})`;
+  const dept = d.new_department_guid || d.new_department_id;
+  if (dept && isGuid(dept)) {
+    entity["new_Department@odata.bind"] = `/new_departements(${dept})`;
   }
-  if (d.new_prescriber_id) {
-    entity["new_Prescripteur@odata.bind"] = `/systemusers(${d.new_prescriber_id})`;
+  const presc = d.new_prescriber_guid || d.new_prescriber_id;
+  if (presc && isGuid(presc)) {
+    entity["new_Prescripteur@odata.bind"] = `/systemusers(${presc})`;
   }
-  if (d.new_dcf_collector_id) {
-    entity["new_DCFCollector@odata.bind"] = `/systemusers(${d.new_dcf_collector_id})`;
+  const dcf = d.new_dcf_collector_guid || d.new_dcf_collector_id;
+  if (dcf && isGuid(dcf)) {
+    entity["new_DCFCollector@odata.bind"] = `/systemusers(${dcf})`;
   }
-  if (d.new_destination_branch_id) {
-    entity["new_DestinationBranch@odata.bind"] = `/new_branches(${d.new_destination_branch_id})`;
+  const branch = d.new_destination_branch_guid || d.new_destination_branch_id;
+  if (branch) {
+    if (isGuid(branch)) {
+      entity["new_DestinationBranch@odata.bind"] = `/new_branchs(${branch})`;
+    } else if (!isCrmMode()) {
+      entity._new_destinationbranch_value = branch;
+      entity["_new_destinationbranch_value@OData.Community.Display.V1.FormattedValue"] = branch;
+    }
   }
-  if (d.new_accuse_par) {
+  if (d.new_accuse_par && isGuid(d.new_accuse_par)) {
     entity["new_acknowledged_by_id@odata.bind"] = `/systemusers(${d.new_accuse_par})`;
   }
-  if (d.new_linked_folder_id) {
+  if (d.new_linked_folder_id && isGuid(d.new_linked_folder_id)) {
     entity["new_LinkedFolder@odata.bind"] = `/new_folders(${d.new_linked_folder_id})`;
   }
-  if (d.new_collecteur_treso) {
+  if (d.new_collecteur_treso && isGuid(d.new_collecteur_treso)) {
     entity["new_treasury_collector_id@odata.bind"] = `/systemusers(${d.new_collecteur_treso})`;
   }
 
@@ -816,348 +372,257 @@ const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 
 export const dataService = {
   getDossiers: async (): Promise<Dossier[]> => {
-    // Mode Power Apps
-    const xrm = getXrm();
-    if (xrm) {
-      const selectFields = [
-        "new_folder_number",
-        "new_status",
-        "new_documenttype",
-        "new_receptiondate",
-        "new_invoicenumber",
-        "new_bcnumber",
-        "new_invoicedate",
-        "new_description",
-        "new_isblocked",
-        "new_accountingdate",
-        "new_paymentmethod",
-        "new_chequenumber",
-        "new_wirereference",
-        "new_chequepreparationdate",
-        "new_finaldeliverydate",
-        "new_cheque_received_bo",
-        "new_reception_comment",
-        "new_delivery_date",
-        "new_delivery_person",
-        "new_signed_receipt_url",
-        "new_supplier_signed",
-        "new_branch_comment",
-        "new_date_trans_prescriber",
-        "new_date_accuse_prescriber",
-        "new_date_val_prescriber",
-        "new_date_retour_bo",
-        "new_date_trans_dcf",
-        "new_date_accuse_dcf",
-        "new_date_val_dcf",
-        "new_acknowledgment_date",
-        "new_person_to_deliver",
-        "new_return_reason",
-        "new_sharepointurl",
-        "new_cancellationstatus",
-        "new_advancephase",
-        "new_lastalertdate",
-        "new_treasury_comment",
-        "_new_supplier_id_value",
-        "_new_company_value",
-        "_new_department_value",
-        "_new_prescripteur_value",
-        "_new_dcfcollector_value",
-        "_new_destinationbranch_value",
-        "_new_acknowledged_by_id_value",
-        "_new_linkedfolder_value",
-        "_new_treasury_collector_id_value"
-      ].join(",");
+    const selectFields = [
+      "new_folder_number",
+      "new_status",
+      "new_documenttype",
+      "new_receptiondate",
+      "new_invoicenumber",
+      "new_bcnumber",
+      "new_invoicedate",
+      "new_description",
+      "new_isblocked",
+      "new_accountingdate",
+      "new_paymentmethod",
+      "new_chequenumber",
+      "new_wirereference",
+      "new_chequepreparationdate",
+      "new_finaldeliverydate",
+      "new_cheque_received_bo",
+      "new_reception_comment",
+      "new_delivery_date",
+      "new_delivery_person",
+      "new_signed_receipt_url",
+      "new_supplier_signed",
+      "new_branch_comment",
+      "new_date_trans_prescriber",
+      "new_date_accuse_prescriber",
+      "new_date_val_prescriber",
+      "new_date_return_bo",
+      "new_date_trans_dcf",
+      "new_date_accuse_dcf",
+      "new_date_val_dcf",
+      "new_acknowledgment_date",
+      "new_person_to_deliver",
+      "new_return_reason",
+      "new_bo_transmission_date",
+      "new_sharepointurl",
+      "new_cancellationstatus",
+      "new_advancephase",
+      "new_lastalertdate",
+      "new_treasury_comment",
+      "_new_supplier_id_value",
+      "_new_company_value",
+      "_new_department_value",
+      "_new_prescripteur_value",
+      "_new_dcfcollector_value",
+      "_new_destinationbranch_value",
+      "_new_acknowledged_by_id_value",
+      "_new_linkedfolder_value",
+      "_new_treasury_collector_id_value"
+    ];
 
-      const result = await callCrmWebApi("GET", "new_folder", null, `?$select=${selectFields}`);
-      return result.entities.map(mapCrmEntityToDossier);
+    const result = await New_foldersService.getAll({ select: selectFields });
+    if (result.data) {
+      console.log("DEBUG RAW DOSSIERS FROM CRM:", result.data);
+      return result.data.map(mapCrmEntityToDossier);
     }
-    
-    // Mode Local
-    initMockData();
-    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    const enriched = data.map(enrichDossierWithTrackingDates);
-    return new Promise((resolve) => setTimeout(() => resolve(enriched), 400));
+    throw new Error("Failed to fetch folders: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
 
   createDossier: async (dossier: Partial<Dossier>): Promise<string> => {
-    const xrm = getXrm();
-    if (xrm) {
-      const crmEntity = mapDossierToCrmEntity(dossier);
-      const result = await callCrmWebApi("POST", "new_folder", null, crmEntity);
-      return result.id;
+    const crmEntity = mapDossierToCrmEntity(dossier);
+    const result = await New_foldersService.create(crmEntity);
+    if (result.data) {
+      return result.data.new_folderid;
     }
-
-    // Mode Local
-    initMockData();
-    const data = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    
-    const newDossier: Dossier = {
-      new_folderid: `ID-${Math.random().toString(36).substr(2, 9)}`,
-      new_folder_number: dossier.new_folder_number || `DOS-2026-${Math.floor(Math.random() * 1000)}`,
-      new_document_type: dossier.new_document_type || 100,
-      new_status: dossier.new_status || 10,
-      new_supplier_id: dossier.new_supplier_id,
-      new_company_id: dossier.new_company_id,
-      new_department_id: dossier.new_department_id,
-      new_prescriber_id: dossier.new_prescriber_id,
-      new_dcf_collector_id: dossier.new_dcf_collector_id,
-      new_invoice_number: dossier.new_invoice_number,
-      new_po_number: dossier.new_po_number,
-      new_invoice_date: dossier.new_invoice_date,
-      new_description: dossier.new_description,
-      new_reception_date: dossier.new_reception_date || new Date().toISOString(),
-      new_is_blocked: false,
-      new_livreur_nom: dossier.new_livreur_nom,
-      new_personne_a_livrer: dossier.new_personne_a_livrer,
-      new_date_livraison: dossier.new_date_livraison
-    };
-
-    data.unshift(newDossier);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-    
-    return new Promise((resolve) => setTimeout(() => resolve(newDossier.new_folderid), 500));
+    throw new Error("Failed to create folder: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
 
   updateDossierStatut: async (id: string, status: number): Promise<void> => {
-    const xrm = getXrm();
-    if (xrm) {
-      await callCrmWebApi("PATCH", "new_folder", id, { new_status: status });
-      return;
+    const result = await New_foldersService.update(id, { new_status: status as any });
+    if (result.error) {
+      throw new Error("Failed to update folder status: " + JSON.stringify(result.error));
     }
-
-    // Mode Local
-    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    const index = data.findIndex(d => d.new_folderid === id);
-    if (index !== -1) {
-      data[index].new_status = status;
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-    }
-    return new Promise((resolve) => setTimeout(resolve, 300));
   },
 
   updateDossier: async (id: string, dossier: Partial<Dossier>): Promise<void> => {
-    const xrm = getXrm();
-    if (xrm) {
-      const crmEntity = mapDossierToCrmEntity(dossier);
-      await callCrmWebApi("PATCH", "new_folder", id, crmEntity);
-      return;
+    const crmEntity = mapDossierToCrmEntity(dossier);
+    const result = await New_foldersService.update(id, crmEntity);
+    if (result.error) {
+      throw new Error("Failed to update folder: " + JSON.stringify(result.error));
     }
-
-    // Mode Local
-    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    const index = data.findIndex(d => d.new_folderid === id);
-    if (index !== -1) {
-      const nowStr = new Date().toISOString();
-      const updatedFields: Partial<Dossier> = { ...dossier };
-
-      if (dossier.new_status !== undefined) {
-        const nextStatus = dossier.new_status;
-        if (nextStatus === 30) {
-          updatedFields.new_date_trans_prescripteur = nowStr;
-        } else if (nextStatus === 50) {
-          updatedFields.new_date_val_prescripteur = nowStr;
-        } else if (nextStatus === 60) {
-          updatedFields.new_date_retour_bo = nowStr;
-        } else if (nextStatus === 70) {
-          updatedFields.new_date_trans_dcf = nowStr;
-        } else if (nextStatus === 100) {
-          updatedFields.new_date_val_dcf = nowStr;
-        }
-      }
-
-      data[index] = { ...data[index], ...updatedFields };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
-    }
-    return new Promise((resolve) => setTimeout(resolve, 300));
   },
 
-  accuseReception: async (id: string, nextStatus: number, user: string): Promise<void> => {
+  accuseReception: async (id: string, nextStatus: number, _user: string): Promise<void> => {
     const xrm = getXrm();
-    if (xrm) {
-      try {
-        const context = xrm.Utility.getGlobalContext();
-        const userId = context.userSettings.userId.replace(/[{}]/g, "");
-        const nowStr = new Date().toISOString();
-        
-        const updateData: any = { 
-          new_status: nextStatus,
-          new_acknowledgment_date: nowStr
-        };
-        updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
-        
-        await callCrmWebApi("PATCH", "new_folder", id, updateData);
-        return;
-      } catch (err) {
-        console.error("Failed to acknowledge receipt in CRM", err);
-      }
+    const context = xrm ? xrm.Utility.getGlobalContext() : null;
+    const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
+    const nowStr = new Date().toISOString();
+    
+    const updateData: any = { 
+      new_status: nextStatus,
+      new_acknowledgment_date: nowStr
+    };
+    if (userId) {
+      updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
     }
-
-    // Mode Local
-    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    const index = data.findIndex(d => d.new_folderid === id);
-    if (index !== -1) {
-      const nowStr = new Date().toISOString();
-      data[index].new_status = nextStatus;
-      data[index].new_accuse_par = user;
-      data[index].new_date_accuse = nowStr;
-
-      if (nextStatus === 40) {
-        data[index].new_date_accuse_prescripteur = nowStr;
-      } else if (nextStatus === 80) {
-        data[index].new_date_accuse_dcf = nowStr;
-      }
-      
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    
+    const result = await New_foldersService.update(id, updateData);
+    if (result.error) {
+      throw new Error("Failed to acknowledge receipt: " + JSON.stringify(result.error));
     }
-    return new Promise((resolve) => setTimeout(resolve, 300));
   },
 
   // User Management
   getUsers: async (): Promise<SystemUser[]> => {
-    const xrm = getXrm();
-    if (xrm) {
-      try {
-        const result = await callCrmWebApi("GET", "systemuser", null, "?$select=systemuserid,fullname,internalemailaddress");
-        return result.entities.map((e: any) => ({
-          systemuserid: e.systemuserid,
-          fullname: e.fullname,
-          internalemailaddress: e.internalemailaddress,
-          new_role: "BO", // default simulation role
-          new_status: "Actif"
-        }));
-      } catch (err) {
-        console.warn("Failed to retrieve systemusers from CRM", err);
-      }
+    const result = await SystemusersService.getAll({ select: ["systemuserid", "fullname", "internalemailaddress", "_new_department_id_value"] });
+    if (result.data) {
+      return result.data.map((e: any) => ({
+        systemuserid: e.systemuserid,
+        fullname: e.fullname,
+        internalemailaddress: e.internalemailaddress,
+        new_department_id: e._new_department_id_value,
+        new_role: "BO",
+        new_status: "Actif"
+      }));
     }
-    initMockData();
-    const data = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-    return new Promise((resolve) => setTimeout(() => resolve(data), 300));
+    throw new Error("Failed to retrieve systemusers: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
   updateUser: async (id: string, user: Partial<SystemUser>): Promise<void> => {
-    const data: SystemUser[] = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-    const index = data.findIndex(u => u.systemuserid === id);
-    if (index !== -1) {
-      data[index] = { ...data[index], ...user };
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(data));
+    const result = await SystemusersService.update(id, user as any);
+    if (result.error) {
+      throw new Error("Failed to update user: " + JSON.stringify(result.error));
     }
-    return new Promise((resolve) => setTimeout(resolve, 200));
   },
   createUser: async (user: Partial<SystemUser>): Promise<void> => {
-    const data: SystemUser[] = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || "[]");
-    const newUser: SystemUser = {
-      systemuserid: `usr-${Math.random().toString(36).substr(2, 9)}`,
-      fullname: user.fullname || "",
-      internalemailaddress: user.internalemailaddress || "",
-      new_role: user.new_role || "BO",
-      new_destination_branch_id: user.new_destination_branch_id,
-      new_status: user.new_status || "Actif",
-      new_derniere_connexion: undefined
-    };
-    data.unshift(newUser);
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(data));
-    return new Promise((resolve) => setTimeout(resolve, 200));
+    const result = await SystemusersService.create(user as any);
+    if (result.error) {
+      throw new Error("Failed to create user: " + JSON.stringify(result.error));
+    }
   },
 
   // Fournisseur Reference
   getFournisseursLookup: async (): Promise<FournisseurLookup[]> => {
-    const xrm = getXrm();
-    if (xrm) {
-      const result = await callCrmWebApi("GET", "new_supplier", null, "?$select=new_supplierid,new_name,new_code,new_isactive");
-      return result.entities.map((e: any) => ({
+    const result = await New_suppliersService.getAll({ select: ["new_supplierid", "new_name", "new_tax_id", "new_isactive"] });
+    if (result.data) {
+      return result.data.map((e: any) => ({
         new_supplierid: e.new_supplierid,
         new_name: e.new_name,
-        new_code: e.new_code,
+        new_code: e.new_tax_id || "",
         new_is_active: e.new_isactive
       }));
     }
-    initMockData();
-    const data = JSON.parse(localStorage.getItem(FOURNISSEURS_STORAGE_KEY) || "[]");
-    return new Promise((resolve) => setTimeout(() => resolve(data), 300));
+    throw new Error("Failed to retrieve suppliers: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
   updateFournisseurLookup: async (id: string, four: Partial<FournisseurLookup>): Promise<void> => {
-    const data: FournisseurLookup[] = JSON.parse(localStorage.getItem(FOURNISSEURS_STORAGE_KEY) || "[]");
-    const index = data.findIndex(f => f.new_supplierid === id);
-    if (index !== -1) {
-      data[index] = { ...data[index], ...four };
-      localStorage.setItem(FOURNISSEURS_STORAGE_KEY, JSON.stringify(data));
+    const updateData: any = {
+      new_name: four.new_name,
+      new_isactive: four.new_is_active
+    };
+    if (four.new_code !== undefined) {
+      updateData.new_tax_id = four.new_code;
     }
-    return new Promise((resolve) => setTimeout(resolve, 200));
+    const result = await New_suppliersService.update(id, updateData);
+    if (result.error) {
+      throw new Error("Failed to update supplier: " + JSON.stringify(result.error));
+    }
   },
   createFournisseurLookup: async (four: Partial<FournisseurLookup>): Promise<void> => {
-    const data: FournisseurLookup[] = JSON.parse(localStorage.getItem(FOURNISSEURS_STORAGE_KEY) || "[]");
-    const newFour: FournisseurLookup = {
-      new_supplierid: `four-${Math.random().toString(36).substr(2, 9)}`,
-      new_name: four.new_name || "",
-      new_code: four.new_code || `FR-${four.new_name?.toUpperCase().slice(0, 4) || "VND"}-${Math.floor(Math.random() * 90 + 10)}`,
-      new_is_active: four.new_is_active !== undefined ? four.new_is_active : true
+    const createData: any = {
+      new_name: four.new_name,
+      new_isactive: four.new_is_active
     };
-    data.unshift(newFour);
-    localStorage.setItem(FOURNISSEURS_STORAGE_KEY, JSON.stringify(data));
-    return new Promise((resolve) => setTimeout(resolve, 200));
+    if (four.new_code !== undefined) {
+      createData.new_tax_id = four.new_code;
+    }
+    const result = await New_suppliersService.create(createData);
+    if (result.error) {
+      throw new Error("Failed to create supplier: " + JSON.stringify(result.error));
+    }
   },
 
   // Agence Reference
   getAgencesLookup: async (): Promise<AgenceLookup[]> => {
-    const xrm = getXrm();
-    if (xrm) {
-      const result = await callCrmWebApi("GET", "new_branch", null, "?$select=new_branchid,new_name,new_code,new_city,new_is_active");
-      return result.entities.map((e: any) => ({
+    const result = await New_branchsService.getAll({ select: ["new_branchid", "new_name", "new_code", "new_city", "new_is_active"] });
+    if (result.data) {
+      return result.data.map((e: any) => ({
         new_branchid: e.new_branchid,
         new_name: e.new_name,
         new_city: e.new_city,
         new_is_active: e.new_is_active
       }));
     }
-    initMockData();
-    const data = JSON.parse(localStorage.getItem(AGENCES_STORAGE_KEY) || "[]");
-    return new Promise((resolve) => setTimeout(() => resolve(data), 300));
+    throw new Error("Failed to retrieve branches: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
   updateAgenceLookup: async (id: string, agence: Partial<AgenceLookup>): Promise<void> => {
-    const data: AgenceLookup[] = JSON.parse(localStorage.getItem(AGENCES_STORAGE_KEY) || "[]");
-    const index = data.findIndex(a => a.new_branchid === id);
-    if (index !== -1) {
-      data[index] = { ...data[index], ...agence };
-      localStorage.setItem(AGENCES_STORAGE_KEY, JSON.stringify(data));
+    const result = await New_branchsService.update(id, agence as any);
+    if (result.error) {
+      throw new Error("Failed to update branch: " + JSON.stringify(result.error));
     }
-    return new Promise((resolve) => setTimeout(resolve, 200));
   },
   createAgenceLookup: async (agence: Partial<AgenceLookup>): Promise<void> => {
-    const data: AgenceLookup[] = JSON.parse(localStorage.getItem(AGENCES_STORAGE_KEY) || "[]");
-    const newAgence: AgenceLookup = {
-      new_branchid: `age-${Math.random().toString(36).substr(2, 9)}`,
-      new_name: agence.new_name || "",
-      new_city: agence.new_city || "",
-      new_is_active: agence.new_is_active !== undefined ? agence.new_is_active : true
-    };
-    data.unshift(newAgence);
-    localStorage.setItem(AGENCES_STORAGE_KEY, JSON.stringify(data));
-    return new Promise((resolve) => setTimeout(resolve, 200));
+    const result = await New_branchsService.create(agence as any);
+    if (result.error) {
+      throw new Error("Failed to create branch: " + JSON.stringify(result.error));
+    }
+  },
+
+  getCompaniesLookup: async (): Promise<CompanyLookup[]> => {
+    const result = await New_companiesService.getAll({ select: ["new_companyid", "new_name", "new_code", "new_is_active"] });
+    if (result.data) {
+      return result.data.map((e: any) => ({
+        new_companyid: e.new_companyid,
+        new_name: e.new_name,
+        new_code: e.new_code,
+        new_is_active: e.new_is_active
+      }));
+    }
+    throw new Error("Failed to retrieve companies: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
+  },
+
+  getDepartmentsLookup: async (): Promise<DepartmentLookup[]> => {
+    const result = await New_departementsService.getAll({ select: ["new_departementid", "new_name", "new_code", "new_isactive"] });
+    if (result.data) {
+      return result.data.map((e: any) => ({
+        new_departmentid: e.new_departementid,
+        new_name: e.new_name,
+        new_code: e.new_code,
+        new_is_active: e.new_isactive
+      }));
+    }
+    throw new Error("Failed to retrieve departments: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
 
   // System Config
   getSystemConfig: async (): Promise<SystemConfig> => {
-    initMockData();
-    const data: SystemConfig = JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || "{}");
-    return new Promise((resolve) => setTimeout(() => resolve(data), 200));
+    return {
+      new_systemconfigid: "cfg-prod",
+      new_regle_5_jours_limite: 5,
+      new_relance_seuil_jours: 15,
+      new_alerte_blocage_jours: 7
+    };
   },
-  updateSystemConfig: async (config: Partial<SystemConfig>): Promise<void> => {
-    const data: SystemConfig = JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || "{}");
-    const updated = { ...data, ...config };
-    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(updated));
-    return new Promise((resolve) => setTimeout(resolve, 200));
+  updateSystemConfig: async (_config: Partial<SystemConfig>): Promise<void> => {
+    // No-op for prod configuration
   },
 
   // Admin Overrides
   deleteDossier: async (id: string): Promise<void> => {
-    const xrm = getXrm();
-    if (xrm) {
-      await callCrmWebApi("DELETE", "new_folder", id, null);
-      return;
+    await New_foldersService.delete(id);
+  },
+
+  checkDuplicateInvoice: async (supplierId: string, invoiceNumber: string, excludeFolderId?: string): Promise<boolean> => {
+    if (!supplierId || !invoiceNumber) return false;
+    let filter = `_new_supplier_id_value eq ${supplierId} and new_invoicenumber eq '${invoiceNumber.replace(/'/g, "''")}'`;
+    if (excludeFolderId) {
+      filter += ` and new_folderid ne ${excludeFolderId}`;
     }
-    const data: Dossier[] = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "[]");
-    const filtered = data.filter(d => d.new_folderid !== id);
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered));
-    return new Promise((resolve) => setTimeout(resolve, 300));
+    const result = await New_foldersService.getAll({ 
+      filter, 
+      select: ["new_folderid"],
+      top: 1
+    });
+    return !!(result.data && result.data.length > 0);
   }
 };
-

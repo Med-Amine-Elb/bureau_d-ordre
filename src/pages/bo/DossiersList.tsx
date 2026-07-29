@@ -524,11 +524,22 @@ export default function DossiersList() {
                         <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm whitespace-nowrap">
                           {dossier.new_folder_number}
                         </div>
-                        {dossier.new_is_blocked && (
-                          <div className="flex items-center gap-1 text-[10px] text-red-500 font-bold mt-0.5">
-                            <AlertTriangle className="w-3 h-3" /> BLOQUÉ
-                          </div>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {dossier.new_payment_method && (
+                            <span className={`inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                              dossier.new_payment_method === 2
+                                ? "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
+                                : "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                            }`}>
+                              {dossier.new_payment_method === 2 ? "VIREMENT" : "CHÈQUE"}
+                            </span>
+                          )}
+                          {dossier.new_is_blocked && (
+                            <span className="inline-flex items-center gap-1 text-[9px] text-red-500 font-bold px-1.5 py-0.5 rounded border border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+                              <AlertTriangle className="w-2.5 h-2.5" /> BLOQUÉ
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -738,6 +749,7 @@ export default function DossiersList() {
         dossierNumber={selectedDossierForTransmission?.new_folder_number || ""}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
+        directionId={selectedDossierForTransmission?.new_department_id}
       />
     </div>
   );

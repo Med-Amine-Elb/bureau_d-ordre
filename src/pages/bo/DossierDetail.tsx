@@ -128,30 +128,37 @@ export default function DossierDetail() {
 
         {/* Quick Actions based on status */}
         <div className="flex flex-wrap gap-3">
-          {/* Action: Accuser Réception (Traceability) */}
-          {[30, 50, 70, 100, 130].includes(dossier.new_status) && (
+          {/* Action: Accuser Réception (Traceability) - Visible uniquement si le dossier est en Transit BO (Statut 50) */}
+          {dossier.new_status === 50 && (
             <button 
               onClick={async () => {
                 setLoading(true);
                 try {
-                  const mapping: Record<number, { next: number, role: string }> = {
-                    30: { next: 40, role: "Prescripteur" },
-                    50: { next: 60, role: "Bureau d'Ordre" },
-                    70: { next: 80, role: "DCF" },
-                    100: { next: 110, role: "Trésorerie" },
-                    130: { next: 140, role: "Agence" }
+                  const getXrm = () => {
+                    if ((window as any).Xrm) return (window as any).Xrm;
+                    try {
+                      if (window.parent && (window.parent as any).Xrm) {
+                        return (window.parent as any).Xrm;
+                      }
+                    } catch (e) {}
+                    return null;
                   };
-                  const { next, role } = mapping[dossier.new_status];
-                  await dataService.accuseReception(dossier.new_folderid, next, "Med Amine (Simulation)");
+                  const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
+                  const userName = context ? context.userSettings.userName : "Agent BO";
+
+                  await dataService.accuseReception(dossier.new_folderid, 60, userName);
                   toast.success("Réception accusée", {
-                    description: `Le dossier est maintenant marqué comme reçu par le ${role}.`
+                    description: `Le dossier est maintenant marqué comme reçu par le Bureau d'Ordre.`
                   });
                   // Refresh data
                   const updated = await dataService.getDossiers();
                   const found = updated.find(d => d.new_folderid === dossier.new_folderid);
                   if (found) setDossier(found);
-                } catch (e) {
-                  toast.error("Erreur", { description: "Impossible d'accuser la réception." });
+                } catch (e: any) {
+                  console.error("DEBUG ACCUSE ERROR:", e);
+                  toast.error("Erreur", { 
+                    description: e.message || "Impossible d'accuser la réception." 
+                  });
                 } finally {
                   setLoading(false);
                 }
@@ -218,7 +225,7 @@ export default function DossierDetail() {
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? new Date(dossier.new_invoice_date).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la Facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? new Date(dossier.new_invoice_date).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>
               )}
@@ -388,6 +395,7 @@ export default function DossierDetail() {
         dossierNumber={dossier.new_folder_number}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
+        directionId={dossier.new_department_id}
       />
     </div>
   )

@@ -121,7 +121,82 @@ const ProfileProgressCard = ({ dossiersTraites, objTraites }: any) => {
 
 
 
-const ActivityTimeline = () => {
+const formatEventTime = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr);
+    const diffMs = new Date().getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return "À l'instant";
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Il y a ${diffHours} h`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return "Hier";
+    return `Il y a ${diffDays} j`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
+const buildTimelineEvents = (dossiers: Dossier[]) => {
+  const events: { action: string; dossier: string; time: string; timestamp: string }[] = [];
+  
+  dossiers.forEach((d) => {
+    if (d.new_reception_date) {
+      events.push({ action: "Réception au BO", dossier: d.new_folder_number, time: "", timestamp: d.new_reception_date });
+    }
+    if (d.new_date_accuse) {
+      events.push({ action: "Accusé de réception BO", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse });
+    }
+    if (d.new_date_trans_prescripteur) {
+      events.push({ action: "Transmis au Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_prescripteur });
+    }
+    if (d.new_date_accuse_prescripteur) {
+      events.push({ action: "Accusé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_prescripteur });
+    }
+    if (d.new_date_val_prescripteur) {
+      events.push({ action: "Validé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_prescripteur });
+    }
+    if (d.new_date_retour_bo) {
+      events.push({ action: "Retourné pour Correction", dossier: d.new_folder_number, time: "", timestamp: d.new_date_retour_bo });
+    }
+    if (d.new_date_trans_dcf) {
+      events.push({ action: "Transmis à la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_dcf });
+    }
+    if (d.new_date_accuse_dcf) {
+      events.push({ action: "Accusé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_dcf });
+    }
+    if (d.new_date_val_dcf) {
+      events.push({ action: "Validé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_dcf });
+    }
+    if (d.new_accounting_date) {
+      events.push({ action: "Comptabilisé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_accounting_date });
+    }
+    if (d.new_cheque_preparation_date) {
+      events.push({ action: "Chèque préparé (Trésorerie)", dossier: d.new_folder_number, time: "", timestamp: d.new_cheque_preparation_date });
+    }
+    if (d.new_date_virement) {
+      events.push({ action: "Réglé par Virement", dossier: d.new_folder_number, time: "", timestamp: d.new_date_virement });
+    }
+    const deliveryDate = d.new_delivery_date || d.new_reception_date_agence || d.new_date_livraison;
+    if (deliveryDate) {
+      events.push({ action: "Chèque reçu par l'Agence", dossier: d.new_folder_number, time: "", timestamp: deliveryDate });
+    }
+    if (d.new_final_delivery_date) {
+      events.push({ action: "Chèque remis au Fournisseur", dossier: d.new_folder_number, time: "", timestamp: d.new_final_delivery_date });
+    }
+  });
+
+  return events
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5)
+    .map((evt) => ({
+      ...evt,
+      time: formatEventTime(evt.timestamp)
+    }));
+};
+
+const ActivityTimeline = ({ timelineEvents }: any) => {
   return (
     <div className="bg-white dark:bg-[#0F172B] rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
@@ -129,7 +204,7 @@ const ActivityTimeline = () => {
         <Activity className="w-5 h-5 text-emerald-500" /> Flux d'Activité
       </h3>
       <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
-        {[1, 2, 3].map((_, i) => (
+        {timelineEvents.map((evt: any, i: number) => (
           <div key={i} className="relative flex items-start gap-4">
             <div
               className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 bg-emerald-50 dark:bg-emerald-900/20`}
@@ -138,13 +213,13 @@ const ActivityTimeline = () => {
             </div>
             <div className="ml-10 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl rounded-tl-sm border border-slate-100 dark:border-slate-800 flex-1">
               <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                Dossier DOS-2026-00{i+1}
+                {evt.action}
               </p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                Comptabilisé
+                {evt.dossier}
               </p>
               <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wider font-bold">
-                Il y a {i+2} heures
+                {evt.time}
               </p>
             </div>
           </div>
@@ -466,7 +541,7 @@ export default function DashboardDCF() {
         <div className="xl:col-span-1 space-y-8">
             <ProfileProgressCard dossiersTraites={comptabilises} objTraites={comptabilises + aComptabiliser > 0 ? comptabilises + aComptabiliser : 10} />
 
-            <ActivityTimeline />
+            <ActivityTimeline timelineEvents={buildTimelineEvents(dossiers)} />
         </div>
       </div>
 

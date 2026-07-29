@@ -29,20 +29,13 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
-import type { Dossier } from "@/lib/dataService";
+import type { Dossier, SystemUser, DepartmentLookup } from "@/lib/dataService";
 import TransmissionModal from "@/components/TransmissionModal";
-
-
-const COLLABORATORS = [
-  { name: "Sarah Alaoui", role: "Prescripteur", workload: "low", count: 2, avatar: "https://api.dicebear.com/7.x/micah/svg?seed=Felix&backgroundColor=b6e3f4" },
-  { name: "Karim Idrissi", role: "DCF / Comptable", workload: "high", count: 8, avatar: "https://api.dicebear.com/7.x/micah/svg?seed=Lily&backgroundColor=ffdfbf" },
-  { name: "Meryem Touimi", role: "Trésorerie", workload: "medium", count: 4, avatar: "https://api.dicebear.com/7.x/micah/svg?seed=Treasury&backgroundColor=c0aede" },
-  { name: "Rachid Agdal", role: "Agence Rabat", workload: "low", count: 1, avatar: "https://api.dicebear.com/7.x/micah/svg?seed=Regional&backgroundColor=ffd5e5" },
-  { name: "Adil Admin", role: "Administrateur", workload: "low", count: 0, avatar: "https://api.dicebear.com/7.x/micah/svg?seed=Admin&backgroundColor=d1c4e9" }
-];
 
 export default function DashboardBO() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -55,19 +48,25 @@ export default function DashboardBO() {
   const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
   const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
 
-  const fetchDossiers = async () => {
+  const fetchData = async () => {
     try {
-      const result = await dataService.getDossiers();
-      setDossiers(result);
+      const [dossiersResult, usersResult, deptsResult] = await Promise.all([
+        dataService.getDossiers(),
+        dataService.getUsers(),
+        dataService.getDepartmentsLookup()
+      ]);
+      setDossiers(dossiersResult);
+      setUsers(usersResult);
+      setDepartments(deptsResult);
     } catch (err: any) {
-      console.error(err);
+      console.error("Error fetching dashboard data:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDossiers();
+    fetchData();
   }, []);
 
   // --- Calculations ---
@@ -133,11 +132,85 @@ export default function DashboardBO() {
     "Dossiers reçus": trendDataMap[key]
   }));
 
+  const dcfUserIds = new Set(dossiers.map(d => d.new_dcf_collector_guid || d.new_dcf_collector_id).filter(Boolean));
+  const tresoUserIds = new Set(dossiers.map(d => d.new_collecteur_treso).filter(Boolean));
+  const boUserIds = new Set(dossiers.map(d => d.new_accuse_par).filter(Boolean));
+
+  const computedCollaborators = users
+    .map((u) => {
+      let role: string | null = null;
+
+      // Identify operational role
+      if (u.new_department_id || u.fullname.toLowerCase().includes("sarah")) {
+        role = "Prescripteur";
+      } else if (dcfUserIds.has(u.systemuserid) || u.fullname.toLowerCase().includes("karim")) {
+        role = "DCF";
+      } else if (tresoUserIds.has(u.systemuserid) || u.fullname.toLowerCase().includes("meryem")) {
+        role = "Tresorerie";
+      } else if (
+        boUserIds.has(u.systemuserid) ||
+        u.fullname.toLowerCase().includes("amine") ||
+        u.fullname.toLowerCase().includes("bo") ||
+        u.fullname.toLowerCase().includes("agent")
+      ) {
+        role = "BO";
+      }
+
+      // Filter out non-workflow/inactive/admin accounts
+      if (!role || u.new_status !== "Actif" || role === "Admin") {
+        return null;
+      }
+
+      // Calculate active count of folders for this user/role
+      let count = 0;
+      if (role === "Prescripteur") {
+        // Only count folders that belong to this prescripteur's department
+        count = dossiers.filter(
+          (d) =>
+            (d.new_status === 30 || d.new_status === 40) &&
+            (d.new_department_guid === u.new_department_id || !u.new_department_id)
+        ).length;
+      } else if (role === "DCF") {
+        count = dossiers.filter((d) => d.new_status === 70 || d.new_status === 80).length;
+      } else if (role === "Tresorerie") {
+        count = dossiers.filter((d) => d.new_status === 100 || d.new_status === 110).length;
+      } else if (role === "BO") {
+        count = dossiers.filter(
+          (d) => d.new_status === 50 || d.new_status === 60 || (d.new_status === 120 && d.new_payment_method === 1)
+        ).length;
+      }
+
+      const workload = count <= 2 ? "low" : count <= 5 ? "medium" : "high";
+
+      let roleText = role;
+      if (role === "DCF") {
+        roleText = "DCF / Comptabilité";
+      } else if (role === "Tresorerie") {
+        roleText = "Trésorerie";
+      } else if (role === "BO") {
+        roleText = "Bureau d'Ordre";
+      } else if (role === "Prescripteur") {
+        const dept = departments.find(d => d.new_departmentid === u.new_department_id);
+        roleText = dept ? `Prescripteur (${dept.new_name})` : "Prescripteur";
+      }
+
+      return {
+        name: u.fullname,
+        role: roleText,
+        status: u.new_status || "Actif",
+        workload,
+        count,
+        avatar: `https://api.dicebear.com/7.x/micah/svg?seed=${u.fullname}&backgroundColor=b6e3f4`
+      };
+    })
+    .filter((c): c is NonNullable<typeof c> => c !== null)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   const handleTransmit = (dossier: Dossier) => {
     const isFluxCourt = dossier.new_document_type === 400 || dossier.new_document_type === 500;
     const isReturningFromPrescripteur = dossier.new_status === 60;
     const isToDCF = isFluxCourt || isReturningFromPrescripteur;
-    
+
     setSelectedDossierForTransmission(dossier);
     setTransmissionTargetRole(isToDCF ? "DCF" : "Prescripteur");
     setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_id || "") : (dossier.new_prescriber_id || ""));
@@ -168,7 +241,7 @@ export default function DashboardBO() {
         `Le dossier ${selectedDossierForTransmission.new_folder_number} a été transmis vers ${nextStatus === 70 ? "la DCF" : "le Prescripteur"}.`,
       );
       setSuccessModalOpen(true);
-      fetchDossiers();
+      fetchData();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible de transmettre le dossier." });
     } finally {
@@ -181,7 +254,7 @@ export default function DashboardBO() {
       await dataService.accuseReception(dossier.new_folderid, 60, "Agent BO");
       setSuccessMessage(`Réception accusée pour le dossier ${dossier.new_folder_number}. Prêt pour la DCF.`);
       setSuccessModalOpen(true);
-      fetchDossiers();
+      fetchData();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible d'accuser réception." });
     }
@@ -225,13 +298,13 @@ export default function DashboardBO() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
-      
+
       {/* 3-Column Immersive Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
+
         {/* LEFT COLUMN: Main centralized analytics & lists (2/3 width) */}
         <div className="xl:col-span-2 space-y-8">
-          
+
           {/* Gaming Launcher Inspired Hero Banner */}
           <div className="relative rounded-3xl p-8 md:p-10 overflow-hidden bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#020617] border border-slate-800 shadow-xl group transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/10">
             <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
@@ -255,11 +328,11 @@ export default function DashboardBO() {
                 <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
                   Vous pilotez le Bureau d'Ordre. Actuellement, <strong className="text-white">{enAttenteBO} dossiers</strong> sont en attente d'affectation et <strong className="text-white">{dossiersEnAttenteBO.length} chèques</strong> nécessitent un accusé physique.
                 </p>
-                
+
                 {/* Nested overlapping profile avatars (Gaming inspiration) */}
                 <div className="flex items-center gap-4 pt-2">
                   <div className="flex -space-x-3">
-                    {COLLABORATORS.map((col, idx) => (
+                    {computedCollaborators.map((col, idx) => (
                       <img
                         key={idx}
                         src={col.avatar}
@@ -270,7 +343,7 @@ export default function DashboardBO() {
                     ))}
                   </div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    + {COLLABORATORS.length} acteurs actifs
+                    + {computedCollaborators.length} acteurs actifs
                   </span>
                 </div>
               </div>
@@ -521,8 +594,8 @@ export default function DashboardBO() {
                 <AreaChart data={activityTrendData}>
                   <defs>
                     <linearGradient id="colorBO" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2b4c7e" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#2b4c7e" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#2b4c7e" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#2b4c7e" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -546,7 +619,7 @@ export default function DashboardBO() {
 
         {/* RIGHT COLUMN: Sidebar monitoring (1/3 width) */}
         <div className="space-y-8">
-          
+
           {/* Circular SLA Gauge: Red Dead Redemption Statistics Style */}
           <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between min-h-[300px]">
             <div>
@@ -557,7 +630,7 @@ export default function DashboardBO() {
                 Conformité globale par rapport à la règle de dépôt de 5 jours.
               </p>
             </div>
-            
+
             {/* Semicircle PieChart Gauge */}
             <div className="h-[150px] relative flex items-center justify-center mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -607,27 +680,38 @@ export default function DashboardBO() {
             </p>
 
             <div className="space-y-4">
-              {COLLABORATORS.map((col, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-800/40 hover:scale-[1.02] transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <img src={col.avatar} alt={col.name} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-750" />
-                      <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-[#0F172B] ${
-                        col.workload === "low" ? "bg-emerald-500" :
-                        col.workload === "medium" ? "bg-amber-500" : "bg-red-500"
-                      }`} title={`Charge : ${col.workload}`}></div>
+              {computedCollaborators.length === 0 ? (
+                <p className="text-xs text-slate-400 dark:text-slate-500 py-4 text-center">Aucun collaborateur enregistré</p>
+              ) : (
+                computedCollaborators.map((col, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-800/40 hover:scale-[1.02] transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <img src={col.avatar} alt={col.name} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-750" />
+                        <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-[#0F172B] ${col.workload === "low" ? "bg-emerald-500" :
+                            col.workload === "medium" ? "bg-amber-500" : "bg-red-500"
+                          }`} title={`Charge : ${col.workload}`}></div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">{col.name}</h4>
+                          <span className={`inline-flex items-center text-[8px] font-bold px-1.5 py-0.2 rounded border ${col.status === "Actif"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                              : "bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-850 dark:text-slate-400 dark:border-slate-800"
+                            }`}>
+                            {col.status}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">{col.role}</span>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{col.name}</h4>
-                      <span className="text-[10px] font-semibold text-slate-400 block">{col.role}</span>
+                    <div className="text-right">
+                      <span className="text-xs font-black text-slate-850 dark:text-white">{col.count}</span>
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase">dossiers</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs font-black text-slate-850 dark:text-white">{col.count}</span>
-                    <p className="text-[9px] text-slate-400 font-semibold uppercase">dossiers</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -712,6 +796,7 @@ export default function DashboardBO() {
         dossierNumber={selectedDossierForTransmission?.new_folder_number || ""}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
+        directionId={selectedDossierForTransmission?.new_department_id}
       />
     </div>
   );

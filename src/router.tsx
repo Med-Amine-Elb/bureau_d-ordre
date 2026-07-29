@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom"
+import { createHashRouter } from "react-router-dom"
 import Login from "@/pages/login"
 import DashboardLayout from "@/layouts/DashboardLayout"
 import DashboardBO from "@/pages/bo/Dashboard"
@@ -38,20 +38,9 @@ import DossiersAdmin from "@/pages/admin/Dossiers"
 import ReferencesAdmin from "@/pages/admin/References"
 import ConfigurationAdmin from "@/pages/admin/Configuration"
 
-// Normalize basename when hosted in Power Apps
-// We want to find the root directory regardless of current sub-path
-const getBasename = () => {
-  const path = window.location.pathname;
-  if (path.includes("/index.html")) {
-    return path.substring(0, path.lastIndexOf("/") + 1);
-  }
-  // In development mode (Vite), basename is usually "/"
-  return "/"; 
-};
 
-const BASENAME = getBasename();
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: "/",
     element: <Login />,
@@ -98,8 +87,6 @@ export const router = createBrowserRouter([
       { path: "admin/configuration", element: <ConfigurationAdmin /> },
     ],
   },
-], { 
-  basename: BASENAME 
-});
+]);
 // Vite HMR trigger
 
