@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { exportToExcel, formatDateSafely, getTypeLabel } from "@/utils/excelExport";
 
 export default function AdminDossiers() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
@@ -41,56 +42,21 @@ export default function AdminDossiers() {
   const [newCollecteurDcf, setNewCollecteurDcf] = useState("");
   const [newCollecteurTreso, setNewCollecteurTreso] = useState("");
 
-  const handleExportCSV = () => {
-    // Generate headers
-    const headers = [
-      "Numero Dossier",
-      "Fournisseur",
-      "Numero Facture",
-      "Type Document",
-      "Statut Code",
-      "Statut Libelle",
-      "Bloque",
-      "Prescripteur",
-      "DCF Collecteur",
-      "Tresorerie Collecteur",
-      "Date Reception"
-    ];
-
-    // Map rows
-    const csvRows = filteredDossiers.map(d => [
-      d.new_folder_number,
-      d.new_supplier_id || "",
-      d.new_invoice_number || "",
-      d.new_document_type === 100 ? "Facture (100)" :
-      d.new_document_type === 200 ? "Avoir (200)" :
-      d.new_document_type === 500 ? "Acompte (500)" :
-      d.new_document_type === 600 ? "Courrier (600)" : `Autre (${d.new_document_type})`,
-      d.new_status,
-      getStatusLabel(d.new_status),
-      d.new_is_blocked ? "Oui" : "Non",
-      d.new_prescriber_id || "",
-      d.new_dcf_collector_id || "",
-      d.new_collecteur_treso || "",
-      d.new_reception_date ? new Date(d.new_reception_date).toLocaleDateString("fr-FR") : ""
-    ]);
-
-    // Build CSV string (semicolon separator)
-    const csvContent = [
-      headers.join(";"),
-      ...csvRows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";"))
-    ].join("\n");
-
-    // Create download link
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `extraction_dossiers_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`${filteredDossiers.length} dossiers exportés en CSV !`);
+  const handleExportExcel = () => {
+    const dataToExport = filteredDossiers.map(d => ({
+      "Numéro Dossier": d.new_folder_number,
+      "Fournisseur": d.new_supplier_id || d.new_livreur_nom || "",
+      "Numéro Facture": d.new_invoice_number || "",
+      "Type Document": getTypeLabel(d.new_document_type),
+      "Statut Code": d.new_status,
+      "Statut Libellé": getStatusLabel(d.new_status),
+      "Bloqué": d.new_is_blocked ? "Oui" : "Non",
+      "Prescripteur": d.new_prescriber_id || "",
+      "DCF Collecteur": d.new_dcf_collector_id || "",
+      "Trésorerie Collecteur": d.new_collecteur_treso || "",
+      "Date Réception": formatDateSafely(d.new_reception_date)
+    }));
+    exportToExcel(dataToExport, "Admin_Supervision_Dossiers");
   };
 
   const loadData = async () => {
@@ -246,7 +212,7 @@ export default function AdminDossiers() {
   });
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="h-[calc(100vh-112px)] sm:h-[calc(100vh-128px)] md:h-[calc(100vh-144px)] flex flex-col gap-6 overflow-hidden animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -258,10 +224,10 @@ export default function AdminDossiers() {
           </p>
         </div>
         <button
-          onClick={handleExportCSV}
-          className="flex items-center gap-2 bg-[#2b4c7e] hover:bg-[#20395f] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#2b4c7e]/20"
+          onClick={handleExportExcel}
+          className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
         >
-          <Download className="w-5 h-5" /> Exporter la Sélection (CSV)
+          <Download className="w-5 h-5" /> Exporter Excel
         </button>
       </div>
 
@@ -276,7 +242,7 @@ export default function AdminDossiers() {
               placeholder="N° dossier, Fournisseur, Facture..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 transition-all text-slate-950 dark:text-white"
+              className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 transition-all text-slate-950 dark:text-white"
             />
           </div>
 
@@ -285,7 +251,7 @@ export default function AdminDossiers() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
             >
               <option value="Tous">Tous les types de document</option>
               <option value="100">Factures (100)</option>
@@ -300,7 +266,7 @@ export default function AdminDossiers() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
             >
               <option value="Tous">Tous les statuts</option>
               <option value="10">Sauvegarde (10)</option>
@@ -326,7 +292,7 @@ export default function AdminDossiers() {
             <select
               value={filterBlocked}
               onChange={(e) => setFilterBlocked(e.target.value)}
-              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+              className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
             >
               <option value="Tous">Tous les blocages</option>
               <option value="Bloqués">Bloqués uniquement</option>
@@ -337,13 +303,13 @@ export default function AdminDossiers() {
       </div>
 
       {/* Grid List */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-[#0F172B] rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 flex-1 min-h-0 overflow-auto">
         {loading ? (
           <div className="p-12 text-center text-slate-500 animate-pulse">Chargement de la supervision...</div>
         ) : filteredDossiers.length === 0 ? (
           <div className="p-12 text-center text-slate-500">Aucun dossier ne correspond aux critères de recherche.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div>
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/30">
@@ -427,7 +393,7 @@ export default function AdminDossiers() {
                         )}
                         <button
                           onClick={() => handleOpenStatus(d)}
-                          className="bg-[#2b4c7e]/10 text-[#2b4c7e] hover:bg-[#2b4c7e]/20 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
+                          className="bg-[#1F3B73]/10 text-[#1F3B73] hover:bg-[#1F3B73]/20 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                         >
                           Forcer Statut
                         </button>
@@ -442,7 +408,7 @@ export default function AdminDossiers() {
                             setSelectedDossierForAudit(d);
                             setShowAuditModal(true);
                           }}
-                          className="p-2 text-slate-400 hover:text-[#2b4c7e] hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors"
+                          className="p-2 text-slate-400 hover:text-[#1F3B73] hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors"
                           title="Historique & Audit Log"
                         >
                           <History className="w-4 h-4" />
@@ -476,7 +442,7 @@ export default function AdminDossiers() {
             </button>
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
-              <AlertCircle className="w-6 h-6 text-[#2b4c7e]" />
+              <AlertCircle className="w-6 h-6 text-[#1F3B73]" />
               Forcer le Statut du Dossier
             </h2>
 
@@ -496,7 +462,7 @@ export default function AdminDossiers() {
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(Number(e.target.value))}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 >
                   <option value="10">Sauvegarde (10)</option>
                   <option value="20">Hors Délai (20)</option>
@@ -524,7 +490,7 @@ export default function AdminDossiers() {
                   placeholder="Expliquez la raison de ce forçage manuel (ex: déblocage par email de la direction générale...)"
                   value={newCommentaire}
                   onChange={(e) => setNewCommentaire(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -539,7 +505,7 @@ export default function AdminDossiers() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-sm font-bold transition-all"
+                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
                 >
                   Confirmer le Forçage
                 </button>
@@ -561,7 +527,7 @@ export default function AdminDossiers() {
             </button>
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
-              <User className="w-6 h-6 text-[#2b4c7e]" />
+              <User className="w-6 h-6 text-[#1F3B73]" />
               Réassigner les Acteurs du Dossier
             </h2>
 
@@ -581,7 +547,7 @@ export default function AdminDossiers() {
                   placeholder="Ex: Sarah Alaoui"
                   value={newPrescripteur}
                   onChange={(e) => setNewPrescripteur(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -595,7 +561,7 @@ export default function AdminDossiers() {
                   placeholder="Ex: Karim Idrissi"
                   value={newCollecteurDcf}
                   onChange={(e) => setNewCollecteurDcf(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -609,7 +575,7 @@ export default function AdminDossiers() {
                   placeholder="Ex: Meryem Touimi"
                   value={newCollecteurTreso}
                   onChange={(e) => setNewCollecteurTreso(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -624,7 +590,7 @@ export default function AdminDossiers() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-sm font-bold transition-all"
+                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
                 >
                   Enregistrer
                 </button>
@@ -641,7 +607,7 @@ export default function AdminDossiers() {
             {/* Header */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-[#2b4c7e] dark:text-blue-400">
+                <div className="p-2 rounded-xl bg-blue-500/10 text-[#1F3B73] dark:text-blue-400">
                   <History className="w-5 h-5" />
                 </div>
                 <div>
@@ -686,7 +652,7 @@ export default function AdminDossiers() {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Statut Actuel</span>
-                  <span className="text-xs font-semibold text-[#2b4c7e] dark:text-blue-400 block">
+                  <span className="text-xs font-semibold text-[#1F3B73] dark:text-blue-400 block">
                     {getStatusLabel(selectedDossierForAudit.new_status)} ({selectedDossierForAudit.new_status})
                   </span>
                 </div>
@@ -907,7 +873,7 @@ export default function AdminDossiers() {
                   setShowAuditModal(false);
                   setSelectedDossierForAudit(null);
                 }}
-                className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-[#2b4c7e]/20"
+                className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-[#1F3B73]/20"
               >
                 Fermer
               </button>

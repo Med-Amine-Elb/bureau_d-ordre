@@ -3,34 +3,38 @@ import {
   PackageSearch,
   Eye,
   FileText,
-  PhoneCall,
-  Truck,
   CheckCircle,
   Plus,
-  Activity,
   Send,
-  ArrowRight,
   Sparkles,
   Users,
-  Layers
+  Layers,
+  TrendingUp,
+  MoreHorizontal,
+  PhoneCall
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   Tooltip as RechartsTooltip,
   AreaChart,
   Area,
   XAxis,
   YAxis,
-  CartesianGrid
+  CartesianGrid,
+  BarChart,
+  Bar,
+  Legend,
+  Cell
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import KpiCard from "@/components/KpiCard";
 import { dataService } from "@/lib/dataService";
 import type { Dossier, SystemUser, DepartmentLookup } from "@/lib/dataService";
+import { PremiumGauge } from "@/components/PremiumGauge";
 import TransmissionModal from "@/components/TransmissionModal";
+
+
 
 export default function DashboardBO() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
@@ -38,11 +42,19 @@ export default function DashboardBO() {
   const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // States for Transmission Modal
   const [showTransmissionModal, setShowTransmissionModal] = useState(false);
   const [selectedDossierForTransmission, setSelectedDossierForTransmission] = useState<Dossier | null>(null);
   const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
@@ -69,14 +81,21 @@ export default function DashboardBO() {
     fetchData();
   }, []);
 
-  // --- Calculations ---
+  // ── Calculations ──
   const totalDossiersCount = dossiers.length;
   const enCoursTotal = dossiers.filter((d) => d.new_status !== 150 && d.new_status !== 20).length;
   const enAttenteBO = dossiers.filter((d) => d.new_status === 10).length;
   const chequesAttente = dossiers.filter((d) => d.new_status > 70 && d.new_status < 150).length;
   const payesCount = dossiers.filter((d) => d.new_status === 150).length;
 
-  // SLA Compliance (Règle des 5 jours)
+  // Sub-stat counts by workflow stage
+  const dossiersBO = dossiers.filter((d) => d.new_status === 10 || d.new_status === 50 || d.new_status === 60).length;
+  const dossiersPrescripteur = dossiers.filter((d) => d.new_status === 30 || d.new_status === 40).length;
+  const dossiersDCF = dossiers.filter((d) => d.new_status === 70 || d.new_status === 80 || d.new_status === 90).length;
+  const dossiersTresorerie = dossiers.filter((d) => d.new_status === 100 || d.new_status === 110).length;
+  const dossiersAgence = dossiers.filter((d) => d.new_status >= 120 && d.new_status <= 140).length;
+
+  // SLA Compliance (règle des 5 jours)
   const compliantCount = dossiers.filter((d) => {
     if (!d.new_invoice_date || !d.new_reception_date) return true;
     const diff = Math.abs(
@@ -86,14 +105,9 @@ export default function DashboardBO() {
   }).length;
   const complianceRate = totalDossiersCount > 0 ? Math.round((compliantCount / totalDossiersCount) * 100) : 100;
 
-  // SLA Radial Gauge Data
-  const gaugeData = [
-    { name: "Conforme", value: complianceRate, fill: "#10b981" },
-    { name: "Non-conforme", value: 100 - complianceRate, fill: "#e2e8f0" }
-  ];
-
-
-  // Chart data: statuses distribution
+  const completedCount = dossiers.filter((d) => d.new_status === 150).length;
+  const completedRate = totalDossiersCount > 0 ? Math.round((completedCount / totalDossiersCount) * 100) : 0;
+  // Pie data for segmentation
   const statutCounts = dossiers.reduce((acc, curr) => {
     const s = curr.new_status;
     acc[s] = (acc[s] || 0) + 1;
@@ -112,26 +126,50 @@ export default function DashboardBO() {
     pieData.push({ name: "Aucun dossier", value: 1, color: "#cbd5e1" });
   }
 
-  // Trend data (last 7 days)
-  const trendDataMap: Record<string, number> = {};
+  // Trend data (last 7 days) for area chart
+  const trendDataMap: Record<string, { total: number, facture: number, avoir: number, acompte: number, courrier: number }> = {};
   for (let i = 6; i >= 0; i--) {
     const dDate = new Date();
     dDate.setDate(dDate.getDate() - i);
     const label = dDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
-    trendDataMap[label] = 0;
+    trendDataMap[label] = { total: 0, facture: 0, avoir: 0, acompte: 0, courrier: 0 };
   }
   dossiers.forEach((d) => {
+    if (!d.new_reception_date) return;
     const dDate = new Date(d.new_reception_date);
     const label = dDate.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
     if (label in trendDataMap) {
-      trendDataMap[label] += 1;
+      trendDataMap[label].total += 1;
+      const t = d.new_document_type;
+      if (t === 100 || t === 400) trendDataMap[label].facture += 1;
+      else if (t === 200) trendDataMap[label].avoir += 1;
+      else if (t === 500) trendDataMap[label].acompte += 1;
+      else if (t === 600) trendDataMap[label].courrier += 1;
+      else trendDataMap[label].facture += 1; // Default to facture if unknown
     }
   });
   const activityTrendData = Object.keys(trendDataMap).map((key) => ({
     date: key,
-    "Dossiers reçus": trendDataMap[key]
+    total: trendDataMap[key].total,
+    Factures: trendDataMap[key].facture,
+    Avoirs: trendDataMap[key].avoir,
+    Acomptes: trendDataMap[key].acompte,
+    Courriers: trendDataMap[key].courrier
   }));
 
+  // Weekly bar chart data (by day of week)
+  const dayLabels = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const dayCounts: Record<string, number> = {};
+  dayLabels.forEach(d => { dayCounts[d] = 0; });
+  dossiers.forEach((d) => {
+    if (!d.new_reception_date) return;
+    const dayIndex = new Date(d.new_reception_date).getDay();
+    const mapped = dayIndex === 0 ? "Dim" : dayLabels[dayIndex - 1];
+    if (mapped in dayCounts) dayCounts[mapped] += 1;
+  });
+  const weeklyBarData = dayLabels.map(day => ({ day, count: dayCounts[day] }));
+
+  // ── Collaborators ──
   const dcfUserIds = new Set(dossiers.map(d => d.new_dcf_collector_guid || d.new_dcf_collector_id).filter(Boolean));
   const tresoUserIds = new Set(dossiers.map(d => d.new_collecteur_treso).filter(Boolean));
   const boUserIds = new Set(dossiers.map(d => d.new_accuse_par).filter(Boolean));
@@ -140,7 +178,6 @@ export default function DashboardBO() {
     .map((u) => {
       let role: string | null = null;
 
-      // Identify operational role
       if (u.new_department_id || u.fullname.toLowerCase().includes("sarah")) {
         role = "Prescripteur";
       } else if (dcfUserIds.has(u.systemuserid) || u.fullname.toLowerCase().includes("karim")) {
@@ -156,15 +193,12 @@ export default function DashboardBO() {
         role = "BO";
       }
 
-      // Filter out non-workflow/inactive/admin accounts
       if (!role || u.new_status !== "Actif" || role === "Admin") {
         return null;
       }
 
-      // Calculate active count of folders for this user/role
       let count = 0;
       if (role === "Prescripteur") {
-        // Only count folders that belong to this prescripteur's department
         count = dossiers.filter(
           (d) =>
             (d.new_status === 30 || d.new_status === 40) &&
@@ -206,6 +240,7 @@ export default function DashboardBO() {
     .filter((c): c is NonNullable<typeof c> => c !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  // ── Handlers ──
   const handleTransmit = (dossier: Dossier) => {
     const isFluxCourt = dossier.new_document_type === 400 || dossier.new_document_type === 500;
     const isReturningFromPrescripteur = dossier.new_status === 60;
@@ -260,7 +295,6 @@ export default function DashboardBO() {
     }
   };
 
-  // Get status color
   const getStatusLabelText = (status: number) => {
     switch (status) {
       case 10: return "Sauvegarde";
@@ -284,195 +318,329 @@ export default function DashboardBO() {
 
   const getStatusBadgeStyle = (status: number) => {
     switch (status) {
-      case 20: return "bg-red-500/10 text-red-500 border-red-500/20";
-      case 90: return "bg-orange-500/10 text-orange-500 border-orange-500/20";
+      case 20: return "bg-rose-50 text-rose-600 border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20";
+      case 90: return "bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20";
       case 40:
       case 80:
-      case 110: return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
-      case 150: return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      default: return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+      case 110: return "bg-violet-50 text-violet-600 border-violet-100 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20";
+      case 150: return "bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20";
+      default: return "bg-sky-50 text-sky-600 border-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:border-sky-500/20";
     }
   };
 
   const dossiersEnAttenteBO = dossiers.filter((d) => d.new_status === 50);
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
+  // Reusable tooltip style for Recharts
+  const tooltipStyle: React.CSSProperties = {
+    backgroundColor: isDarkMode ? "#0f172a" : "#ffffff",
+    borderRadius: "12px",
+    color: isDarkMode ? "#f8fafc" : "#0f172a",
+    border: isDarkMode ? "1px solid #1e293b" : "1px solid #e2e8f0",
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+    fontSize: "12px",
+    padding: "8px 12px",
+  };
 
-      {/* 3-Column Immersive Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-        {/* LEFT COLUMN: Main centralized analytics & lists (2/3 width) */}
-        <div className="xl:col-span-2 space-y-8">
-
-          {/* Gaming Launcher Inspired Hero Banner */}
-          <div className="relative rounded-3xl p-8 md:p-10 overflow-hidden bg-gradient-to-br from-[#1E293B] via-[#0F172A] to-[#020617] border border-slate-800 shadow-xl group transition-all duration-300 hover:shadow-2xl hover:shadow-blue-900/10">
-            <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-            {/* Ambient Red/Blue glowing blobs in corners */}
-            <div className="absolute -top-12 -right-12 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-blue-500/20 transition-all duration-700"></div>
-            <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none group-hover:bg-indigo-500/20 transition-all duration-700"></div>
-
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-              <div className="space-y-4 max-w-xl">
-                <div className="flex items-center gap-2">
-                  <span className="inline-block py-1 px-2.5 rounded-lg bg-blue-500/10 text-blue-400 text-[10px] font-extrabold tracking-wider border border-blue-500/20 uppercase">
-                    Featured Workflow
-                  </span>
-                  <span className="inline-block py-1 px-2.5 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-extrabold tracking-wider border border-red-500/20 uppercase">
-                    ⭐ Urgent
-                  </span>
+  const CustomAreaTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-[#0B1120] p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] min-w-[160px] border border-slate-800">
+          <p className="text-[13px] font-medium text-white mb-3">{label}</p>
+          <div className="space-y-2.5">
+            {payload.map((entry: any, index: number) => (
+              <div key={index} className="flex items-center justify-between text-[13px]">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-1 h-3.5 rounded-full"
+                    style={{ backgroundColor: entry.color }}
+                  ></div>
+                  <span className="text-slate-400 font-medium">{entry.name}</span>
                 </div>
-                <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight leading-none">
-                  Bonjour, Agent BO
-                </h1>
-                <p className="text-slate-400 text-xs md:text-sm leading-relaxed">
-                  Vous pilotez le Bureau d'Ordre. Actuellement, <strong className="text-white">{enAttenteBO} dossiers</strong> sont en attente d'affectation et <strong className="text-white">{dossiersEnAttenteBO.length} chèques</strong> nécessitent un accusé physique.
-                </p>
+                <span className="font-semibold text-white ml-6">{entry.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
-                {/* Nested overlapping profile avatars (Gaming inspiration) */}
-                <div className="flex items-center gap-4 pt-2">
-                  <div className="flex -space-x-3">
-                    {computedCollaborators.map((col, idx) => (
-                      <img
-                        key={idx}
-                        src={col.avatar}
-                        alt={col.name}
-                        title={`${col.name} (${col.role})`}
-                        className="w-8 h-8 rounded-full border-2 border-[#0F172B] bg-slate-800 object-cover hover:scale-110 hover:z-20 transition-all cursor-pointer"
-                      />
-                    ))}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    + {computedCollaborators.length} acteurs actifs
-                  </span>
+  // ═══════════════════════════════════════════════════════════
+  //  RENDER
+  // ═══════════════════════════════════════════════════════════
+  const userName = localStorage.getItem("userName") || "Mohammed El Boubakri";
+
+  return (
+    <div className="w-full space-y-6">
+
+      {/* Greeting Section */}
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+          Dashboard
+        </h1>
+        <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+          Bienvenue, {userName}. Voici le récapitulatif de vos activités aujourd'hui.
+        </p>
+      </div>
+
+      {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <KpiCard
+          title="Dossiers Actifs"
+          icon={Layers}
+          value={enCoursTotal.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-[#1F3B73]"
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10"
+          animationDelay="0ms"
+          onClick={() => navigate("/bo/dossiers")}
+          subtext={
+            <>
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-500">+{enAttenteBO}</span>
+              <span className="text-xs text-slate-400">en attente BO</span>
+            </>
+          }
+        />
+        <KpiCard
+          title="Chèques Attente"
+          icon={PackageSearch}
+          value={chequesAttente.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-violet-500"
+          iconBgClass="bg-violet-50 dark:bg-violet-500/10"
+          animationDelay="60ms"
+          onClick={() => navigate("/bo/remises")}
+          subtext={<span className="text-xs text-slate-400">logistique &amp; remise</span>}
+        />
+        <KpiCard
+          title="Conformité SLA"
+          icon={Sparkles}
+          value={`${complianceRate}%`}
+          loading={loading}
+          iconColorClass="text-teal-500"
+          iconBgClass="bg-teal-50 dark:bg-teal-500/10"
+          animationDelay="120ms"
+          subtext={
+            <>
+              {complianceRate >= 80 ? (
+                <><TrendingUp className="w-3.5 h-3.5 text-teal-500" /><span className="text-xs font-semibold text-teal-500">Conforme</span></>
+              ) : (
+                <span className="text-xs font-semibold text-amber-500">Amélioration requise</span>
+              )}
+              <span className="text-xs text-slate-400">règle 5j</span>
+            </>
+          }
+        />
+        <KpiCard
+          title="Clôturés / Payés"
+          icon={CheckCircle}
+          value={payesCount.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-amber-500"
+          iconBgClass="bg-amber-50 dark:bg-amber-500/10"
+          animationDelay="180ms"
+          subtext={<span className="text-xs text-slate-400">vs. {totalDossiersCount} total</span>}
+        />
+      </div>
+
+      {/* ═══════════ ROW 2: MAIN CONTENT + SIDEBAR ═══════════ */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        {/* ── LEFT COLUMN (2/3) ── */}
+        <div className="xl:col-span-2 flex flex-col gap-6">
+
+          {/* Vue Globale + Area Chart + Sub-stats */}
+          <div
+            style={{ animationDelay: "220ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Vue Globale des Dossiers</h3>
+                <div className="mt-2">
+                  <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{totalDossiersCount}</span>
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <TrendingUp className="w-3.5 h-3.5 text-teal-500" />
+                  <span className="text-xs font-semibold text-teal-500">{complianceRate}%</span>
+                  <span className="text-xs text-slate-400">conformes SLA</span>
                 </div>
               </div>
-
-              {/* Action Trigger Card */}
-              <div className="flex flex-col gap-3 min-w-[200px] w-full md:w-auto">
+              <div className="flex gap-2">
                 <button
                   onClick={() => navigate("/bo/dossiers/nouveau")}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white rounded-xl py-3 px-6 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95"
+                  className="flex items-center gap-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl py-2.5 px-4 text-xs font-bold transition-all shadow-sm cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" /> Nouveau Dossier
+                  <Plus className="w-3.5 h-3.5" /> Nouveau Dossier
                 </button>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => navigate("/bo/relances")}
-                    className="flex-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl py-2 px-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <PhoneCall className="w-3.5 h-3.5" /> Relances
-                  </button>
-                  <button
-                    onClick={() => navigate("/bo/remises")}
-                    className="flex-1 bg-slate-800/80 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl py-2 px-3 text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                  >
-                    <Truck className="w-3.5 h-3.5" /> Remises
-                  </button>
+                <button
+                  onClick={() => navigate("/bo/relances")}
+                  className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold transition-all cursor-pointer"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" /> Relances
+                </button>
+              </div>
+            </div>
+
+            {/* Area Chart */}
+            <div className="h-[200px] mt-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={activityTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorFactures" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1F3B73" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#1F3B73" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorAvoirs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorAcomptes" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorCourriers" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#f1f5f9"} vertical={false} />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <RechartsTooltip content={<CustomAreaTooltip />} cursor={{ stroke: isDarkMode ? '#1e293b' : '#e2e8f0', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
+                  <Area
+                    type="natural"
+                    dataKey="Factures"
+                    stroke="#1F3B73"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorFactures)"
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="natural"
+                    dataKey="Avoirs"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorAvoirs)"
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="natural"
+                    dataKey="Acomptes"
+                    stroke="#f59e0b"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorAcomptes)"
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                  <Area
+                    type="natural"
+                    dataKey="Courriers"
+                    stroke="#8b5cf6"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#colorCourriers)"
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Sub-stats row (Shopeers 'Customers' Card Style) */}
+            <div className="mt-8 pt-6 border-t border-slate-100/60 dark:border-slate-800">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par Rôle</h3>
+                <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                {/* Bureau d'Ordre */}
+                <div className="border-l-2 border-b-4 border-blue-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-blue-500/20 hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-all duration-300 ease-out">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersBO}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Bureau d'Ordre</span>
+                </div>
+
+                {/* Prescripteurs */}
+                <div className="border-l-2 border-b-4 border-emerald-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-emerald-500/20 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 transition-all duration-300 ease-out">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersPrescripteur}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Prescripteurs</span>
+                </div>
+
+                {/* DCF */}
+                <div className="border-l-2 border-b-4 border-amber-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-amber-500/20 hover:bg-amber-50/50 dark:hover:bg-amber-500/10 transition-all duration-300 ease-out">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <FileText className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersDCF}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">DCF / Compta</span>
+                </div>
+
+                {/* Trésorerie */}
+                <div className="border-l-2 border-b-4 border-rose-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-rose-500/20 hover:bg-rose-50/50 dark:hover:bg-rose-500/10 transition-all duration-300 ease-out">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-rose-500" />
+                    <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersTresorerie}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Trésorerie</span>
+                </div>
+
+                {/* Agence */}
+                <div className="border-l-2 border-b-4 border-violet-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:shadow-violet-500/20 hover:bg-violet-50/50 dark:hover:bg-violet-500/10 transition-all duration-300 ease-out">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <PackageSearch className="w-3.5 h-3.5 text-violet-500" />
+                    <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersAgence}</span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-medium">Agence</span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Sub-State Cards: Gaming Challenge-Inspired Widgets */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Card 1: Dossiers en Cours */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between group hover:border-[#2b4c7e]/40 transition-all duration-300">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Dossiers Actifs</span>
-                  <h4 className="text-xl font-black text-slate-850 dark:text-white">{enCoursTotal}</h4>
-                </div>
-                <div className="p-2.5 rounded-xl bg-blue-500/5 text-blue-500">
-                  <Layers className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-850 flex items-center justify-between text-[10px] font-bold text-blue-500">
-                <span className="uppercase tracking-wider">Superviser les flux</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 2: Chèques en attente de transport */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between group hover:border-[#2b4c7e]/40 transition-all duration-300">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Chèques Attente</span>
-                  <h4 className="text-xl font-black text-slate-850 dark:text-white">{chequesAttente}</h4>
-                </div>
-                <div className="p-2.5 rounded-xl bg-purple-500/5 text-purple-500">
-                  <PackageSearch className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-850 flex items-center justify-between text-[10px] font-bold text-purple-500">
-                <span className="uppercase tracking-wider">Gérer la logistique</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
-            {/* Card 3: Clôturés */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-sm flex flex-col justify-between group hover:border-[#2b4c7e]/40 transition-all duration-300">
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">Clôturés / Payés</span>
-                  <h4 className="text-xl font-black text-emerald-650 dark:text-emerald-450">{payesCount}</h4>
-                </div>
-                <div className="p-2.5 rounded-xl bg-emerald-500/5 text-emerald-500">
-                  <CheckCircle className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-850 flex items-center justify-between text-[10px] font-bold text-emerald-500">
-                <span className="uppercase tracking-wider">Historique finalisé</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-          </div>
-
-          {/* Pending Cheques / Receivables Notification Grid */}
+          {/* Pending Cheques (if any) */}
           {dossiersEnAttenteBO.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
-                  Chèques physiques reçus de Trésorerie ({dossiersEnAttenteBO.length})
-                </h2>
+            <div
+              style={{ animationDelay: "280ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Chèques reçus de Trésorerie ({dossiersEnAttenteBO.length})
+                </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {dossiersEnAttenteBO.map((d) => (
                   <div
                     key={d.new_folderid}
-                    className="bg-[#2b4c7e]/5 dark:bg-[#0F172B] border-2 border-dashed border-[#2b4c7e]/20 dark:border-slate-800 rounded-2xl p-5 flex flex-col justify-between gap-4 group hover:border-[#2b4c7e] transition-all"
+                    className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 hover:border-[#1F3B73]/30 transition-all"
                   >
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-bold text-slate-850 dark:text-white text-base">
-                            {d.new_folder_number}
-                          </h3>
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            Fournisseur : {d.new_supplier_id || "-"}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => navigate(`/bo/dossiers/${d.new_folderid}`)}
-                          className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-blue-500 transition-all shadow-sm"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-500/10">
+                        <FileText className="w-4 h-4 text-[#1F3B73]" />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {d.new_documents_complements?.slice(0, 2).map((doc, idx) => (
-                          <span key={idx} className="text-[9px] font-medium bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500 border border-slate-100 dark:border-slate-800 max-w-[120px] truncate">
-                            {doc}
-                          </span>
-                        ))}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">{d.new_folder_number}</h4>
+                        <p className="text-[10px] text-slate-400">{d.new_supplier_id || "—"}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => handleAccuse(d)}
-                      className="w-full bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl py-2.5 text-xs font-bold transition-all shadow-md shadow-[#2b4c7e]/10 hover:scale-[1.02]"
+                      className="px-3 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                     >
-                      Accuser Réception Physiquement
+                      Accuser
                     </button>
                   </div>
                 ))}
@@ -480,96 +648,82 @@ export default function DashboardBO() {
             </div>
           )}
 
-          {/* Active dossiers supervision table */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100 dark:border-slate-800/80 shadow-sm space-y-5">
-            <div className="flex justify-between items-center">
+          {/* Dossiers Table */}
+          <div
+            style={{ animationDelay: "320ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex-1 flex flex-col"
+          >
+            <div className="p-5 pb-0 flex items-center justify-between flex-none">
               <div>
-                <h3 className="font-extrabold text-slate-850 dark:text-white text-base">
-                  Dossiers Métiers en Cours de Traitement
-                </h3>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Suivi des étapes actives et relances des acteurs.
-                </p>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Dossiers en Cours de Traitement</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Suivi des étapes actives et relances des acteurs.</p>
               </div>
-              <button
-                onClick={() => navigate("/bo/dossiers")}
-                className="text-xs font-bold text-[#2b4c7e] hover:underline"
-              >
-                Voir tout
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigate("/bo/dossiers")} className="text-xs font-semibold text-[#1F3B73] hover:underline cursor-pointer">
+                  Voir tout
+                </button>
+                <button className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors cursor-pointer">
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
+            <div className="overflow-x-auto mt-4 flex-1">
+              <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/30">
-                    <th className="py-3.5 px-4">Numéro Dossier</th>
-                    <th className="py-3.5 px-4">Fournisseur</th>
-                    <th className="py-3.5 px-4">Type</th>
-                    <th className="py-3.5 px-4">Statut Actuel</th>
-                    <th className="py-3.5 px-4 text-right">Action</th>
+                  <tr className="border-y border-slate-100 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="py-3 px-5">N° Dossier</th>
+                    <th className="py-3 px-5">Fournisseur</th>
+                    <th className="py-3 px-5">Type</th>
+                    <th className="py-3 px-5">Statut</th>
+                    <th className="py-3 px-5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
+                <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400 animate-pulse">
-                        Chargement des flux...
-                      </td>
+                      <td colSpan={5} className="py-10 text-center text-slate-400 animate-pulse text-xs">Chargement...</td>
                     </tr>
                   ) : dossiers.filter((d) => d.new_status !== 150 && d.new_status !== 20).length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400">
-                        Aucun dossier actif.
-                      </td>
+                      <td colSpan={5} className="py-10 text-center text-slate-400 text-xs">Aucun dossier actif.</td>
                     </tr>
                   ) : (
                     dossiers
                       .filter((d) => d.new_status !== 150 && d.new_status !== 20)
                       .slice(0, 5)
                       .map((d) => (
-                        <tr key={d.new_folderid} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-all group">
-                          {/* Code */}
-                          <td className="py-4 px-4 font-bold text-slate-850 dark:text-slate-100">
+                        <tr key={d.new_folderid} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors">
+                          <td className="py-3.5 px-5">
                             <div className="flex items-center gap-2.5">
                               <div className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400">
-                                <FileText className="w-4 h-4" />
+                                <FileText className="w-3.5 h-3.5" />
                               </div>
-                              {d.new_folder_number}
+                              <Link to={`/bo/dossiers/${d.new_folderid}`} className="text-xs font-semibold text-[#1F3B73] hover:underline">
+                                {d.new_folder_number}
+                              </Link>
                             </div>
                           </td>
-                          {/* Vendor */}
-                          <td className="py-4 px-4 font-medium text-slate-650 dark:text-slate-455">
-                            {d.new_supplier_id || "-"}
-                          </td>
-                          {/* Type */}
-                          <td className="py-4 px-4">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-850 px-2 py-0.5 rounded">
+                          <td className="py-3.5 px-5 text-xs font-medium text-slate-600 dark:text-slate-400">{d.new_supplier_id || "—"}</td>
+                          <td className="py-3.5 px-5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
                               {d.new_document_type === 100 ? "Facture" : d.new_document_type === 200 ? "Avoir" : d.new_document_type === 500 ? "Acompte" : "Courrier"}
                             </span>
                           </td>
-                          {/* Status */}
-                          <td className="py-4 px-4">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${getStatusBadgeStyle(d.new_status)}`}>
+                          <td className="py-3.5 px-5">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusBadgeStyle(d.new_status)}`}>
                               {getStatusLabelText(d.new_status)}
                             </span>
                           </td>
-                          {/* Direct Actions */}
-                          <td className="py-4 px-4 text-right">
-                            <div className="flex justify-end items-center gap-2">
+                          <td className="py-3.5 px-5 text-right">
+                            <div className="flex justify-end items-center gap-1.5">
                               {(d.new_status === 10 || d.new_status === 60) && (
-                                <button
-                                  onClick={() => handleTransmit(d)}
-                                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
-                                >
+                                <button onClick={() => handleTransmit(d)} className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer">
                                   <Send className="w-3 h-3" /> Transmettre
                                 </button>
                               )}
-                              <button
-                                onClick={() => navigate(`/bo/dossiers/${d.new_folderid}`)}
-                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                              >
-                                <Eye className="w-4 h-4" />
+                              <button onClick={() => navigate(`/bo/dossiers/${d.new_folderid}`)} className="p-1.5 text-slate-400 hover:text-[#1F3B73] transition-colors cursor-pointer">
+                                <Eye className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>
@@ -580,191 +734,135 @@ export default function DashboardBO() {
               </table>
             </div>
           </div>
-
-          {/* Activity Trend Graph (Area chart) */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100 dark:border-slate-800/80 shadow-sm">
-            <h2 className="text-sm font-bold text-slate-850 dark:text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-[#2b4c7e]" /> Tendance Hebdomadaire de Saisie
-            </h2>
-            <p className="text-[11px] text-slate-400 mt-1">
-              Nombre de dossiers reçus et numérisés au Bureau d'Ordre quotidiennement.
-            </p>
-            <div className="h-[210px] mt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityTrendData}>
-                  <defs>
-                    <linearGradient id="colorBO" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2b4c7e" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#2b4c7e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} allowDecimals={false} />
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      borderRadius: "12px",
-                      color: "#fff",
-                      border: "none"
-                    }}
-                  />
-                  <Area type="monotone" dataKey="Dossiers reçus" stroke="#2b4c7e" strokeWidth={2.5} fillOpacity={1} fill="url(#colorBO)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
         </div>
 
-        {/* RIGHT COLUMN: Sidebar monitoring (1/3 width) */}
-        <div className="space-y-8">
+        {/* ── RIGHT COLUMN (1/3) ── */}
+        <div className="flex flex-col gap-6">
 
-          {/* Circular SLA Gauge: Red Dead Redemption Statistics Style */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col justify-between min-h-[300px]">
-            <div>
-              <h2 className="text-sm font-bold text-slate-850 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" /> Taux de Respect SLA (BO)
-              </h2>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Conformité globale par rapport à la règle de dépôt de 5 jours.
-              </p>
+          {/* Activity Bar Chart (Shopeers Style) */}
+          <div
+            style={{ animationDelay: "360ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Jour le plus actif</h3>
+              <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
             </div>
 
-            {/* Semicircle PieChart Gauge */}
-            <div className="h-[150px] relative flex items-center justify-center mt-4">
+            <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={gaugeData}
-                    cx="50%"
-                    cy="90%"
-                    startAngle={180}
-                    endAngle={0}
-                    innerRadius={55}
-                    outerRadius={75}
-                    dataKey="value"
+                <BarChart data={weeklyBarData} barSize={22} margin={{ top: 25, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={(props) => {
+                      const { x, y, payload } = props;
+                      const isMax = payload.value === weeklyBarData.reduce((max, d) => d.count > max.count ? d : max, weeklyBarData[0]).day;
+                      return (
+                        <text x={x} y={y + 12} textAnchor="middle" fill={isMax ? "#1F3B73" : "#94a3b8"} fontSize={11} fontWeight={isMax ? "bold" : "normal"}>
+                          {payload.value}
+                        </text>
+                      );
+                    }}
+                  />
+                  <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={tooltipStyle} />
+                  <Bar
+                    dataKey="count"
+                    radius={[6, 6, 6, 6]}
+                    label={(props: any) => {
+                      const { x, y, width, value, index } = props;
+                      const dataPoint = weeklyBarData[index];
+                      const isMax = dataPoint.count === Math.max(...weeklyBarData.map(d => d.count)) && dataPoint.count > 0;
+                      if (!isMax) return <g></g>;
+                      return (
+                        <text x={x + width / 2} y={y - 8} fill="#111827" textAnchor="middle" fontSize={12} fontWeight="bold" className="dark:fill-white">
+                          {value.toLocaleString()}
+                        </text>
+                      );
+                    }}
                   >
-                    <Cell fill="#10b981" />
-                    <Cell fill="#e2e8f0" stroke="none" />
-                  </Pie>
-                </PieChart>
+                    {weeklyBarData.map((entry, index) => {
+                      const isMax = entry.count === Math.max(...weeklyBarData.map(d => d.count)) && entry.count > 0;
+                      return (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={isMax ? "#1F3B73" : (isDarkMode ? "#1e293b" : "#f1f5f9")}
+                        />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
-              <div className="absolute bottom-[10%] text-center">
-                <span className="text-3xl font-black text-slate-900 dark:text-white">{complianceRate}%</span>
-                <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider mt-0.5">SLA Conforme</p>
-              </div>
-            </div>
-
-            {/* Micro pills below circular chart */}
-            <div className="flex justify-around text-center border-t border-slate-50 dark:border-slate-800/80 pt-4 mt-2 text-xs">
-              <div>
-                <span className="font-extrabold text-slate-850 dark:text-white">{compliantCount}</span>
-                <p className="text-[10px] text-slate-400">Conformes</p>
-              </div>
-              <div className="w-px h-6 bg-slate-200 dark:bg-slate-800"></div>
-              <div>
-                <span className="font-extrabold text-red-500">{totalDossiersCount - compliantCount}</span>
-                <p className="text-[10px] text-slate-400">En Retard</p>
-              </div>
             </div>
           </div>
 
-          {/* Active Collaborators Panel (Direct translation of RDR2 Friend List) */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
-            <h2 className="text-sm font-bold text-slate-850 dark:text-white flex items-center gap-2 mb-2">
-              <Users className="w-4 h-4 text-[#2b4c7e]" /> Collaborateurs du Workflow
-            </h2>
-            <p className="text-[11px] text-slate-400 mb-6">
-              Responsables d'étapes et charge de travail active.
-            </p>
+          {/* SLA Donut (Shopeers Style) */}
+          <div
+            style={{ animationDelay: "420ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Dossiers Complétés</h3>
+              <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </div>
 
-            <div className="space-y-4">
+            <PremiumGauge rate={completedRate} count={completedCount} total={totalDossiersCount} />
+
+            <div className="flex justify-center mt-3">
+              <button className="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                Voir les détails
+              </button>
+            </div>
+          </div>
+
+          {/* Collaborators */}
+          <div
+            style={{ animationDelay: "480ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm flex-1 flex flex-col"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Collaborateurs</h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">Responsables d'étapes actifs</p>
+              </div>
+              <Users className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="space-y-2">
               {computedCollaborators.length === 0 ? (
-                <p className="text-xs text-slate-400 dark:text-slate-500 py-4 text-center">Aucun collaborateur enregistré</p>
+                <p className="text-xs text-slate-400 py-4 text-center">Aucun collaborateur</p>
               ) : (
-                computedCollaborators.map((col, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100/50 dark:border-slate-800/40 hover:scale-[1.02] transition-all">
-                    <div className="flex items-center gap-3">
+                computedCollaborators.slice(0, 5).map((col, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <div className="flex items-center gap-2.5">
                       <div className="relative">
-                        <img src={col.avatar} alt={col.name} className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-750" />
-                        <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white dark:border-[#0F172B] ${col.workload === "low" ? "bg-emerald-500" :
-                            col.workload === "medium" ? "bg-amber-500" : "bg-red-500"
-                          }`} title={`Charge : ${col.workload}`}></div>
+                        <img src={col.avatar} alt={col.name} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#0F172B] ${col.workload === "low" ? "bg-emerald-500" : col.workload === "medium" ? "bg-amber-500" : "bg-red-500"
+                          }`}></div>
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">{col.name}</h4>
-                          <span className={`inline-flex items-center text-[8px] font-bold px-1.5 py-0.2 rounded border ${col.status === "Actif"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-                              : "bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-850 dark:text-slate-400 dark:border-slate-800"
-                            }`}>
-                            {col.status}
-                          </span>
-                        </div>
-                        <span className="text-[10px] font-semibold text-slate-400 block mt-0.5">{col.role}</span>
+                        <h4 className="text-xs font-semibold text-slate-900 dark:text-white">{col.name}</h4>
+                        <span className="text-[10px] text-slate-400">{col.role}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-xs font-black text-slate-850 dark:text-white">{col.count}</span>
-                      <p className="text-[9px] text-slate-400 font-semibold uppercase">dossiers</p>
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">{col.count}</span>
+                      <p className="text-[9px] text-slate-400 uppercase">dossiers</p>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </div>
-
-          {/* Pie Chart: Status Breakdown (Gaming circular donut) */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
-            <h2 className="text-sm font-bold text-slate-850 dark:text-white flex items-center gap-2 mb-2">
-              <Layers className="w-4 h-4 text-indigo-500" /> Segmentation des Dossiers
-            </h2>
-            <p className="text-[11px] text-slate-400 mb-4">
-              Localisation des dossiers dans le cycle de validation.
-            </p>
-            <div className="h-[150px] relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={45}
-                    outerRadius={65}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={{
-                      backgroundColor: "#1e293b",
-                      borderRadius: "12px",
-                      color: "#fff",
-                      border: "none"
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-2xl font-black text-slate-900 dark:text-white">
-                  {totalDossiersCount}
-                </span>
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
-                  Dossiers
-                </span>
-              </div>
-            </div>
-          </div>
-
         </div>
 
       </div>
 
-      {/* Success Notification Modal */}
+      {/* ═══════════ MODALS ═══════════ */}
       {successModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -772,15 +870,11 @@ export default function DashboardBO() {
               <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                Action Réussie
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
-                {successMessage}
-              </p>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Action Réussie</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{successMessage}</p>
               <button
                 onClick={() => setSuccessModalOpen(false)}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95"
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
               >
                 Continuer
               </button>
@@ -801,5 +895,3 @@ export default function DashboardBO() {
     </div>
   );
 }
-
-

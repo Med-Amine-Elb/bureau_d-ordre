@@ -69,7 +69,7 @@ export default function DossierDetailDCF() {
         <h2 className="text-xl font-bold text-slate-700">Dossier introuvable</h2>
         <button
           onClick={() => navigate("/dcf/dossiers")}
-          className="text-blue-600 hover:underline"
+          className="text-primary hover:underline"
         >
           Retour à la liste
         </button>
@@ -113,6 +113,7 @@ export default function DossierDetailDCF() {
       // On met à jour directement le champ
       await dataService.updateDossier(dossier.new_folderid, {
         new_est_comptabilise: checked,
+        new_accounting_date: checked ? new Date().toISOString() : undefined,
       });
       toast.success("Succès", {
         description: checked ? "Dossier marqué comme comptabilisé." : "Comptabilisation annulée.",
@@ -144,44 +145,39 @@ export default function DossierDetailDCF() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/dcf/dossiers")}
-            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors soft-shadow"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                {dossier.new_folder_number}
-              </h1>
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-wider">
-                {getTypeBadge(dossier.new_document_type)}
-              </span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                dossier.new_status === 80 && dossier.new_est_comptabilise ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                dossier.new_status === 80 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                dossier.new_status === 70 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-              }`}>
-                {renderStatus()}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {dossier.new_document_type === 600 ? (
-                <>Destinataire: {dossier.new_prescriber_id || "-"}</>
-              ) : (
-                <>Fournisseur: {dossier.new_supplier_id || "-"}</>
-              )}
-            </p>
+    <div className="w-full max-w-6xl mx-auto pb-12 animate-in fade-in duration-500">
+      
+      {/* Back button */}
+      <button 
+        onClick={() => navigate("/dcf/dossiers")}
+        className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
+      >
+        <ArrowLeft className="w-4 h-4" /> Retour à la liste
+      </button>
+
+      {/* Header Profile Card */}
+      <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow mb-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{dossier.new_folder_number}</h1>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-wider">
+              {getTypeBadge(dossier.new_document_type)}
+            </span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+              dossier.new_status === 80 && dossier.new_est_comptabilise ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+              dossier.new_status === 80 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+              dossier.new_status === 70 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+              'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+            }`}>
+              {renderStatus()}
+            </span>
           </div>
+          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
+            Créé le {new Date(dossier.new_reception_date).toLocaleDateString('fr-FR')} par <span className="font-semibold text-slate-700 dark:text-slate-300">Bureau d'Ordre</span>
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-3">
           {dossier.new_status === 70 && (
             <button
               onClick={handleAccuse}
@@ -225,7 +221,7 @@ export default function DossierDetailDCF() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.id
-                ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+                ? "border-blue-600 text-primary dark:border-blue-400 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300"
             }`}
           >
@@ -396,7 +392,7 @@ export default function DossierDetailDCF() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {dossier.new_documents_complements.map((doc, idx) => (
                     <div key={idx} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 group cursor-pointer hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-primary dark:text-blue-400 flex items-center justify-center shrink-0">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -506,7 +502,8 @@ export default function DossierDetailDCF() {
                   try {
                     await dataService.updateDossier(dossier.new_folderid, { 
                       new_status: 90,
-                      new_motif_retour: retourCommentaire
+                      new_motif_retour: retourCommentaire,
+                      new_date_retour_bo: new Date().toISOString()
                     });
                     toast.success("Dossier retourné avec succès.");
                     setIsCorrectionModalOpen(false);

@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { 
-  ArrowLeft, FileText, CheckCircle2, RotateCcw, 
-  UploadCloud, AlertCircle, Building2, 
-  CheckCircle, FileUp, Link as LinkIcon, Share2, AlertOctagon, Clock, PhoneCall, User
+import {
+  ArrowLeft, FileText, CheckCircle2, RotateCcw,
+  UploadCloud, AlertCircle,
+  CheckCircle, FileUp, Link as LinkIcon, AlertOctagon, Clock, PhoneCall
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -53,7 +53,7 @@ export default function DossierDetailPrescripteur() {
           if (window.parent && (window.parent as any).Xrm) {
             return (window.parent as any).Xrm;
           }
-        } catch (e) {}
+        } catch (e) { }
         return null;
       };
       const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
@@ -97,9 +97,10 @@ export default function DossierDetailPrescripteur() {
       return;
     }
     try {
-      await dataService.updateDossier(dossier.new_folderid, { 
+      await dataService.updateDossier(dossier.new_folderid, {
         new_status: 90, // Retour Correction
-        new_motif_blocage: retourMotif 
+        new_motif_blocage: retourMotif,
+        new_date_retour_bo: new Date().toISOString()
       });
       setShowRetourModal(false);
       setSuccessMessage(`Dossier retourné au Bureau d'Ordre pour correction.`);
@@ -113,35 +114,54 @@ export default function DossierDetailPrescripteur() {
   if (loading) return <div className="p-12 text-center text-slate-500">Chargement...</div>;
   if (!dossier) return <div className="p-12 text-center text-slate-500">Dossier introuvable</div>;
 
+  const getStatusDisplay = (status: number) => {
+    switch (status) {
+      case 10: return { label: "Sauvegarder", color: "slate" };
+      case 20: return { label: "Hors Délai", color: "red" };
+      case 30: return { label: "En Transit (Prescr.)", color: "blue" };
+      case 40: return { label: "Chez Prescripteur", color: "indigo" };
+      case 50: return { label: "En Transit (BO)", color: "blue" };
+      case 60: return { label: "Prêt DCF", color: "emerald" };
+      case 70: return { label: "En Transit (DCF)", color: "blue" };
+      case 80: return { label: "Chez DCF", color: "purple" };
+      case 90: return { label: "Retour Correction", color: "orange" };
+      case 100: return { label: "En Transit (Tréso.)", color: "blue" };
+      case 110: return { label: "Chez Trésorerie", color: "indigo" };
+      case 120: return { label: "Attente Remise", color: "emerald" };
+      case 130: return { label: "En Transport", color: "orange" };
+      case 140: return { label: "Disponible Agence", color: "emerald" };
+      case 150: return { label: dossier?.new_document_type === 600 ? "Livré (Clôturé)" : "Payé", color: "emerald" };
+      default: return { label: `Statut ${status}`, color: "slate" };
+    }
+  };
+
+  const statusInfo = getStatusDisplay(dossier.new_status);
+
   return (
     <div className="w-full max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <button 
+      <button
         onClick={() => navigate("/prescripteur/dossiers")}
-        className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white mb-6 transition-colors text-sm font-medium"
+        className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
       >
-        <ArrowLeft className="w-4 h-4" /> Retour aux dossiers
+        <ArrowLeft className="w-4 h-4" /> Retour à la liste
       </button>
 
-      <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
+      {/* Header Profile Card */}
+      <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow mb-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            {dossier.new_folder_number}
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-2">
-            {dossier.new_document_type === 600 ? (
-              <>
-                <User className="w-4 h-4" /> Destinataire: {dossier.new_prescriber_id || "Non renseigné"}
-              </>
-            ) : (
-              <>
-                <Building2 className="w-4 h-4" /> {dossier.new_supplier_id || "Fournisseur inconnu"}
-              </>
-            )}
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{dossier.new_folder_number}</h1>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold bg-${statusInfo.color}-100 dark:bg-${statusInfo.color}-900/30 text-${statusInfo.color}-700 dark:text-${statusInfo.color}-400`}>
+              {statusInfo.label}
+            </span>
+          </div>
+          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
+            Créé le {new Date(dossier.new_reception_date).toLocaleDateString('fr-FR')} par <span className="font-semibold text-slate-700 dark:text-slate-300">Bureau d'Ordre</span>
           </p>
         </div>
-        
+
         {/* Actions conditionnelles selon le statut */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {dossier.new_status === 30 && (
             <button
               onClick={handleAccuse}
@@ -161,7 +181,7 @@ export default function DossierDetailPrescripteur() {
               </button>
               <button
                 onClick={() => setShowValidationModal(true)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center gap-2"
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4" /> Valider la Facture
               </button>
@@ -175,7 +195,6 @@ export default function DossierDetailPrescripteur() {
         {[
           { id: "infos", label: "Informations Générales", icon: FileText },
           { id: "timeline", label: "Flux de Traitement", icon: Clock },
-          { id: "transmissions", label: "Transmissions", icon: Share2 },
           { id: "blocages", label: "Blocages", icon: AlertOctagon },
           { id: "relances", label: "Relances", icon: PhoneCall },
           { id: "documents", label: "Documents", icon: LinkIcon }
@@ -183,11 +202,10 @@ export default function DossierDetailPrescripteur() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-t-lg text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
-              activeTab === tab.id 
-                ? "border-blue-600 text-blue-600 bg-blue-50/50 dark:bg-blue-900/20" 
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-lg text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
+                ? "border-blue-600 text-primary bg-blue-50/50 dark:bg-blue-900/20"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" /> {tab.label}
           </button>
@@ -223,48 +241,48 @@ export default function DossierDetailPrescripteur() {
             </div>
 
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces Jointes & Validation</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-                 <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                   <LinkIcon className="w-4 h-4" /> Documents fournis par le BO
-                 </h4>
-                 <div className="space-y-3">
-                   {dossier.new_documents_complements && dossier.new_documents_complements.length > 0 ? (
-                     dossier.new_documents_complements.map(doc => (
-                       <div key={doc} className="flex items-center justify-between p-3 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl">
-                         <div className="flex items-center gap-3">
-                           <FileText className="w-5 h-5 text-blue-500" />
-                           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{doc}</span>
-                         </div>
-                         <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Disponible</span>
-                       </div>
-                     ))
-                   ) : (
-                     <div className="text-slate-500 dark:text-slate-400 text-sm italic">Aucun document spécifique associé.</div>
-                   )}
-                 </div>
+                <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4" /> Documents fournis par le BO
+                </h4>
+                <div className="space-y-3">
+                  {dossier.new_documents_complements && dossier.new_documents_complements.length > 0 ? (
+                    dossier.new_documents_complements.map(doc => (
+                      <div key={doc} className="flex items-center justify-between p-3 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-blue-500" />
+                          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{doc}</span>
+                        </div>
+                        <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Disponible</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 dark:text-slate-400 text-sm italic">Aucun document spécifique associé.</div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
-                 <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                   <UploadCloud className="w-4 h-4" /> Vos documents requis
-                 </h4>
-                 <div className="flex items-center justify-between p-3 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl mb-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-5 h-5 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Bon de Réception (BR)</span>
-                    </div>
-                    {dossier.new_status >= 50 && dossier.new_status !== 90 ? (
-                      <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Fourni & Validé</span>
-                    ) : (
-                      <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-md font-bold">À fournir lors de la validation</span>
-                    )}
-                 </div>
-                 <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                    <p>Vérifiez que les quantités et prix correspondent au bon de commande avant d'émettre le BR et de valider la facture.</p>
-                 </div>
+                <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                  <UploadCloud className="w-4 h-4" /> Vos documents requis
+                </h4>
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl mb-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Bon de Réception (BR)</span>
+                  </div>
+                  {dossier.new_status >= 50 && dossier.new_status !== 90 ? (
+                    <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Fourni & Validé</span>
+                  ) : (
+                    <span className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2 py-1 rounded-md font-bold">À fournir lors de la validation</span>
+                  )}
+                </div>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl text-xs text-blue-800 dark:text-blue-300 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <p>Vérifiez que les quantités et prix correspondent au bon de commande avant d'émettre le BR et de valider la facture.</p>
+                </div>
               </div>
             </div>
           </div>
@@ -272,57 +290,57 @@ export default function DossierDetailPrescripteur() {
 
         {activeTab === "timeline" && (
           <div className="p-8">
-             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
-               {[
-                 { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
-                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
-                 { id: 40, label: "Chez Prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
-                 { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
-                 { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
-                 { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
-                 { id: 80, label: "Chez DCF", desc: "Vérification de la conformité comptable et fiscale.", icon: "shield" }
-               ].map((step, index) => {
-                 const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
-                 if (step.id === 90 && dossier.new_status !== 90) return null;
-                 const actuallyCurrent = (dossier.new_status === step.id);
-                 const isFuture = dossier.new_status < step.id;
+            <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
+              {[
+                { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
+                { id: 40, label: "Chez Prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
+                { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
+                { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
+                { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
+                { id: 80, label: "Chez DCF", desc: "Vérification de la conformité comptable et fiscale.", icon: "shield" }
+              ].map((step, index) => {
+                const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
+                if (step.id === 90 && dossier.new_status !== 90) return null;
+                const actuallyCurrent = (dossier.new_status === step.id);
+                const isFuture = dossier.new_status < step.id;
 
-                 if (isFuture && !actuallyCurrent) {
-                    return (
-                      <div key={step.id} className="relative pl-8 opacity-40">
-                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 ring-4 ring-white dark:ring-[#0F172B]"></div>
-                        <h4 className="font-bold text-slate-400 dark:text-slate-500 text-sm">{step.label}</h4>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{step.desc}</p>
+                if (isFuture && !actuallyCurrent) {
+                  return (
+                    <div key={step.id} className="relative pl-8 opacity-40">
+                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 ring-4 ring-white dark:ring-[#0F172B]"></div>
+                      <h4 className="font-bold text-slate-400 dark:text-slate-500 text-sm">{step.label}</h4>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{step.desc}</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={step.id} className="relative pl-8">
+                    <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${actuallyCurrent ? 'bg-blue-500 animate-pulse ring-blue-100 dark:ring-blue-900/30' : 'bg-emerald-500'} ring-4 ring-white dark:ring-[#0F172B]`}></div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Étape {index + 1}</p>
+                        <h4 className={`font-bold text-sm ${actuallyCurrent ? 'text-primary dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>{step.label}</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-md">{step.desc}</p>
                       </div>
-                    );
-                 }
-
-                 return (
-                   <div key={step.id} className="relative pl-8">
-                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${actuallyCurrent ? 'bg-blue-500 animate-pulse ring-blue-100 dark:ring-blue-900/30' : 'bg-emerald-500'} ring-4 ring-white dark:ring-[#0F172B]`}></div>
-                     <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Étape {index + 1}</p>
-                          <h4 className={`font-bold text-sm ${actuallyCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>{step.label}</h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-md">{step.desc}</p>
+                      {actuallyCurrent && (
+                        <span className="bg-blue-50 dark:bg-blue-900/30 text-primary dark:text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-full">ACTUEL</span>
+                      )}
+                      {!actuallyCurrent && isCompleted && (
+                        <div className="text-right">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
                         </div>
-                        {actuallyCurrent && (
-                          <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-full">ACTUEL</span>
-                        )}
-                        {!actuallyCurrent && isCompleted && (
-                          <div className="text-right">
-                             <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
-                          </div>
-                        )}
-                     </div>
-                   </div>
-                 );
-               })}
-             </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {(activeTab === "transmissions" || activeTab === "blocages" || activeTab === "relances" || activeTab === "documents") && (
+        {(activeTab === "blocages" || activeTab === "relances" || activeTab === "documents") && (
           <div className="p-12 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
               <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600" />
@@ -345,13 +363,12 @@ export default function DossierDetailPrescripteur() {
                 Vous êtes sur le point de valider le dossier <strong className="text-slate-900 dark:text-white">{dossier.new_folder_number}</strong>.
                 Pour finaliser cette étape, vous devez obligatoirement joindre le Bon de Réception (BR).
               </p>
-              
-              <div 
-                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                  hasBR 
-                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10" 
+
+              <div
+                className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${hasBR
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10"
                     : "border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800"
-                }`}
+                  }`}
                 onClick={() => setHasBR(true)}
               >
                 {hasBR ? (
@@ -368,20 +385,19 @@ export default function DossierDetailPrescripteur() {
               </div>
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setShowValidationModal(false)}
                 className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all"
               >
                 Annuler
               </button>
-              <button 
+              <button
                 onClick={handleValider}
                 disabled={!hasBR}
-                className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${
-                  hasBR 
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20" 
+                className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${hasBR
+                    ? "bg-primary hover:bg-primary-hover text-white shadow-primary/20"
                     : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
-                }`}
+                  }`}
               >
                 Confirmer la validation
               </button>
@@ -405,7 +421,7 @@ export default function DossierDetailPrescripteur() {
               </p>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Motif du renvoi *</label>
-                <textarea 
+                <textarea
                   value={retourMotif}
                   onChange={(e) => setRetourMotif(e.target.value)}
                   placeholder="Ex: La quantité facturée ne correspond pas à la livraison..."
@@ -414,13 +430,13 @@ export default function DossierDetailPrescripteur() {
               </div>
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
-              <button 
+              <button
                 onClick={() => setShowRetourModal(false)}
                 className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all"
               >
                 Annuler
               </button>
-              <button 
+              <button
                 onClick={handleRetour}
                 className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-orange-500/20 transition-all"
               >

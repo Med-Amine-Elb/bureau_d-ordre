@@ -1,239 +1,24 @@
 import { useEffect, useState } from "react";
 import {
-  Clock,
   CheckCircle2,
   Wallet,
-  ArrowRight,
-  Activity,
   Truck,
-  Building,
   Layers,
+  FileText,
   CreditCard,
-  FileText
+  Eye,
+  TrendingUp,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { differenceInDays, parseISO, format } from "date-fns";
-import { fr } from "date-fns/locale";
-import {
-  PieChart, Pie, Tooltip, ResponsiveContainer, Cell, Legend
-} from "recharts";
+import { parseISO } from "date-fns";
+
 import AgenceAccuseReceptionModal from "@/components/AgenceAccuseReceptionModal";
 import AgenceValiderRemiseModal from "@/components/AgenceValiderRemiseModal";
 
-const AnimatedNumber = ({ value }: { value: number }) => {
-  const [count, setCount] = useState(0);
 
-  useEffect(() => {
-    let startTime: number | null = null;
-    const duration = 1000;
-
-    const animate = (time: number) => {
-      if (!startTime) startTime = time;
-      const progress = Math.min((time - startTime) / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 4);
-
-      setCount(Math.floor(ease * value));
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setCount(value);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [value]);
-
-  return <>{count}</>;
-};
-
-function KPIPill({
-  title,
-  value,
-  icon,
-  index = 0,
-  variant = "default",
-  onClick,
-}: any) {
-  const isBlue = variant === "blue";
-  const isEmerald = variant === "emerald";
-  const isAmber = variant === "amber";
-
-  const iconBg = isBlue ? "bg-[#2b4c7e]/10 text-[#2b4c7e] dark:bg-blue-900/30 dark:text-blue-400"
-    : isEmerald ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-      : isAmber ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-
-  return (
-    <div
-      onClick={onClick}
-      className="bg-white dark:bg-[#0F172B] rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 dark:border-slate-800 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer group animate-in fade-in slide-in-from-bottom-6"
-      style={{ animationFillMode: "both", animationDelay: `${index * 100}ms`, animationDuration: "700ms" }}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-xl ${iconBg}`}>
-          {icon}
-        </div>
-        <div>
-          <h3 className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{title}</h3>
-          <span className="text-slate-900 dark:text-slate-100 text-xl font-bold block leading-none mt-1">
-            {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
-          </span>
-        </div>
-      </div>
-      <ArrowRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-[#2b4c7e] dark:group-hover:text-blue-400 transition-colors" />
-    </div>
-  );
-}
-
-const ProfileProgressCard = ({ dossiersRemis, targetRemis }: any) => {
-  const percentage = Math.round((dossiersRemis / targetRemis) * 100) || 0;
-  const avatarUrl = localStorage.getItem("userAvatar") || "https://api.dicebear.com/7.x/micah/svg?seed=Regional&backgroundColor=ffd5e5";
-  const role = localStorage.getItem("userRole") || "Agence Régionale";
-
-  return (
-    <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
-      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl transition-colors group-hover:bg-blue-500/20"></div>
-
-      <div className="flex items-center gap-4 mb-6 relative z-10">
-        <div className="relative">
-          <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-2xl object-cover shadow-sm border-2 border-white dark:border-slate-700 bg-slate-100 dark:bg-slate-800" />
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-[#0F172B] rounded-full"></div>
-        </div>
-        <div>
-          <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Bonjour !</h3>
-          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{role}</p>
-        </div>
-      </div>
-
-      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/50 relative z-10">
-        <div className="flex justify-between items-end mb-3">
-          <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Objectif de Remise</span>
-          <span className="text-xl font-black text-[#2b4c7e] dark:text-blue-400">{percentage > 100 ? 100 : percentage}%</span>
-        </div>
-        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-3 overflow-hidden relative">
-          <div className="bg-[#2b4c7e] dark:bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out relative" style={{ width: `${percentage > 100 ? 100 : percentage}%` }}>
-            <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
-          </div>
-        </div>
-        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 text-center uppercase tracking-wider">
-          {dossiersRemis} remis / {targetRemis} chèques reçus
-        </p>
-      </div>
-    </div>
-  );
-}
-
-const formatEventTime = (dateStr: string) => {
-  try {
-    const date = new Date(dateStr);
-    const diffMs = new Date().getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "À l'instant";
-    if (diffMins < 60) return `Il y a ${diffMins} min`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `Il y a ${diffHours} h`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return "Hier";
-    return `Il y a ${diffDays} j`;
-  } catch (e) {
-    return dateStr;
-  }
-};
-
-const buildTimelineEvents = (dossiers: Dossier[]) => {
-  const events: { action: string; dossier: string; time: string; timestamp: string }[] = [];
-  
-  dossiers.forEach((d) => {
-    if (d.new_reception_date) {
-      events.push({ action: "Réception au BO", dossier: d.new_folder_number, time: "", timestamp: d.new_reception_date });
-    }
-    if (d.new_date_accuse) {
-      events.push({ action: "Accusé de réception BO", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse });
-    }
-    if (d.new_date_trans_prescripteur) {
-      events.push({ action: "Transmis au Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_prescripteur });
-    }
-    if (d.new_date_accuse_prescripteur) {
-      events.push({ action: "Accusé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_prescripteur });
-    }
-    if (d.new_date_val_prescripteur) {
-      events.push({ action: "Validé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_prescripteur });
-    }
-    if (d.new_date_retour_bo) {
-      events.push({ action: "Retourné pour Correction", dossier: d.new_folder_number, time: "", timestamp: d.new_date_retour_bo });
-    }
-    if (d.new_date_trans_dcf) {
-      events.push({ action: "Transmis à la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_dcf });
-    }
-    if (d.new_date_accuse_dcf) {
-      events.push({ action: "Accusé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_dcf });
-    }
-    if (d.new_date_val_dcf) {
-      events.push({ action: "Validé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_dcf });
-    }
-    if (d.new_accounting_date) {
-      events.push({ action: "Comptabilisé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_accounting_date });
-    }
-    if (d.new_cheque_preparation_date) {
-      events.push({ action: "Chèque préparé (Trésorerie)", dossier: d.new_folder_number, time: "", timestamp: d.new_cheque_preparation_date });
-    }
-    if (d.new_date_virement) {
-      events.push({ action: "Réglé par Virement", dossier: d.new_folder_number, time: "", timestamp: d.new_date_virement });
-    }
-    const deliveryDate = d.new_delivery_date || d.new_reception_date_agence || d.new_date_livraison;
-    if (deliveryDate) {
-      events.push({ action: "Chèque reçu par l'Agence", dossier: d.new_folder_number, time: "", timestamp: deliveryDate });
-    }
-    if (d.new_final_delivery_date) {
-      events.push({ action: "Chèque remis au Fournisseur", dossier: d.new_folder_number, time: "", timestamp: d.new_final_delivery_date });
-    }
-  });
-
-  return events
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 5)
-    .map((evt) => ({
-      ...evt,
-      time: formatEventTime(evt.timestamp)
-    }));
-};
-
-const ActivityTimeline = ({ timelineEvents }: any) => {
-  return (
-    <div className="bg-white dark:bg-[#0F172B] rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-emerald-500"></div>
-      <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
-        <Activity className="w-5 h-5 text-blue-500" /> Flux d'Activité Agence
-      </h3>
-      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
-        {timelineEvents.map((evt: any, i: number) => (
-          <div key={i} className="relative flex items-start gap-4">
-            <div
-              className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 bg-emerald-50 dark:bg-emerald-900/20`}
-            >
-              <div className={`relative w-2 h-2 rounded-full bg-emerald-500`}></div>
-            </div>
-            <div className="ml-10 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl rounded-tl-sm border border-slate-100 dark:border-slate-800 flex-1">
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {evt.action}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {evt.dossier}
-              </p>
-              <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wider font-bold">
-                {evt.time}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export default function DashboardAgence() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
@@ -251,10 +36,9 @@ export default function DashboardAgence() {
   const fetchDossiers = async () => {
     try {
       const result = await dataService.getDossiers();
-      // Agence sees status 130, 140, and 150 destined for currentAgence
       const visible = result.filter(
         (d) => (d.new_status === 130 || d.new_status === 140 || d.new_status === 150) &&
-               d.new_destination_branch_id === currentAgence
+          d.new_destination_branch_id === currentAgence
       );
       setDossiers(visible);
     } catch (err: any) {
@@ -273,11 +57,6 @@ export default function DashboardAgence() {
   const remis = dossiers.filter((d) => d.new_status === 150).length;
   const totalGeres = enTransit + disponible + remis;
 
-  const chartData = [
-    { name: "En Transit", value: enTransit, color: "#f59e0b" },
-    { name: "Disponible en Agence", value: disponible, color: "#3b82f6" },
-    { name: "Remis / Clôturé", value: remis, color: "#10b981" }
-  ];
 
   const handleAccuse = (dossier: Dossier) => {
     setSelectedDossier(dossier);
@@ -332,268 +111,247 @@ export default function DashboardAgence() {
     }
   };
 
+  const userName = localStorage.getItem("userName") || "Mohammed El Boubakri";
+  const objTraites = remis + disponible + enTransit > 0 ? remis + disponible + enTransit : 10;
+  const percentage = Math.round((remis / objTraites) * 100) || 0;
+
+
+
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
+    <div className="w-full space-y-6">
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      {/* Greeting Section */}
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          Dashboard Agence <span className="animate-pulse text-[#1F3B73]">⚡</span>
+        </h1>
+        <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+          Bonjour {userName}. Gérez les chèques pour votre agence régionale : {currentAgence}.
+        </p>
+      </div>
 
-        {/* Main Left Content */}
-        <div className="xl:col-span-2 space-y-8">
+      {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
 
-          {/* Hero Banner SBM Design */}
-          <div className="bg-[#2b4c7e] rounded-3xl p-8 md:p-10 text-white relative overflow-hidden shadow-lg shadow-[#2b4c7e]/20 flex justify-between items-center">
-            <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-
-            <div className="relative z-10 w-full lg:w-2/3">
-              <span className="inline-block py-1.5 px-3 rounded-lg bg-white/10 text-blue-100 text-xs font-bold tracking-wider mb-6 border border-white/20 backdrop-blur-md uppercase">
-                PORTAIL REGIONAL — {currentAgence}
-              </span>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-                Gestion des chèques locaux
-              </h1>
-              <p className="text-blue-100/90 text-sm md:text-base mb-8 max-w-xl">
-                Vous avez <strong className="text-white">{disponible} chèques</strong> disponibles pour remise physique et <strong className="text-white">{enTransit} chèques</strong> actuellement en route vers votre agence.
-              </p>
-              <button
-                onClick={() => navigate("/agence/cheques", { state: { filterStatus: 140 } })}
-                className="bg-white text-[#2b4c7e] hover:bg-blue-50 px-8 py-3 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2 group"
-              >
-                Accéder aux chèques à remettre
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-
-            {/* Right Illustration */}
-            <div className="hidden lg:block relative w-48 h-48 z-10 mr-4">
-              <div className="absolute top-4 right-4 w-32 h-40 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl transform rotate-12 transition-transform hover:rotate-6 flex flex-col p-4 gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/20"></div>
-                <div className="w-full h-2 rounded bg-white/20 mt-auto"></div>
-                <div className="w-2/3 h-2 rounded bg-white/20"></div>
-              </div>
-              <div className="absolute bottom-2 -left-4 w-36 h-20 bg-emerald-500/30 backdrop-blur-xl rounded-2xl border border-emerald-300/30 shadow-2xl transform -rotate-6 flex items-center justify-center">
-                <Building className="w-10 h-10 text-white opacity-90 drop-shadow-md" />
-              </div>
+        {/* Card: En Transit */}
+        <div
+          style={{ animationDelay: "0ms", animationFillMode: "both" }}
+          className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+          onClick={() => navigate("/agence/cheques", { state: { filterStatus: 130 } })}
+        >
+          <div className="flex justify-between items-start">
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">En Transit</span>
+            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10">
+              <Truck className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-
-          {/* KPI Pills */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPIPill
-              title="Chèques en Transit"
-              value={enTransit}
-              onClick={() => navigate("/agence/cheques", { state: { filterStatus: 130 } })}
-              icon={<Truck className="w-5 h-5" />}
-              variant="amber"
-              index={0}
-            />
-            <KPIPill
-              title="Chèques Disponibles"
-              value={disponible}
-              onClick={() => navigate("/agence/cheques", { state: { filterStatus: 140 } })}
-              icon={<Wallet className="w-5 h-5" />}
-              variant="blue"
-              index={1}
-            />
-            <KPIPill
-              title="Chèques Remis"
-              value={remis}
-              onClick={() => navigate("/agence/cheques", { state: { filterStatus: 150 } })}
-              icon={<CheckCircle2 className="w-5 h-5" />}
-              variant="emerald"
-              index={2}
-            />
-            <KPIPill
-              title="Total Gérés"
-              value={totalGeres}
-              onClick={() => navigate("/agence/cheques", { state: { filterStatus: "ALL" } })}
-              icon={<Layers className="w-5 h-5" />}
-              variant="default"
-              index={3}
-            />
+          <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : enTransit.toLocaleString()}</h3>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            {enTransit > 0 ? (
+              <><TrendingUp className="w-3.5 h-3.5 text-amber-500" /><span className="text-xs font-semibold text-amber-500">Arrivages prévus</span></>
+            ) : (
+              <span className="text-xs text-slate-400">À jour</span>
+            )}
           </div>
+        </div>
 
-          {/* Tables Section */}
-          <div className="space-y-8">
+        {/* Card: Disponibles */}
+        <div
+          style={{ animationDelay: "60ms", animationFillMode: "both" }}
+          className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+          onClick={() => navigate("/agence/cheques", { state: { filterStatus: 140 } })}
+        >
+          <div className="flex justify-between items-start">
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Disponibles en Agence</span>
+            <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10">
+              <Wallet className="w-4 h-4 text-blue-500" />
+            </div>
+          </div>
+          <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : disponible.toLocaleString()}</h3>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="text-xs text-slate-400">Prêts pour remise physique</span>
+          </div>
+        </div>
 
-            {/* Table Chèques Disponibles à l'Agence */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+        {/* Card: Remis */}
+        <div
+          style={{ animationDelay: "120ms", animationFillMode: "both" }}
+          className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+          onClick={() => navigate("/agence/cheques", { state: { filterStatus: 150 } })}
+        >
+          <div className="flex justify-between items-start">
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Chèques Remis</span>
+            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            </div>
+          </div>
+          <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : remis.toLocaleString()}</h3>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="text-xs text-slate-400">Remis avec succès</span>
+          </div>
+        </div>
+
+        {/* Card: Total Gérés */}
+        <div
+          style={{ animationDelay: "180ms", animationFillMode: "both" }}
+          className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
+          onClick={() => navigate("/agence/cheques", { state: { filterStatus: "ALL" } })}
+        >
+          <div className="flex justify-between items-start">
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Total Gérés</span>
+            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
+              <Layers className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+            </div>
+          </div>
+          <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : totalGeres.toLocaleString()}</h3>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="text-xs text-slate-400">Volume total du mois</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══════════ ROW 2: MAIN CONTENT + SIDEBAR ═══════════ */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        {/* ── LEFT COLUMN (2/3) ── */}
+        <div className="xl:col-span-2 flex flex-col gap-6">
+
+          <div className="grid grid-cols-1 gap-6">
+            {/* Table: Chèques Disponibles à l'Agence */}
+            <div
+              style={{ animationDelay: "220ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  Chèques Disponibles en Agence (Prêts pour Remise)
-                </h2>
-                <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300">
+                  Chèques Disponibles en Agence
+                </h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
                   {disponible} chèques
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
                     <tr>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Dossier</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Bénéficiaire</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">N° Chèque / Banque</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Reçu le</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Action</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Bénéficiaire</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">N° Chèque</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">Chargement...</td>
-                      </tr>
+                      <tr><td colSpan={4} className="py-4 text-center text-[11px] text-slate-400">Chargement...</td></tr>
                     ) : disponible === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">Aucun chèque en attente de remise.</td>
-                      </tr>
+                      <tr><td colSpan={4} className="py-4 text-center text-[11px] text-slate-400">Aucun chèque en attente de remise.</td></tr>
                     ) : (
-                      dossiers
-                        .filter((d) => d.new_status === 140)
-                        .slice(0, 5)
-                        .map((dossier, i) => {
-                          const delay = dossier.new_reception_date_agence
-                            ? differenceInDays(new Date(), parseISO(dossier.new_reception_date_agence))
-                            : 0;
-                          return (
-                            <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                              <td className="py-4 px-6 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-[#2b4c7e] dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                                    <FileText className="w-4 h-4" />
-                                  </div>
-                                  <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                    {dossier.new_folder_number}
-                                  </span>
+                      dossiers.filter((d) => d.new_status === 140).slice(0, 5).map((dossier, i) => {
+                        const delay = dossier.new_reception_date_agence ? Math.floor((new Date().getTime() - parseISO(dossier.new_reception_date_agence).getTime()) / (1000 * 3600 * 24)) : 0;
+                        return (
+                          <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-[#1F3B73] dark:text-blue-400 flex items-center justify-center">
+                                  <FileText className="w-3.5 h-3.5" />
                                 </div>
-                              </td>
-                              <td className="py-4 px-6 text-sm text-slate-700 dark:text-slate-300">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-7 h-7 rounded-full bg-[#2b4c7e]/10 dark:bg-[#2b4c7e]/30 text-[#2b4c7e] dark:text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                    {(dossier.new_supplier_id || "F").charAt(0).toUpperCase()}
-                                  </div>
-                                  <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                                    {dossier.new_supplier_id || "-"}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-6 text-sm text-slate-600 dark:text-slate-400 font-medium">
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-slate-950 dark:text-white text-sm flex items-center gap-1.5">
-                                    <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                                    {dossier.new_cheque_number || "N/A"}
-                                  </span>
-                                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                                    {dossier.new_banque_emettrice || "Non renseignée"}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">
-                                {dossier.new_reception_date_agence ? format(parseISO(dossier.new_reception_date_agence), "dd MMM yyyy", { locale: fr }) : "-"}
-                                {delay > 5 && (
-                                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 font-bold">
-                                    {delay}j attente
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-4 px-6 text-right">
+                                <Link to={`/agence/cheques/${dossier.new_folderid}`} className="text-[13px] font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors block">
+                                  {dossier.new_folder_number}
+                                </Link>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 block">{dossier.new_supplier_id || "-"}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="text-[12px] font-bold text-slate-950 dark:text-white flex items-center gap-1.5">
+                                <CreditCard className="w-3.5 h-3.5 text-slate-400" />
+                                {dossier.new_cheque_number || "N/A"}
+                              </span>
+                              {delay > 5 && (
+                                <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-red-100 text-red-700 font-bold">
+                                  {delay}j attente
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() => handleRemise(dossier)}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1F3B73]/10 hover:bg-[#1F3B73]/20 text-[#1F3B73] dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-lg text-[11px] font-bold transition-all"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" /> Remettre
                                 </button>
-                              </td>
-                            </tr>
-                          );
-                        })
+                                <button
+                                  onClick={() => navigate(`/agence/cheques/${dossier.new_folderid}`)}
+                                  className="p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                                  title="Consulter"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Table Chèques en Transit */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            {/* Table: En Transit */}
+            <div
+              style={{ animationDelay: "280ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  Chèques en Transit (Expédiés par le BO, en route)
-                </h2>
-                <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300">
+                  Chèques en Transit (À Accuser)
+                </h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
                   {enTransit} chèques
                 </span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
                     <tr>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Dossier</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fournisseur</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">N° Chèque / Banque</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Expédié le</th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Action</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date Envoi</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">Chargement...</td>
-                      </tr>
+                      <tr><td colSpan={3} className="py-4 text-center text-[11px] text-slate-400">Chargement...</td></tr>
                     ) : enTransit === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-slate-400">Aucun chèque actuellement en transport.</td>
-                      </tr>
+                      <tr><td colSpan={3} className="py-4 text-center text-[11px] text-slate-400">Aucun chèque en transit.</td></tr>
                     ) : (
-                      dossiers
-                        .filter((d) => d.new_status === 130)
-                        .slice(0, 5)
-                        .map((dossier, i) => (
-                          <tr key={i} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                            <td className="py-4 px-6 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/20 text-[#2b4c7e] dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                                  <FileText className="w-4 h-4" />
-                                </div>
-                                <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                                  {dossier.new_folder_number}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-slate-700 dark:text-slate-300">
-                              <div className="flex items-center gap-3">
-                                <div className="w-7 h-7 rounded-full bg-[#2b4c7e]/10 dark:bg-[#2b4c7e]/30 text-[#2b4c7e] dark:text-blue-400 flex items-center justify-center font-bold text-xs flex-shrink-0">
-                                  {(dossier.new_supplier_id || "F").charAt(0).toUpperCase()}
-                                </div>
-                                <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                                  {dossier.new_supplier_id || "-"}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-slate-600 dark:text-slate-400">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-slate-950 dark:text-white text-sm flex items-center gap-1.5">
-                                  <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                                  {dossier.new_cheque_number || "N/A"}
-                                </span>
-                                <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                                  {dossier.new_banque_emettrice || "Non renseignée"}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-4 px-6 text-sm text-slate-500 dark:text-slate-400">
-                              {dossier.new_date_transmission_bo ? format(parseISO(dossier.new_date_transmission_bo), "dd MMM yyyy", { locale: fr }) : "-"}
-                            </td>
-                            <td className="py-4 px-6 text-right">
+                      dossiers.filter((d) => d.new_status === 130).slice(0, 5).map((dossier, i) => (
+                        <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
+                          <td className="py-3 px-4">
+                            <Link to={`/agence/cheques/${dossier.new_folderid}`} className="text-[13px] font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                              {dossier.new_folder_number}
+                            </Link>
+                          </td>
+                          <td className="py-3 px-4 text-[12px] text-slate-500">
+                            {dossier.new_cheque_preparation_date ? parseISO(dossier.new_cheque_preparation_date).toLocaleDateString() : "-"}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleAccuse(dossier)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#2b4c7e] hover:bg-[#1f385e] text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-lg text-[11px] font-bold transition-all shadow-sm"
                               >
-                                <Clock className="w-3.5 h-3.5" /> Accuser Réception
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Recevoir
                               </button>
-                            </td>
-                          </tr>
-                        ))
+                            </div>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
@@ -602,70 +360,62 @@ export default function DashboardAgence() {
           </div>
         </div>
 
-        {/* Right Sidebar */}
-        <div className="xl:col-span-1 space-y-8">
-          <ProfileProgressCard dossiersRemis={remis} targetRemis={(remis + disponible > 0) ? (remis + disponible) : 5} />
-          
-          {/* Chart Section */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-in fade-in zoom-in-95 duration-500 delay-200">
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
-              Répartition des Chèques
-            </h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData.filter(d => d.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {chartData.filter(d => d.value > 0).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} style={{ filter: `drop-shadow(0px 4px 6px ${entry.color}40)` }} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                    formatter={(value: any, name: any) => [`${value} chèques`, name]}
-                  />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36} 
-                    iconType="circle"
-                    formatter={(value) => <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 ml-1">{value}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+        {/* ── RIGHT COLUMN (1/3) ── */}
+        <div className="flex flex-col gap-6 flex-1">
+
+          {/* Objectif du mois */}
+          <div
+            style={{ animationDelay: "340ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white mb-6">Objectif de Remise</h3>
+
+            <div className="flex flex-col items-center justify-center relative mb-4">
+              <div className="w-32 h-32 rounded-full border-8 border-slate-100 dark:border-slate-800 flex items-center justify-center relative shadow-sm">
+                <svg className="absolute inset-0 w-full h-full -rotate-90">
+                  <circle cx="64" cy="64" r="56" fill="transparent" strokeWidth="8" className="stroke-[#1F3B73] dark:stroke-blue-500" strokeDasharray="351.8" strokeDashoffset={351.8 - ((percentage > 100 ? 100 : percentage) / 100) * 351.8} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
+                </svg>
+                <div className="text-center">
+                  <span className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{percentage > 100 ? 100 : percentage}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800/50 mt-6 text-center">
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Chèques Remis</p>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-lg font-bold text-slate-900 dark:text-white">{remis}</span>
+                <span className="text-slate-400 font-semibold">/</span>
+                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">{objTraites} cibles</span>
+              </div>
             </div>
           </div>
 
-          <ActivityTimeline timelineEvents={buildTimelineEvents(dossiers)} />
+
+
         </div>
       </div>
 
       {/* Success Modal */}
       {successModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h3 className="text-[17px] font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
               Action réussie
             </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+            <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed">
               {successMessage}
             </p>
           </div>
         </div>
       )}
 
-      {/* Accusé Réception Modal */}
+      {/* Modals */}
       <AgenceAccuseReceptionModal
         isOpen={isAccuseModalOpen}
         dossier={selectedDossier}
@@ -676,7 +426,6 @@ export default function DashboardAgence() {
         onConfirm={handleConfirmAccuse}
       />
 
-      {/* Valider Remise Modal */}
       <AgenceValiderRemiseModal
         isOpen={isRemiseModalOpen}
         dossier={selectedDossier}
@@ -689,5 +438,3 @@ export default function DashboardAgence() {
     </div>
   );
 }
-
-

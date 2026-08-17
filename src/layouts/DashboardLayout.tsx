@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Package, Users, FileText,
   Settings, LogOut,
   Sun, Moon, Bell, RotateCcw,
-  Calendar, Trash2, AlertTriangle, Inbox
+  Calendar, Trash2, AlertTriangle, Inbox,
+  Menu, X
 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { format, subDays } from "date-fns"
@@ -19,6 +20,7 @@ export default function DashboardLayout() {
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const role = localStorage.getItem('userRole') || 'BO';
   const userAgence = localStorage.getItem('userAgence') || '';
@@ -237,12 +239,28 @@ export default function DashboardLayout() {
 
   return (
     <div className={`flex h-screen ${darkMode ? 'bg-slate-950' : 'bg-[#F4F7FE]'} text-foreground overflow-hidden font-sans transition-colors duration-300`}>
+      {/* Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-200"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={`w-[260px] flex-shrink-0 flex flex-col justify-between z-20 transition-colors duration-300
+      <aside className={`fixed inset-y-0 left-0 lg:static w-[260px] flex-shrink-0 flex flex-col justify-between z-50 lg:z-20 transition-transform lg:transition-colors duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${darkMode ? 'bg-slate-900 border-r border-slate-800' : 'bg-white border-r border-slate-200'}
       `}>
         <div>
-          <div className="px-4 py-6 flex flex-col items-center gap-1.5 border-b border-slate-100 dark:border-slate-800">
+          <div className="px-4 py-6 flex flex-col items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 relative">
+            {/* Close Button on Mobile */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute right-4 top-6 lg:hidden p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <img
               src="/images/logo_sbm.png"
               alt="Groupe SBM"
@@ -259,9 +277,10 @@ export default function DashboardLayout() {
               <NavLink
                 key={idx}
                 to={item.path}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center justify-between px-4 py-3 mx-2 rounded-xl text-sm font-semibold transition-all duration-200 ${isActive
-                    ? "bg-[#2b4c7e]/5 text-[#2b4c7e] dark:bg-[#2b4c7e]/20 dark:text-blue-400 shadow-sm relative overflow-hidden"
+                    ? "bg-[#1F3B73]/5 text-[#1F3B73] dark:bg-[#1F3B73]/20 dark:text-blue-400 shadow-sm relative overflow-hidden"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
                   }`
                 }
@@ -269,10 +288,10 @@ export default function DashboardLayout() {
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#2b4c7e] dark:bg-blue-400 rounded-r-md"></div>
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1F3B73] dark:bg-blue-400 rounded-r-md"></div>
                     )}
                     <div className="flex items-center gap-3">
-                      <item.icon className={`w-5 h-5 ${isActive ? "text-[#2b4c7e] dark:text-blue-400" : "opacity-70 text-slate-400 dark:text-slate-500"}`} />
+                      <item.icon className={`w-5 h-5 ${isActive ? "text-[#1F3B73] dark:text-blue-400" : "opacity-70 text-slate-400 dark:text-slate-500"}`} />
                       {item.label}
                     </div>
                     {item.badge && (
@@ -291,8 +310,9 @@ export default function DashboardLayout() {
           <nav className="space-y-1 mb-4 mx-4">
             <NavLink
               to={role === 'Admin' ? "/admin/configuration" : "/bo/settings"}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-[#2b4c7e]/5 text-[#2b4c7e] dark:bg-slate-800 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
+                `flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-[#1F3B73]/5 text-[#1F3B73] dark:bg-slate-800 dark:text-blue-400' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`
               }
             >
@@ -327,10 +347,18 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <div className={`flex-1 flex flex-col h-screen overflow-hidden ${darkMode ? 'bg-slate-950' : 'bg-[#F4F7FE]'}`}>
         {/* Top Header */}
-        <header className="h-20 bg-transparent flex items-center justify-end px-8 z-40 pt-4">
+        <header className="h-20 bg-transparent flex items-center justify-between lg:justify-end px-4 sm:px-8 z-40 pt-4">
+          {/* Hamburger menu button for small screens */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 shadow-sm transition-all active:scale-95"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           <div className="flex items-center gap-4">
             {/* Date Range Picker */}
-            <div className={`flex items-center px-4 py-2.5 rounded-full shadow-sm border transition-colors ${darkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
+            <div className={`hidden sm:flex items-center px-4 py-2.5 rounded-full shadow-sm border transition-colors ${darkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 opacity-70" />
                 <span className="text-sm font-medium capitalize">{dateRangeText || "Chargement..."}</span>
@@ -363,7 +391,7 @@ export default function DashboardLayout() {
                       {activeNotifications.some(n => !readNotifIds.includes(n.id)) && (
                         <button
                           onClick={handleMarkAllAsRead}
-                          className="text-[11px] font-semibold text-[#2b4c7e] dark:text-blue-400 hover:underline border-r border-slate-200 dark:border-slate-700 pr-2 mr-2"
+                          className="text-[11px] font-semibold text-[#1F3B73] dark:text-blue-400 hover:underline border-r border-slate-200 dark:border-slate-700 pr-2 mr-2"
                         >
                           Tout lire
                         </button>
@@ -371,7 +399,7 @@ export default function DashboardLayout() {
                       {activeNotifications.length > 0 && (
                         <button
                           onClick={handleDismissAllNotifications}
-                          className="text-[11px] font-semibold text-[#2b4c7e] dark:text-blue-400 hover:underline"
+                          className="text-[11px] font-semibold text-[#1F3B73] dark:text-blue-400 hover:underline"
                         >
                           Tout effacer
                         </button>
@@ -395,7 +423,7 @@ export default function DashboardLayout() {
                             ? AlertTriangle
                             : FileText;
                         const iconColor = notif.type === "transit"
-                          ? "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400"
+                          ? "bg-blue-50 text-primary dark:bg-blue-900/20 dark:text-blue-400"
                           : notif.type === "correction"
                             ? "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400"
                             : "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400";
@@ -409,9 +437,8 @@ export default function DashboardLayout() {
                               setShowNotificationsDropdown(false);
                               navigate(notif.path);
                             }}
-                            className={`p-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors flex items-start gap-3 relative group ${
-                              isUnread ? "bg-blue-50/20 dark:bg-blue-950/10" : ""
-                            }`}
+                            className={`p-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors flex items-start gap-3 relative group ${isUnread ? "bg-blue-50/20 dark:bg-blue-950/10" : ""
+                              }`}
                           >
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 relative ${iconColor}`}>
                               <Icon className="w-4 h-4" />
@@ -445,7 +472,7 @@ export default function DashboardLayout() {
         </header>
 
         {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto p-8 relative">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 relative">
           <Outlet />
         </main>
       </div>

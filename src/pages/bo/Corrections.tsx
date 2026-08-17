@@ -13,7 +13,7 @@ import {
   FileText,
   AlertCircle
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Corrections() {
   const navigate = useNavigate();
@@ -47,7 +47,7 @@ export default function Corrections() {
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -111,7 +111,9 @@ export default function Corrections() {
                           <AlertCircle className="w-5 h-5" />
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-100">{dossier.new_folder_number}</div>
+                          <Link to={`/bo/dossiers/${dossier.new_folderid}`} className="font-bold text-primary hover:underline hover:text-primary-hover">
+                            {dossier.new_folder_number}
+                          </Link>
                           <div className="text-xs text-orange-600 dark:text-orange-400 font-medium mt-1 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded inline-block">
                              Anomalie détectée par le valideur
                           </div>
@@ -133,7 +135,7 @@ export default function Corrections() {
                     <td className="px-6 py-5 text-right whitespace-nowrap">
                        <button 
                         onClick={() => navigate(`/bo/dossiers/${dossier.new_folderid}`)}
-                        className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors mr-2"
+                        className="p-2 text-slate-400 hover:text-primary dark:hover:text-blue-400 transition-colors mr-2"
                         title="Consulter"
                        >
                          <Eye className="w-5 h-5" />
@@ -166,11 +168,11 @@ export default function Corrections() {
          </div>
          
          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 p-4 rounded-2xl flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center shadow-lg shadow-primary/20">
                <FileText className="w-6 h-6" />
             </div>
             <div>
-               <p className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Dossiers corrigés</p>
+               <p className="text-xs font-bold text-primary dark:text-blue-400 uppercase tracking-wider">Dossiers corrigés</p>
                <p className="text-xm font-black text-blue-900 dark:text-blue-100">8 ce mois</p>
             </div>
          </div>

@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { 
-  FileText, 
-  Search, 
-  Eye, 
+import {
+  FileText,
+  Search,
+  Eye,
   Filter,
   CheckCircle2,
   Building2,
   Wallet,
   User,
   Banknote,
-  Lock
+  Lock,
+  Download
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
+import { exportDossiersToExcelDetailed } from "../../utils/excelExport";
 
 export default function DossiersListTresorerie() {
   const navigate = useNavigate();
@@ -34,7 +36,7 @@ export default function DossiersListTresorerie() {
   );
   const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
   const [filterModePaiement, setFilterModePaiement] = useState<string>("ALL");
-  
+
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -83,6 +85,10 @@ export default function DossiersListTresorerie() {
     }
   };
 
+  const handleExportExcel = () => {
+    exportDossiersToExcelDetailed(filteredDossiers, "Tresorerie_Dossiers");
+  };
+
   const uniqueFournisseurs = Array.from(
     new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
   ).sort();
@@ -91,7 +97,7 @@ export default function DossiersListTresorerie() {
     const matchesSearch =
       d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
       d.new_supplier_id?.toLowerCase().includes(search.toLowerCase());
-    
+
     const matchesType =
       filterType === "ALL" || d.new_document_type === filterType;
 
@@ -119,12 +125,12 @@ export default function DossiersListTresorerie() {
     if (status === 110) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"><Wallet className="w-3.5 h-3.5" />Chez Trésorerie (À Préparer)</span>;
     if (status === 120) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Banknote className="w-3.5 h-3.5" />En Attente Remise</span>;
     if (status === 150) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />Payé</span>;
-    
+
     return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Statut {status}</span>;
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="w-full h-[calc(100vh-112px)] sm:h-[calc(100vh-128px)] md:h-[calc(100vh-144px)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
@@ -148,23 +154,30 @@ export default function DossiersListTresorerie() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-slate-200"
             />
           </div>
-          <button 
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border ${
-              showFilters 
-                ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400' 
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
-            }`}
-          >
-            <Filter className="w-4 h-4" /> Filtres
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors border ${showFilters
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700'
+                }`}
+            >
+              <Filter className="w-4 h-4" /> Filtres
+            </button>
+            <button
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <Download className="w-4 h-4" /> Exporter Excel
+            </button>
+          </div>
         </div>
 
         {showFilters && (
           <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Statut</label>
-              <select 
+              <select
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -179,7 +192,7 @@ export default function DossiersListTresorerie() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mode Paiement</label>
-              <select 
+              <select
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 value={filterModePaiement}
                 onChange={(e) => setFilterModePaiement(e.target.value)}
@@ -193,7 +206,7 @@ export default function DossiersListTresorerie() {
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Fournisseur</label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select 
+                <select
                   className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   value={filterFournisseur}
                   onChange={(e) => setFilterFournisseur(e.target.value)}
@@ -207,7 +220,7 @@ export default function DossiersListTresorerie() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Type Document</label>
-              <select 
+              <select
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
@@ -218,13 +231,13 @@ export default function DossiersListTresorerie() {
                 <option value={500}>Acompte</option>
                 <option value={600}>Courrier</option>
               </select>
-             </div>
+            </div>
           </div>
         )}
       </div>
 
-      <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex-1 min-h-0 overflow-auto">
+        <div>
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
@@ -267,7 +280,7 @@ export default function DossiersListTresorerie() {
                 </tr>
               ) : (
                 filteredDossiers.map((dossier, idx) => (
-                  <tr 
+                  <tr
                     key={idx}
                     className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer"
                     onClick={() => navigate(`/tresorerie/dossiers/${dossier.new_folderid}`)}
@@ -277,9 +290,9 @@ export default function DossiersListTresorerie() {
                         <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500">
                           <FileText className="w-4 h-4" />
                         </div>
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">
+                        <Link to={`/tresorerie/dossiers/${dossier.new_folderid}`} className="font-semibold text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
                           {dossier.new_folder_number}
-                        </span>
+                        </Link>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -320,7 +333,7 @@ export default function DossiersListTresorerie() {
                         )}
                         <button
                           onClick={() => navigate(`/tresorerie/dossiers/${dossier.new_folderid}`)}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-primary dark:hover:text-blue-400 transition-colors"
                         >
                           <Eye className="w-5 h-5" />
                         </button>

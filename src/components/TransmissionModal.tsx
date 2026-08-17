@@ -138,7 +138,7 @@ export default function TransmissionModal({
                 type="checkbox"
                 checked={physicalHandoffConfirmed}
                 onChange={(e) => setPhysicalHandoffConfirmed(e.target.checked)}
-                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-blue-500 h-4 w-4"
               />
               <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 select-none leading-relaxed">
                 Je confirme avoir physiquement transmis ce dossier / pli à l'acteur ou au collecteur concerné. <span className="text-red-500">*</span>
@@ -160,7 +160,7 @@ export default function TransmissionModal({
               disabled={!canConfirm}
               className={`px-5 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${
                 canConfirm
-                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/20 active:scale-95"
+                  ? "bg-primary hover:bg-primary-hover text-white shadow-primary/20 active:scale-95"
                   : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
               }`}
             >

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { 
-  FileText, 
-  Search, 
-  Eye, 
+import {
+  FileText,
+  Search,
+  Eye,
   Filter,
   CheckCircle2,
   Calendar,
@@ -14,10 +14,11 @@ import {
   Download,
   User
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { exportDossiersToExcelDetailed } from "../../utils/excelExport";
 
 export default function DossiersListPrescripteur() {
   const navigate = useNavigate();
@@ -34,9 +35,16 @@ export default function DossiersListPrescripteur() {
   );
   const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
   const [filterDate, setFilterDate] = useState<string>("");
-  
+
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterType, filterStatus, filterFournisseur, filterDate]);
 
   const fetchDossiers = async () => {
     try {
@@ -73,6 +81,10 @@ export default function DossiersListPrescripteur() {
     }
   };
 
+  const handleExportExcel = () => {
+    exportDossiersToExcelDetailed(filteredDossiers, "Prescripteur_Dossiers");
+  };
+
   const uniqueFournisseurs = Array.from(
     new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
   ).sort();
@@ -81,7 +93,7 @@ export default function DossiersListPrescripteur() {
     const matchesSearch =
       d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
       d.new_supplier_id?.toLowerCase().includes(search.toLowerCase());
-    
+
     const matchesType =
       filterType === "ALL" || d.new_document_type === filterType;
 
@@ -97,21 +109,27 @@ export default function DossiersListPrescripteur() {
     const matchesFournisseur =
       filterFournisseur === "ALL" ||
       d.new_supplier_id === filterFournisseur;
-      
+
     const matchesDate =
       !filterDate || d.new_reception_date.startsWith(filterDate);
 
     return matchesSearch && matchesType && matchesStatus && matchesFournisseur && matchesDate;
   });
 
+  const totalPages = Math.ceil(filteredDossiers.length / ITEMS_PER_PAGE);
+  const paginatedDossiers = filteredDossiers.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full h-[calc(100vh-112px)] sm:h-[calc(100vh-128px)] md:h-[calc(100vh-144px)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
             <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-xl">
-              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <FileText className="w-8 h-8 text-primary dark:text-blue-400" />
             </div>
             Dossiers Assignés
           </h1>
@@ -121,7 +139,7 @@ export default function DossiersListPrescripteur() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow overflow-hidden">
+      <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Toolbar / Filters */}
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-wrap gap-4 items-center justify-between bg-white dark:bg-[#0F172B]">
           <div className="flex-1 min-w-[300px] relative">
@@ -137,15 +155,16 @@ export default function DossiersListPrescripteur() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                showFilters
+              className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${showFilters
                   ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
                   : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-              }`}
+                }`}
             >
               <Filter className="w-4 h-4" /> Filtres Avancés
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
+            <button 
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
               <Download className="w-4 h-4" /> Exporter Excel
             </button>
           </div>
@@ -241,10 +260,10 @@ export default function DossiersListPrescripteur() {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+        <div className="flex-1 min-h-0 overflow-auto bg-white dark:bg-[#0F172B]">
+          <table className="w-full text-left border-collapse relative">
+            <thead className="sticky top-0 bg-slate-50/90 dark:bg-slate-800/90 backdrop-blur z-10">
+              <tr className="border-b border-slate-200 dark:border-slate-700">
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   Dossier
                 </th>
@@ -284,20 +303,23 @@ export default function DossiersListPrescripteur() {
                   </td>
                 </tr>
               ) : (
-                filteredDossiers.map((dossier) => (
+                paginatedDossiers.map((dossier) => (
                   <tr
                     key={dossier.new_folderid}
                     className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 flex items-center justify-center font-bold">
                           {getTypeIcon(dossier.new_document_type)}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-900 dark:text-slate-100">
+                          <Link
+                            to={`/prescripteur/dossiers/${dossier.new_folderid}`}
+                            className="font-bold text-primary hover:underline hover:text-primary-hover"
+                          >
                             {dossier.new_folder_number}
-                          </div>
+                          </Link>
                         </div>
                       </div>
                     </td>
@@ -374,6 +396,44 @@ export default function DossiersListPrescripteur() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0F172B] flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+            <div>
+              Affichage de {(currentPage - 1) * ITEMS_PER_PAGE + 1} à {Math.min(currentPage * ITEMS_PER_PAGE, filteredDossiers.length)} sur{" "}
+              {filteredDossiers.length} résultats
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+              >
+                Précédent
+              </button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-md font-medium transition-colors ${currentPage === i + 1
+                      ? "bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400"
+                      : "dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {successModalOpen && (

@@ -7,7 +7,6 @@ import {
   Search,
   Filter,
   Download,
-  MoreHorizontal,
   Eye,
   FileText,
   AlertTriangle,
@@ -15,8 +14,11 @@ import {
   Send,
   CheckCircle,
   CheckCircle2,
+  List,
 } from "lucide-react";
 import { toast } from "sonner";
+import DossierDetailDrawer from "@/components/DossierDetailDrawer";
+import { exportDossiersToExcelDetailed } from "@/utils/excelExport";
 
 export default function DossiersList() {
   const navigate = useNavigate();
@@ -43,6 +45,92 @@ export default function DossiersList() {
   const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
   const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
 
+  // New SBM Table UX states
+  const [density, setDensity] = useState<"comfortable" | "compact">("compact");
+  const [selectedDossiers, setSelectedDossiers] = useState<string[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedDossierIdForDrawer, setSelectedDossierIdForDrawer] = useState<string | null>(null);
+
+  // Visible columns state, persisted in localStorage
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
+    const saved = localStorage.getItem("bo_dossiers_visible_columns");
+    return saved ? JSON.parse(saved) : ["folder", "type", "supplier", "company", "prescriber", "dates", "status"];
+  });
+
+  // Save visible columns configuration to localStorage
+  useEffect(() => {
+    localStorage.setItem("bo_dossiers_visible_columns", JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  const handleExportExcel = () => {
+    exportDossiersToExcelDetailed(filteredDossiers, "BO_Dossiers");
+  };
+
+  const handleBulkTransmit = async () => {
+    setLoading(true);
+    try {
+      let count = 0;
+      for (const id of selectedDossiers) {
+        const dossier = dossiers.find(d => d.new_folderid === id);
+        if (dossier && (dossier.new_status === 10 || dossier.new_status === 60)) {
+          const isFluxCourt = dossier.new_document_type === 400 || dossier.new_document_type === 500;
+          const isReturningFromPrescripteur = dossier.new_status === 60;
+          const isToDCF = isFluxCourt || isReturningFromPrescripteur;
+          const nextStatus = isToDCF ? 70 : 30;
+          const collector = isToDCF ? (dossier.new_dcf_collector_id || "DCF Agent") : (dossier.new_prescriber_id || "Prescripteur Agent");
+
+          await dataService.updateDossier(dossier.new_folderid, {
+            new_status: nextStatus,
+            ...(isToDCF ? { new_dcf_collector_id: collector } : { new_prescriber_id: collector })
+          });
+          count++;
+        }
+      }
+      toast.success(`${count} dossiers transmis avec succès.`);
+      setSelectedDossiers([]);
+      const result = await dataService.getDossiers();
+      setDossiers(result);
+    } catch (e) {
+      toast.error("Erreur lors de la transmission groupée.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkAccuse = async () => {
+    setLoading(true);
+    try {
+      let count = 0;
+      const getXrm = () => {
+        if ((window as any).Xrm) return (window as any).Xrm;
+        try {
+          if (window.parent && (window.parent as any).Xrm) {
+            return (window.parent as any).Xrm;
+          }
+        } catch (e) { }
+        return null;
+      };
+      const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
+      const userName = context ? context.userSettings.userName : "Agent BO";
+
+      for (const id of selectedDossiers) {
+        const dossier = dossiers.find(d => d.new_folderid === id);
+        if (dossier && dossier.new_status === 50) {
+          await dataService.accuseReception(dossier.new_folderid, 60, userName);
+          count++;
+        }
+      }
+      toast.success(`${count} réceptions accusées avec succès.`);
+      setSelectedDossiers([]);
+      const result = await dataService.getDossiers();
+      setDossiers(result);
+    } catch (e) {
+      toast.error("Erreur lors de l'accusé de réception groupé.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchDossiers = async () => {
       try {
@@ -61,7 +149,7 @@ export default function DossiersList() {
     const isFluxCourt = dossier.new_document_type === 400 || dossier.new_document_type === 500;
     const isReturningFromPrescripteur = dossier.new_status === 60;
     const isToDCF = isFluxCourt || isReturningFromPrescripteur;
-    
+
     setSelectedDossierForTransmission(dossier);
     setTransmissionTargetRole(isToDCF ? "DCF" : "Prescripteur");
     setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_id || "") : (dossier.new_prescriber_id || ""));
@@ -172,21 +260,21 @@ export default function DossiersList() {
         );
       case 30:
         return (
-          <span className="flex items-center gap-1.5 text-blue-600">
+          <span className="flex items-center gap-1.5 text-primary">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
             Prescripteur
           </span>
         );
       case 40:
         return (
-          <span className="flex items-center gap-1.5 text-indigo-600">
+          <span className="flex items-center gap-1.5 text-primary">
             <div className="w-2 h-2 rounded-full bg-indigo-500"></div>Chez
             Prescripteur
           </span>
         );
       case 50:
         return (
-          <span className="flex items-center gap-1.5 text-blue-600">
+          <span className="flex items-center gap-1.5 text-primary">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit BO
           </span>
         );
@@ -198,7 +286,7 @@ export default function DossiersList() {
         );
       case 70:
         return (
-          <span className="flex items-center gap-1.5 text-blue-600">
+          <span className="flex items-center gap-1.5 text-primary">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit DCF
           </span>
         );
@@ -217,7 +305,7 @@ export default function DossiersList() {
         );
       case 100:
         return (
-          <span className="flex items-center gap-1.5 text-blue-600">
+          <span className="flex items-center gap-1.5 text-primary">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
             Trésorerie
           </span>
@@ -225,14 +313,14 @@ export default function DossiersList() {
       case 110:
         return (
           <span className="flex items-center gap-1.5 text-indigo-700 font-medium">
-            <div className="w-2 h-2 rounded-full bg-indigo-600"></div>Chez
+            <div className="w-2 h-2 rounded-full bg-primary"></div>Chez
             Trésorerie
           </span>
         );
       case 120:
         return (
           <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight">
-            <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             Attente Remise
           </span>
         );
@@ -310,7 +398,7 @@ export default function DossiersList() {
   });
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full h-[calc(100vh-112px)] sm:h-[calc(100vh-128px)] md:h-[calc(100vh-144px)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
@@ -324,9 +412,9 @@ export default function DossiersList() {
         <div className="flex gap-3">
           <button
             onClick={() => navigate("/bo/dossiers/nouveau")}
-            className="bg-blue-600 hover:bg-blue-700
+            className="bg-primary hover:bg-primary-hover
           dark:bg-blue-800 dark:hover:bg-blue-900 dark:border dark:border-blue-700
-          text-white rounded-lg px-6 py-2 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2 shadow-blue-500/20"
+          text-white rounded-lg px-6 py-2 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2 shadow-primary/20"
           >
             + Nouveau Dossier
           </button>
@@ -348,17 +436,78 @@ export default function DossiersList() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
-              showFilters
+            className={`flex items-center gap-2 px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${showFilters
                 ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-400"
                 : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-            }`}
+              }`}
           >
             <Filter className="w-4 h-4" /> Filtres Avancés
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate.300 hover:bg-slate-50 dark:hover:bg-slate-700">
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+          >
             <Download className="w-4 h-4" /> Exporter Excel
           </button>
+          <button
+            onClick={() => setDensity(density === "comfortable" ? "compact" : "comfortable")}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+            title="Ajuster la densité de la table"
+          >
+            <List className="w-4 h-4" /> {density === "comfortable" ? "Vue Compacte" : "Vue Aérée"}
+          </button>
+
+          {/* Column Visibility Filter */}
+          <div className="relative">
+            <button
+              onClick={() => setActiveDropdown(activeDropdown === "columns" ? null : "columns")}
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
+              title="Personnaliser les colonnes"
+            >
+              <Eye className="w-4 h-4" /> Colonnes
+            </button>
+
+            {activeDropdown === "columns" && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />
+                <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-20 py-3 px-4 space-y-2 animate-in zoom-in-95 duration-100 text-xs text-slate-700 dark:text-slate-300">
+                  <p className="font-bold text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Colonnes à afficher</p>
+                  {[
+                    { id: "folder", label: "N° Dossier" },
+                    { id: "type", label: "Type / Document" },
+                    { id: "supplier", label: "Fournisseur / Livreur" },
+                    { id: "company", label: "Société / Destinataire" },
+                    { id: "prescriber", label: "Prescripteur" },
+                    { id: "dates", label: "Dates (Fact. / Réc.)" },
+                    { id: "status", label: "Statut" }
+                  ].map(col => {
+                    const isChecked = visibleColumns.includes(col.id);
+                    return (
+                      <label key={col.id} className="flex items-center gap-2.5 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-900 px-2 rounded-lg cursor-pointer transition-colors w-full">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              if (visibleColumns.length > 1) {
+                                setVisibleColumns(visibleColumns.filter(c => c !== col.id));
+                              } else {
+                                toast.warning("Au moins une colonne doit rester visible.");
+                              }
+                            } else {
+                              setVisibleColumns([...visibleColumns, col.id]);
+                            }
+                          }}
+                          className="w-3.5 h-3.5 rounded border-slate-300 text-primary focus:ring-primary/10 cursor-pointer"
+                        />
+                        <span>{col.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -463,32 +612,68 @@ export default function DossiersList() {
       )}
 
       {/* Table */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
-        <table className="w-full text-left border-collapse min-w-[1200px]">
+      <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 min-h-0 overflow-auto">
+        <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Dossier
+              <th className={`w-10 px-4 ${density === "comfortable" ? "py-4" : "py-2"}`}>
+                <input
+                  type="checkbox"
+                  checked={filteredDossiers.length > 0 && selectedDossiers.length === filteredDossiers.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedDossiers(filteredDossiers.map(d => d.new_folderid));
+                    } else {
+                      setSelectedDossiers([]);
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
+                />
               </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Type / Document
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Fournisseur / Livreur
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Société / Destinataire
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Prescripteur
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Dates (Fact. / Réc.)
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Statut
-              </th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
+              {visibleColumns.includes("folder") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Dossier
+                </th>
+              )}
+              {visibleColumns.includes("type") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Type / Document
+                </th>
+              )}
+              {visibleColumns.includes("supplier") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Fournisseur / Livreur
+                </th>
+              )}
+              {visibleColumns.includes("company") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Société / Destinataire
+                </th>
+              )}
+              {visibleColumns.includes("prescriber") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Prescripteur
+                </th>
+              )}
+              {visibleColumns.includes("dates") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Dates (Fact. / Réc.)
+                </th>
+              )}
+              {visibleColumns.includes("status") && (
+                <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                  }`}>
+                  Statut
+                </th>
+              )}
+              <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
+                }`}>
                 Actions
               </th>
             </tr>
@@ -496,14 +681,14 @@ export default function DossiersList() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-slate-400">
+                <td colSpan={visibleColumns.length + 2} className="py-12 text-center text-slate-400">
                   Chargement des données...
                 </td>
               </tr>
             ) : filteredDossiers.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={visibleColumns.length + 2}
                   className="py-12 text-center text-slate-500 dark:text-slate-400"
                 >
                   Aucun dossier trouvé.
@@ -513,103 +698,152 @@ export default function DossiersList() {
               filteredDossiers.map((dossier) => (
                 <tr
                   key={dossier.new_folderid}
-                  className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group"
+                  className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group ${selectedDossiers.includes(dossier.new_folderid) ? "bg-slate-50/50 dark:bg-slate-900/10" : ""
+                    }`}
                 >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm whitespace-nowrap">
-                          {dossier.new_folder_number}
+                  <td className={`w-10 px-4 ${density === "comfortable" ? "py-4" : "py-2"}`}>
+                    <input
+                      type="checkbox"
+                      checked={selectedDossiers.includes(dossier.new_folderid)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedDossiers([...selectedDossiers, dossier.new_folderid]);
+                        } else {
+                          setSelectedDossiers(selectedDossiers.filter(id => id !== dossier.new_folderid));
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-slate-350 text-primary focus:ring-primary/20 cursor-pointer"
+                    />
+                  </td>
+                  {visibleColumns.includes("folder") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-4 h-4" />
                         </div>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                          {dossier.new_payment_method && (
-                            <span className={`inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                              dossier.new_payment_method === 2
-                                ? "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
-                                : "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
-                            }`}>
-                              {dossier.new_payment_method === 2 ? "VIREMENT" : "CHÈQUE"}
-                            </span>
-                          )}
-                          {dossier.new_is_blocked && (
-                            <span className="inline-flex items-center gap-1 text-[9px] text-red-500 font-bold px-1.5 py-0.5 rounded border border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
-                              <AlertTriangle className="w-2.5 h-2.5" /> BLOQUÉ
-                            </span>
-                          )}
+                        <div>
+                          <button
+                            onClick={() => {
+                              setSelectedDossierIdForDrawer(dossier.new_folderid);
+                              setDrawerOpen(true);
+                            }}
+                            className="font-semibold text-primary hover:underline text-sm text-left whitespace-nowrap block cursor-pointer"
+                          >
+                            {dossier.new_folder_number}
+                          </button>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            {dossier.new_payment_method && (
+                              <span className={`inline-flex items-center text-[9px] font-bold px-1.5 py-0.5 rounded border ${dossier.new_payment_method === 2
+                                  ? "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:border-purple-800"
+                                  : "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800"
+                                }`}>
+                                {dossier.new_payment_method === 2 ? "VIREMENT" : "CHÈQUE"}
+                              </span>
+                            )}
+                            {dossier.new_is_blocked && (
+                              <span className="inline-flex items-center gap-1 text-[9px] text-red-500 font-bold px-1.5 py-0.5 rounded border border-red-100 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+                                <AlertTriangle className="w-2.5 h-2.5" /> BLOQUÉ
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col items-start gap-1">
-                      {getTypeBadge(dossier.new_document_type)}
-                      <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase ml-2.5">
-                        {dossier.new_invoice_number || "N/A"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {dossier.new_document_type === 600 ? dossier.new_livreur_nom || "N/A" : dossier.new_supplier_id || "Non renseigné"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        {dossier.new_company_id || "N/A"}
-                      </span>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
-                        {dossier.new_department_id || "N/A"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm text-slate-600 dark:text-slate-400 font-medium italic">
-                      {dossier.new_prescriber_id || "Non assigné"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col text-[11px]">
-                      {dossier.new_document_type === 600 ? (
-                        <span className="text-slate-500 dark:text-slate-400 font-semibold">
-                          Livraison:{" "}
-                          {dossier.new_date_livraison
-                            ? new Date(
+                    </td>
+                  )}
+                  {visibleColumns.includes("type") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="flex flex-col items-start gap-1">
+                        {getTypeBadge(dossier.new_document_type)}
+                        <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase ml-2.5">
+                          {dossier.new_invoice_number || "N/A"}
+                        </span>
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.includes("supplier") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {dossier.new_document_type === 600 ? dossier.new_livreur_nom || "N/A" : dossier.new_supplier_id || "Non renseigné"}
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.includes("company") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          {dossier.new_company_id || "N/A"}
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 font-bold">
+                          {dossier.new_department_id || "N/A"}
+                        </span>
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.includes("prescriber") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 font-medium italic">
+                        {dossier.new_prescriber_id || "Non assigné"}
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.includes("dates") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
+                      <div className="flex flex-col text-[11px]">
+                        {dossier.new_document_type === 600 ? (
+                          <span className="text-slate-500 dark:text-slate-400 font-semibold">
+                            Livraison:{" "}
+                            {dossier.new_date_livraison
+                              ? new Date(
                                 dossier.new_date_livraison,
                               ).toLocaleDateString("fr-FR")
-                            : "N/A"}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 dark:text-slate-500">
-                          Doc:{" "}
-                          {dossier.new_invoice_date
-                            ? new Date(
+                              : "N/A"}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">
+                            Doc:{" "}
+                            {dossier.new_invoice_date
+                              ? new Date(
                                 dossier.new_invoice_date,
                               ).toLocaleDateString("fr-FR")
-                            : "N/A"}
+                              : "N/A"}
+                          </span>
+                        )}
+                        <span className="text-slate-600 dark:text-slate-300 font-semibold">
+                          Réc:{" "}
+                          {new Date(
+                            dossier.new_reception_date,
+                          ).toLocaleDateString("fr-FR")}
                         </span>
-                      )}
-                      <span className="text-slate-600 dark:text-slate-300 font-semibold">
-                        Réc:{" "}
-                        {new Date(
-                          dossier.new_reception_date,
-                        ).toLocaleDateString("fr-FR")}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    {getStatusBadge(dossier.new_status, dossier.new_document_type)}
-                  </td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap">
+                      </div>
+                    </td>
+                  )}
+                  {visibleColumns.includes("status") && (
+                    <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"} text-sm`}>
+                      {getStatusBadge(dossier.new_status, dossier.new_document_type)}
+                    </td>
+                  )}
+                  <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"} text-right whitespace-nowrap`}>
                     <div className="flex items-center justify-end gap-2">
+                      {/* Bouton Modifier: Visible uniquement si le dossier est au statut Sauvegarder (Statut 10) */}
+                      {dossier.new_status === 10 && (
+                        <button
+                          onClick={() => {
+                            navigate("/bo/dossiers/nouveau", {
+                              state: { editDossier: dossier },
+                            });
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-amber-500/20"
+                          title="Modifier le dossier"
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> Modifier
+                        </button>
+                      )}
+
                       {/* Bouton Transmettre: Visible uniquement si le dossier est Chez BO (Sauvegarder) ou Prêt DCF (Statut 60) */}
                       {(dossier.new_status === 10 || dossier.new_status === 60) && (
                         <button
                           onClick={() => handleTransmit(dossier)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-blue-500/20"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-primary/20"
                         >
                           <Send className="w-3.5 h-3.5" /> Transmettre
                         </button>
@@ -625,66 +859,6 @@ export default function DossiersList() {
                           Réception
                         </button>
                       )}
-
-                      {/* Menu contextuel (3 points) */}
-                      <div className="relative">
-                        <button
-                          onClick={() =>
-                            setActiveDropdown(
-                              activeDropdown === dossier.new_folderid
-                                ? null
-                                : dossier.new_folderid,
-                            )
-                          }
-                          className={`inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors ${
-                            activeDropdown === dossier.new_folderid
-                              ? "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-white"
-                              : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                          }`}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </button>
-
-                        {activeDropdown === dossier.new_folderid && (
-                          <>
-                            {/* Overlay invisible pour fermer au clic extérieur */}
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setActiveDropdown(null)}
-                            ></div>
-                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-20 overflow-hidden py-1.5 animate-in zoom-in-95 duration-100">
-                              <button
-                                onClick={() => {
-                                  navigate(
-                                    `/bo/dossiers/${dossier.new_folderid}`,
-                                  );
-                                  setActiveDropdown(null);
-                                }}
-                                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                              >
-                                <Eye className="w-4 h-4 text-blue-500" /> Aperçu
-                                / Consulter
-                              </button>
-
-                              {/* Modifier uniquement si non encore transmis (Statut 10) */}
-                              {dossier.new_status === 10 && (
-                                <button
-                                  onClick={() => {
-                                    navigate("/bo/dossiers/nouveau", {
-                                      state: { editDossier: dossier },
-                                    });
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors border-t border-slate-50 dark:border-slate-800"
-                                >
-                                  <Pencil className="w-4 h-4 text-amber-500" />{" "}
-                                  Modifier le dossier
-                                </button>
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </div>
                     </div>
                   </td>
                 </tr>
@@ -706,7 +880,7 @@ export default function DossiersList() {
             >
               Précédent
             </button>
-            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-medium">
+            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 font-medium">
               1
             </button>
             <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
@@ -750,6 +924,52 @@ export default function DossiersList() {
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
         directionId={selectedDossierForTransmission?.new_department_id}
+      />
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedDossiers.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur text-white px-6 py-4 rounded-2xl flex items-center justify-between gap-8 shadow-2xl border border-slate-805 animate-in slide-in-from-bottom-8 duration-300 z-40 max-w-2xl w-[90%]">
+          <div className="flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+            <span className="text-sm font-bold text-slate-100">
+              {selectedDossiers.length} {selectedDossiers.length > 1 ? "dossiers sélectionnés" : "dossier sélectionné"}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBulkAccuse}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-500/10 cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" /> Accuser Réception
+            </button>
+            <button
+              onClick={handleBulkTransmit}
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-primary/10 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" /> Transmettre
+            </button>
+            <button
+              onClick={() => setSelectedDossiers([])}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-350 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Details Slide-over Drawer */}
+      <DossierDetailDrawer
+        isOpen={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          setSelectedDossierIdForDrawer(null);
+        }}
+        dossierId={selectedDossierIdForDrawer}
+        onRefresh={async () => {
+          const result = await dataService.getDossiers();
+          setDossiers(result);
+        }}
       />
     </div>
   );

@@ -89,7 +89,7 @@ export default function AdminConfiguration() {
         <div className="md:col-span-2 bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
           <form onSubmit={handleSave} className="space-y-6">
             <h2 className="text-lg font-bold text-slate-850 dark:text-white flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <Settings className="w-5 h-5 text-[#2b4c7e]" /> Configuration des Seuils
+              <Settings className="w-5 h-5 text-[#1F3B73]" /> Configuration des Seuils
             </h2>
 
             {/* Threshold 1: 5-Day Rule */}
@@ -99,7 +99,7 @@ export default function AdminConfiguration() {
                   <Clock className="w-4 h-4 text-blue-500" />
                   Règle des 5 Jours (Dépôt Facture)
                 </label>
-                <span className="text-xs text-[#2b4c7e] font-semibold bg-[#2b4c7e]/10 px-2 py-0.5 rounded-lg">Valeur active : {regle5Jours} jours</span>
+                <span className="text-xs text-[#1F3B73] font-semibold bg-[#1F3B73]/10 px-2 py-0.5 rounded-lg">Valeur active : {regle5Jours} jours</span>
               </div>
               <p className="text-xs text-slate-400">
                 Nombre maximal de jours autorisés entre la date d'émission de la facture par le fournisseur et sa réception au Bureau d'Ordre avant de déclencher un rejet automatique.
@@ -110,7 +110,7 @@ export default function AdminConfiguration() {
                 required
                 value={regle5Jours}
                 onChange={(e) => setRegle5Jours(Number(e.target.value))}
-                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-bold"
+                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-bold"
               />
             </div>
 
@@ -121,7 +121,7 @@ export default function AdminConfiguration() {
                   <BellRing className="w-4 h-4 text-indigo-500" />
                   Seuil de Relance Automatique
                 </label>
-                <span className="text-xs text-indigo-600 font-semibold bg-indigo-50 dark:bg-indigo-950/20 px-2 py-0.5 rounded-lg">Valeur active : {relanceJours} jours</span>
+                <span className="text-xs text-primary font-semibold bg-indigo-50 dark:bg-indigo-950/20 px-2 py-0.5 rounded-lg">Valeur active : {relanceJours} jours</span>
               </div>
               <p className="text-xs text-slate-400">
                 Délai en jours d'inactivité sur un dossier (bloqué ou en attente d'approbation chez un prescripteur) avant que le flux Power Automate n'envoie une relance email automatique.
@@ -132,7 +132,7 @@ export default function AdminConfiguration() {
                 required
                 value={relanceJours}
                 onChange={(e) => setRelanceJours(Number(e.target.value))}
-                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-bold"
+                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-bold"
               />
             </div>
 
@@ -154,7 +154,7 @@ export default function AdminConfiguration() {
                 required
                 value={alerteBlocageJours}
                 onChange={(e) => setAlerteBlocageJours(Number(e.target.value))}
-                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-bold"
+                className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-bold"
               />
             </div>
 
@@ -163,7 +163,7 @@ export default function AdminConfiguration() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 bg-[#2b4c7e] hover:bg-[#20395f] text-white px-6 py-3.5 rounded-xl font-bold transition-all disabled:opacity-50"
+                className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-6 py-3.5 rounded-xl font-bold transition-all disabled:opacity-50"
               >
                 {saving ? (
                   <>
@@ -182,9 +182,9 @@ export default function AdminConfiguration() {
         {/* Sidebar Info Column */}
         <div className="space-y-6">
           {/* Help Card */}
-          <div className="bg-[#2b4c7e]/5 dark:bg-blue-950/20 border border-[#2b4c7e]/10 p-6 rounded-3xl space-y-4">
+          <div className="bg-[#1F3B73]/5 dark:bg-blue-950/20 border border-[#1F3B73]/10 p-6 rounded-3xl space-y-4">
             <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-[#2b4c7e]" /> Comment ça marche ?
+              <HelpCircle className="w-5 h-5 text-[#1F3B73]" /> Comment ça marche ?
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
               Les paramètres enregistrés ici sont liés à la ligne unique de configuration de l'entité unique <code className="bg-white dark:bg-slate-900 px-1 py-0.5 rounded font-mono">new_systemconfiguration</code>.

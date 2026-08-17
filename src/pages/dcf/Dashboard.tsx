@@ -6,245 +6,47 @@ import {
   RotateCcw,
   Eye,
   Wallet,
-  ArrowRight,
-  Activity
+  TrendingUp,
+  Target
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import {
-  PieChart, Pie, Tooltip, ResponsiveContainer, Cell, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip
 } from "recharts";
-
-const AnimatedNumber = ({ value }: { value: number }) => {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    let startTime: number | null = null;
-    const duration = 1200; // 1.2s animation
-
-    const animate = (time: number) => {
-      if (!startTime) startTime = time;
-      const progress = Math.min((time - startTime) / duration, 1);
-      const ease = 1 - Math.pow(1 - progress, 4); // easeOutQuart
-
-      setCount(Math.floor(ease * value));
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
-        setCount(value);
-      }
-    };
-
-    requestAnimationFrame(animate);
-  }, [value]);
-
-  return <>{count}</>;
-};
-
-function KPIPill({
-  title,
-  value,
-  icon,
-  index = 0,
-  variant = "default",
-  onClick,
-}: any) {
-  const isBlue = variant === "blue";
-  const isEmerald = variant === "emerald";
-  
-  const iconBg = isBlue ? "bg-[#2b4c7e]/10 text-[#2b4c7e] dark:bg-blue-900/30 dark:text-blue-400" 
-    : isEmerald ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400";
-
-  return (
-    <div
-      onClick={onClick}
-      className="bg-white dark:bg-[#0F172B] rounded-2xl p-4 flex items-center justify-between shadow-sm border border-slate-100 dark:border-slate-800 hover:-translate-y-1 hover:shadow-md transition-all cursor-pointer group animate-in fade-in slide-in-from-bottom-6"
-      style={{ animationFillMode: "both", animationDelay: `${index * 100}ms`, animationDuration: "700ms" }}
-    >
-      <div className="flex items-center gap-4">
-        <div className={`p-3 rounded-xl ${iconBg}`}>
-          {icon}
-        </div>
-        <div>
-          <h3 className="text-slate-500 dark:text-slate-400 text-xs font-semibold">{title}</h3>
-          <span className="text-slate-900 dark:text-slate-100 text-xl font-bold block leading-none mt-1">
-            {typeof value === "number" ? <AnimatedNumber value={value} /> : value}
-          </span>
-        </div>
-      </div>
-      <ArrowRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-[#2b4c7e] dark:group-hover:text-blue-400 transition-colors" />
-    </div>
-  );
-}
-
-const ProfileProgressCard = ({ dossiersTraites, objTraites }: any) => {
-  const percentage = Math.round((dossiersTraites / objTraites) * 100) || 0;
-  const avatarUrl = localStorage.getItem("userAvatar") || "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix";
-  const role = localStorage.getItem("userRole") || "DCF";
-
-  return (
-    <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800 relative overflow-hidden group">
-       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl transition-colors group-hover:bg-blue-500/20"></div>
-       
-       <div className="flex items-center gap-4 mb-6 relative z-10">
-         <div className="relative">
-           <img src={avatarUrl} alt="Avatar" className="w-16 h-16 rounded-2xl object-cover shadow-sm border-2 border-white dark:border-slate-700 bg-slate-100 dark:bg-slate-800" />
-           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white dark:border-[#0F172B] rounded-full"></div>
-         </div>
-         <div>
-           <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100">Bonjour !</h3>
-           <p className="text-sm font-medium text-blue-600 dark:text-blue-400">{role}</p>
-         </div>
-       </div>
-
-       <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/50 relative z-10">
-         <div className="flex justify-between items-end mb-3">
-           <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">Objectif du mois</span>
-           <span className="text-xl font-black text-[#2b4c7e] dark:text-blue-400">{percentage}%</span>
-         </div>
-         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-3 overflow-hidden relative">
-           <div className="bg-[#2b4c7e] dark:bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-out relative" style={{ width: `${percentage}%` }}>
-              <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse"></div>
-           </div>
-         </div>
-         <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 text-center uppercase tracking-wider">
-            {dossiersTraites} traités / {objTraites} cible
-         </p>
-       </div>
-    </div>
-  );
-}
+import { subMonths, format, startOfMonth, isSameMonth } from "date-fns";
+import { fr } from "date-fns/locale";
+import KpiCard from "@/components/KpiCard";
 
 
 
-const formatEventTime = (dateStr: string) => {
-  try {
-    const date = new Date(dateStr);
-    const diffMs = new Date().getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "À l'instant";
-    if (diffMins < 60) return `Il y a ${diffMins} min`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `Il y a ${diffHours} h`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays === 1) return "Hier";
-    return `Il y a ${diffDays} j`;
-  } catch (e) {
-    return dateStr;
-  }
-};
-
-const buildTimelineEvents = (dossiers: Dossier[]) => {
-  const events: { action: string; dossier: string; time: string; timestamp: string }[] = [];
-  
-  dossiers.forEach((d) => {
-    if (d.new_reception_date) {
-      events.push({ action: "Réception au BO", dossier: d.new_folder_number, time: "", timestamp: d.new_reception_date });
-    }
-    if (d.new_date_accuse) {
-      events.push({ action: "Accusé de réception BO", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse });
-    }
-    if (d.new_date_trans_prescripteur) {
-      events.push({ action: "Transmis au Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_prescripteur });
-    }
-    if (d.new_date_accuse_prescripteur) {
-      events.push({ action: "Accusé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_prescripteur });
-    }
-    if (d.new_date_val_prescripteur) {
-      events.push({ action: "Validé par le Prescripteur", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_prescripteur });
-    }
-    if (d.new_date_retour_bo) {
-      events.push({ action: "Retourné pour Correction", dossier: d.new_folder_number, time: "", timestamp: d.new_date_retour_bo });
-    }
-    if (d.new_date_trans_dcf) {
-      events.push({ action: "Transmis à la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_trans_dcf });
-    }
-    if (d.new_date_accuse_dcf) {
-      events.push({ action: "Accusé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_accuse_dcf });
-    }
-    if (d.new_date_val_dcf) {
-      events.push({ action: "Validé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_date_val_dcf });
-    }
-    if (d.new_accounting_date) {
-      events.push({ action: "Comptabilisé par la DCF", dossier: d.new_folder_number, time: "", timestamp: d.new_accounting_date });
-    }
-    if (d.new_cheque_preparation_date) {
-      events.push({ action: "Chèque préparé (Trésorerie)", dossier: d.new_folder_number, time: "", timestamp: d.new_cheque_preparation_date });
-    }
-    if (d.new_date_virement) {
-      events.push({ action: "Réglé par Virement", dossier: d.new_folder_number, time: "", timestamp: d.new_date_virement });
-    }
-    const deliveryDate = d.new_delivery_date || d.new_reception_date_agence || d.new_date_livraison;
-    if (deliveryDate) {
-      events.push({ action: "Chèque reçu par l'Agence", dossier: d.new_folder_number, time: "", timestamp: deliveryDate });
-    }
-    if (d.new_final_delivery_date) {
-      events.push({ action: "Chèque remis au Fournisseur", dossier: d.new_folder_number, time: "", timestamp: d.new_final_delivery_date });
-    }
-  });
-
-  return events
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 5)
-    .map((evt) => ({
-      ...evt,
-      time: formatEventTime(evt.timestamp)
-    }));
-};
-
-const ActivityTimeline = ({ timelineEvents }: any) => {
-  return (
-    <div className="bg-white dark:bg-[#0F172B] rounded-3xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
-      <h3 className="font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
-        <Activity className="w-5 h-5 text-emerald-500" /> Flux d'Activité
-      </h3>
-      <div className="space-y-6 relative before:absolute before:inset-0 before:ml-[11px] before:-translate-x-px before:h-full before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
-        {timelineEvents.map((evt: any, i: number) => (
-          <div key={i} className="relative flex items-start gap-4">
-            <div
-              className={`absolute left-0 w-6 h-6 rounded-full border-4 border-white dark:border-[#0F172B] flex items-center justify-center z-10 bg-emerald-50 dark:bg-emerald-900/20`}
-            >
-              <div className={`relative w-2 h-2 rounded-full bg-emerald-500`}></div>
-            </div>
-            <div className="ml-10 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl rounded-tl-sm border border-slate-100 dark:border-slate-800 flex-1">
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {evt.action}
-              </p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-1">
-                {evt.dossier}
-              </p>
-              <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-wider font-bold">
-                {evt.time}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 export default function DashboardDCF() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [animatedPercentage, setAnimatedPercentage] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
   const navigate = useNavigate();
+  const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
   const fetchDossiers = async () => {
     try {
       const result = await dataService.getDossiers();
-      // On simule le filtrage Dataverse côté client pour DCF
-      const visible = result.filter(
-        (d) => [70, 80, 90, 100].includes(d.new_status)
-      );
-      setDossiers(visible);
+      // Fetch all dossiers to be able to compute history (last 6 months)
+      setDossiers(result);
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -258,26 +60,33 @@ export default function DashboardDCF() {
 
   const aAccuser = dossiers.filter((d) => d.new_status === 70).length;
   const aComptabiliser = dossiers.filter((d) => d.new_status === 80 && !d.new_est_comptabilise).length;
-  const comptabilises = dossiers.filter((d) => d.new_status === 80 && d.new_est_comptabilise).length;
+  const comptabilises = dossiers.filter((d) => d.new_est_comptabilise && d.new_accounting_date && isSameMonth(new Date(d.new_accounting_date), new Date())).length;
   const enCorrection = dossiers.filter((d) => d.new_status === 90).length;
 
-  const chartData = [
-    { name: "À Accuser", value: aAccuser, color: "#f97316" },
-    { name: "Saisie Attendue", value: aComptabiliser, color: "#3b82f6" },
-    { name: "Retours Corr.", value: enCorrection, color: "#ef4444" },
-    { name: "Traités", value: comptabilises, color: "#10b981" }
-  ];
+  const last6Months = Array.from({ length: 6 }).map((_, i) => {
+    return startOfMonth(subMonths(new Date(), 5 - i));
+  });
+
+  const barChartData = last6Months.map(monthDate => {
+    const monthName = format(monthDate, "MMM", { locale: fr });
+    let traites = dossiers.filter(d => 
+      d.new_est_comptabilise && d.new_accounting_date && isSameMonth(new Date(d.new_accounting_date), monthDate)
+    ).length;
+    let retours = dossiers.filter(d => 
+      d.new_status === 90 && d.new_date_retour_bo && isSameMonth(new Date(d.new_date_retour_bo), monthDate)
+    ).length;
+
+    return {
+      name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+      traites: traites,
+      retours: retours,
+    };
+  });
 
   const handleAccuse = async (dossier: Dossier) => {
     try {
-      await dataService.accuseReception(
-        dossier.new_folderid,
-        80, // Chez DCF
-        "Utilisateur DCF" // Devrait être l'utilisateur connecté
-      );
-      setSuccessMessage(
-        `Réception physique confirmée pour le dossier ${dossier.new_folder_number}.`
-      );
+      await dataService.accuseReception(dossier.new_folderid, 80, "Utilisateur DCF");
+      setSuccessMessage(`Réception physique confirmée pour le dossier ${dossier.new_folder_number}.`);
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -286,276 +95,404 @@ export default function DashboardDCF() {
     }
   };
 
+  const userName = localStorage.getItem("userName") || "Mohammed El Boubakri";
+  const objTraites = comptabilises + aComptabiliser > 0 ? comptabilises + aComptabiliser : 10;
+  const percentage = Math.round((comptabilises / objTraites) * 100) || 0;
+  const totalDossiers = aAccuser + aComptabiliser + enCorrection + comptabilises;
 
+  useEffect(() => {
+    let startTime: number;
+    const duration = 1500;
+    let animationFrame: number;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      setAnimatedPercentage(Math.round(easeOut * percentage));
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    if (percentage > 0) {
+      animationFrame = requestAnimationFrame(animate);
+    } else {
+      setAnimatedPercentage(0);
+    }
+
+    return () => {
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+    };
+  }, [percentage]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const tooltipStyle: React.CSSProperties = {
+    backgroundColor: isDarkMode ? "#0f172a" : "#ffffff",
+    borderRadius: "12px",
+    color: isDarkMode ? "#f8fafc" : "#0f172a",
+    border: isDarkMode ? "1px solid #1e293b" : "1px solid #e2e8f0",
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+    fontSize: "12px",
+    padding: "8px 12px",
+  };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in zoom-in-95 duration-500">
-      
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        
-        {/* Main Left Content */}
-        <div className="xl:col-span-2 space-y-8">
-          
-          {/* Hero Banner SBM Design */}
-          <div className="bg-[#2b4c7e] rounded-3xl p-8 md:p-10 text-white relative overflow-hidden shadow-lg shadow-[#2b4c7e]/20 flex justify-between items-center">
-            {/* Cross/Stars Pattern */}
-            <div className="absolute inset-0 opacity-[0.15]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
-            
-            <div className="relative z-10 w-full lg:w-2/3">
-              <span className="inline-block py-1.5 px-3 rounded-lg bg-white/10 text-blue-100 text-xs font-bold tracking-wider mb-6 border border-white/20 backdrop-blur-md">
-                ESPACE COMPTABILITÉ
-              </span>
-              <h1 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
-                Gérez vos saisies avec efficacité
-              </h1>
-              <p className="text-blue-100/90 text-sm md:text-base mb-8 max-w-xl">
-                Vous avez <strong className="text-white">{aComptabiliser} factures</strong> en attente de traitement et <strong className="text-white">{aAccuser} nouveaux dossiers</strong> à accuser réception aujourd'hui.
-              </p>
-              <button 
-                onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 80 } })}
-                className="bg-white text-[#2b4c7e] hover:bg-blue-50 px-8 py-3 rounded-xl font-bold text-sm transition-colors shadow-sm flex items-center gap-2 group"
-              >
-                Traiter les urgences
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
+    <div className="w-full space-y-6">
+
+      {/* Greeting Section */}
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          Dashboard DCF <span className="animate-pulse text-[#1F3B73]">⚡</span>
+        </h1>
+        <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+          Bonjour {userName}. Gérez vos saisies et factures avec efficacité.
+        </p>
+      </div>
+
+      {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+        <KpiCard
+          title="À Accuser Réception"
+          icon={Clock}
+          value={aAccuser.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-orange-500"
+          iconBgClass="bg-orange-50 dark:bg-orange-500/10"
+          animationDelay="0ms"
+          onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 70 } })}
+          subtext={
+            aAccuser > 0 ? (
+              <><TrendingUp className="w-3.5 h-3.5 text-orange-500" /><span className="text-xs font-semibold text-orange-500">Nouveaux</span></>
+            ) : (
+              <span className="text-xs text-slate-400">À jour</span>
+            )
+          }
+        />
+        <KpiCard
+          title="À Comptabiliser"
+          icon={Wallet}
+          value={aComptabiliser.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-blue-500"
+          iconBgClass="bg-blue-50 dark:bg-blue-500/10"
+          animationDelay="60ms"
+          onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 80 } })}
+          subtext={<span className="text-xs text-slate-400">En attente de traitement</span>}
+        />
+        <KpiCard
+          title="Retours Correction"
+          icon={RotateCcw}
+          value={enCorrection.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-red-500"
+          iconBgClass="bg-red-50 dark:bg-red-500/10"
+          animationDelay="120ms"
+          onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 90 } })}
+          subtext={<span className="text-xs text-slate-400">Anomalies relevées</span>}
+        />
+        <KpiCard
+          title="Prêts (Trésorerie)"
+          icon={CheckCircle}
+          value={comptabilises.toLocaleString()}
+          loading={loading}
+          iconColorClass="text-emerald-500"
+          iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
+          animationDelay="180ms"
+          onClick={() => navigate("/dcf/dossiers")}
+          subtext={<span className="text-xs text-slate-400">Comptabilisés ce mois</span>}
+        />
+      </div>
+
+      {/* ═══════════ ROW 2: MAIN CONTENT + SIDEBAR ═══════════ */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+        {/* ── LEFT COLUMN (2/3) ── */}
+        <div className="xl:col-span-2 flex flex-col gap-6 h-full">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Table: À Accuser Réception */}
+            <div
+              style={{ animationDelay: "220ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  Nouveaux reçus
+                </h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
+                  {aAccuser} dossiers
+                </span>
+              </div>
+              <div className="overflow-y-auto flex-1 pr-1">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <tr>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Chargement...</td></tr>
+                    ) : dossiers.filter((d) => d.new_status === 70).length === 0 ? (
+                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Aucun dossier en attente d'accusé.</td></tr>
+                    ) : (
+                      dossiers.filter((d) => d.new_status === 70).map((dossier, i) => (
+                        <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
+                          <td className="py-3 px-4">
+                            <Link to={`/dcf/dossiers/${dossier.new_folderid}`} className="text-[13px] font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                              {dossier.new_folder_number}
+                            </Link>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => handleAccuse(dossier)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[11px] font-bold transition-all shadow-sm"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Accuser
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/* Right Illustration: Floating Glassmorphism Cards */}
-            <div className="hidden lg:block relative w-48 h-48 z-10 mr-4">
-              <div className="absolute top-4 right-4 w-32 h-40 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl transform rotate-12 transition-transform hover:rotate-6 flex flex-col p-4 gap-3">
-                 <div className="w-8 h-8 rounded-full bg-white/20"></div>
-                 <div className="w-full h-2 rounded bg-white/20 mt-auto"></div>
-                 <div className="w-2/3 h-2 rounded bg-white/20"></div>
+            {/* Table: Saisie Comptable */}
+            <div
+              style={{ animationDelay: "280ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#1F3B73] animate-pulse" />
+                  Saisie Comptable
+                </h3>
+                <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
+                  {aComptabiliser} dossiers
+                </span>
               </div>
-              <div className="absolute bottom-2 -left-4 w-36 h-20 bg-blue-500/30 backdrop-blur-xl rounded-2xl border border-blue-300/30 shadow-2xl transform -rotate-6 flex items-center justify-center">
-                 <CheckCircle2 className="w-10 h-10 text-white opacity-90 drop-shadow-md" />
+              <div className="overflow-y-auto flex-1 pr-1">
+                <table className="w-full text-left">
+                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                    <tr>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Chargement...</td></tr>
+                    ) : dossiers.filter((d) => d.new_status === 80 && !d.new_est_comptabilise).length === 0 ? (
+                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Aucun dossier à comptabiliser.</td></tr>
+                    ) : (
+                      dossiers.filter((d) => d.new_status === 80 && !d.new_est_comptabilise).map((dossier, i) => (
+                        <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
+                          <td className="py-3 px-4">
+                            <Link to={`/dcf/dossiers/${dossier.new_folderid}`} className="text-[13px] font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
+                              {dossier.new_folder_number}
+                            </Link>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => navigate(`/dcf/dossiers/${dossier.new_folderid}`)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1F3B73]/10 hover:bg-[#1F3B73]/20 text-[#1F3B73] dark:bg-blue-500/10 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-lg text-[11px] font-bold transition-all"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> Traiter
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          {/* KPI Pills */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <KPIPill
-              title="À Comptabiliser"
-              value={aComptabiliser}
-              onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 80 } })}
-              icon={<Wallet className="w-5 h-5" />}
-              variant="blue"
-              index={0}
-            />
-            <KPIPill
-              title="À Accuser Réception"
-              value={aAccuser}
-              onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 70 } })}
-              icon={<Clock className="w-5 h-5" />}
-              variant="default"
-              index={1}
-            />
-            <KPIPill
-              title="Retours Correction"
-              value={enCorrection}
-              onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 90 } })}
-              icon={<RotateCcw className="w-5 h-5" />}
-              variant="default"
-              index={2}
-            />
-            <KPIPill
-              title="Prêts pour Trésorerie"
-              value={comptabilises}
-              onClick={() => navigate("/dcf/dossiers")}
-              icon={<CheckCircle className="w-5 h-5" />}
-              variant="emerald"
-              index={3}
-            />
-          </div>
+          {/* Stacked BarChart */}
+          <div
+            style={{ animationDelay: "340ms", animationFillMode: "both" }}
+            className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-[#fafafa] dark:bg-[#0F172B] rounded-3xl p-7 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col flex-1 min-h-[350px]"
+          >
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-[18px] font-bold text-slate-900 dark:text-white leading-tight">Évolution des Dossiers</h3>
+                <p className="text-[13px] font-medium text-slate-500 mt-1">Traités vs Retours (6 derniers mois)</p>
+              </div>
+              <div className="flex items-center gap-4 text-[12px] font-bold">
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                  <div className="w-3 h-3 rounded bg-[#a3e635]"></div> Traités
+                </div>
+                <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                  <div className="w-3 h-3 rounded bg-[#1e293b] dark:bg-slate-700"></div> Retours
+                </div>
+              </div>
+            </div>
 
-          {/* Chart Section */}
-          <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm animate-in fade-in zoom-in-95 duration-500 delay-200">
-            <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
-              Répartition des Dossiers
-            </h3>
-            <div className="h-64">
+            <div className="flex-1 w-full relative">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} style={{ filter: `drop-shadow(0px 4px 6px ${entry.color}40)` }} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
-                    itemStyle={{ color: '#1e293b', fontWeight: 'bold' }}
-                    formatter={(value: any, name: any) => [`${value} dossiers`, name]}
+                <BarChart data={barChartData} margin={{ top: 0, right: 0, left: -25, bottom: 0 }} barSize={32}>
+                  <defs>
+                    <pattern id="diagonalHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+                      <rect width="8" height="8" fill="#a3e635" />
+                      <line x1="0" y1="0" x2="0" y2="8" stroke="#84cc16" strokeWidth="4" />
+                    </pattern>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }} 
+                    dy={12} 
                   />
-                  <Legend 
-                    verticalAlign="bottom" 
-                    height={36} 
-                    iconType="circle"
-                    formatter={(value) => <span className="text-sm font-semibold text-slate-600 dark:text-slate-300 ml-1">{value}</span>}
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }} 
                   />
-                </PieChart>
+                  <RechartsTooltip 
+                    cursor={{ fill: isDarkMode ? "#1e293b" : "#f1f5f9" }} 
+                    contentStyle={{ ...tooltipStyle, borderRadius: '16px' }} 
+                  />
+                  <Bar dataKey="retours" stackId="a" fill={isDarkMode ? "#334155" : "#1e293b"} radius={[6, 6, 6, 6]} animationDuration={1500} />
+                  <Bar dataKey="traites" stackId="a" fill="url(#diagonalHatch)" radius={[6, 6, 6, 6]} animationDuration={1500} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Table À Accuser Réception */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                  Nouveaux reçus
-                </h2>
-                <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300">
-                  {aAccuser} dossiers
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50">
-                    <tr>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Dossier
-                      </th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan={2} className="py-8 text-center text-slate-400">
-                          Chargement...
-                        </td>
-                      </tr>
-                    ) : dossiers.filter((d) => d.new_status === 70).length === 0 ? (
-                      <tr>
-                        <td colSpan={2} className="py-8 text-center text-slate-400">
-                          Aucun dossier en attente d'accusé.
-                        </td>
-                      </tr>
-                    ) : (
-                      dossiers
-                        .filter((d) => d.new_status === 70)
-                        .map((dossier, i) => (
-                          <tr
-                            key={i}
-                            className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
-                          >
-                            <td className="py-4 px-6 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              {dossier.new_folder_number}
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <button
-                                onClick={() => handleAccuse(dossier)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Accuser
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        </div>
 
-            {/* Table À Comptabiliser */}
-            <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-                <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#2b4c7e] animate-pulse" />
-                  Saisie Comptable
-                </h2>
-                <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-300">
-                  {aComptabiliser} dossiers
-                </span>
+        {/* ── RIGHT COLUMN (col-span-1) ── */}
+        <div className="flex flex-col gap-6 flex-1">
+
+          {/* ── RIGHT COLUMN: Objectif du mois ── */}
+          <div className="flex flex-col h-fit">
+            <div
+              style={{ animationDelay: "400ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-7 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative flex flex-col flex-1"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 bg-yellow-500/10 rounded-[14px] flex items-center justify-center flex-shrink-0">
+                  <Target className="text-yellow-500 w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-slate-900 dark:text-white leading-tight">Objectif du mois</h3>
+                  <p className="text-[13px] text-slate-500 mt-0.5">Ce mois-ci • {totalDossiers} dossiers</p>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 dark:bg-slate-900/50">
-                    <tr>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Dossier
-                      </th>
-                      <th className="py-3 px-6 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan={2} className="py-8 text-center text-slate-400">
-                          Chargement...
-                        </td>
-                      </tr>
-                    ) : dossiers.filter((d) => d.new_status === 80 && !d.new_est_comptabilise).length === 0 ? (
-                      <tr>
-                        <td colSpan={2} className="py-8 text-center text-slate-400">
-                          Aucun dossier à comptabiliser.
-                        </td>
-                      </tr>
-                    ) : (
-                      dossiers
-                        .filter((d) => d.new_status === 80 && !d.new_est_comptabilise)
-                        .map((dossier, i) => (
-                          <tr
-                            key={i}
-                            className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors"
-                          >
-                            <td className="py-4 px-6 text-sm font-semibold text-slate-800 dark:text-slate-200">
-                              {dossier.new_folder_number}
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <button
-                                onClick={() => navigate(`/dcf/dossiers/${dossier.new_folderid}`)}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-400 rounded-lg text-xs font-bold transition-all"
-                              >
-                                <Eye className="w-3.5 h-3.5" /> Traiter
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                    )}
-                  </tbody>
-                </table>
+
+              {/* Gauge */}
+              <div className="relative w-full h-[220px] mt-6 flex items-center justify-center">
+                <svg width="240" height="200" viewBox="0 0 240 200" className="absolute top-0">
+                  <defs>
+                    <linearGradient id="gauge-grad" x1="0" y1="0" x2="240" y2="0" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#eab308" />
+                      <stop offset="100%" stopColor="#f59e0b" />
+                    </linearGradient>
+                  </defs>
+                  {Array.from({ length: 44 }).map((_, i) => {
+                    const fraction = i / 43;
+                    const angle = -120 + fraction * 240;
+                    const isFilled = fraction <= animatedPercentage / 100;
+
+                    const rad = (angle * Math.PI) / 180;
+                    const innerR = 90;
+                    const outerR = 108;
+                    const cx = 120;
+                    const cy = 130;
+
+                    const x1 = cx + innerR * Math.sin(rad);
+                    const y1 = cy - innerR * Math.cos(rad);
+                    const x2 = cx + outerR * Math.sin(rad);
+                    const y2 = cy - outerR * Math.cos(rad);
+
+                    const strokeColor = isFilled ? 'url(#gauge-grad)' : (document.documentElement.classList.contains('dark') ? '#1e293b' : '#f1f5f9');
+
+                    return (
+                      <line
+                        key={i}
+                        x1={x1} y1={y1} x2={x2} y2={y2}
+                        stroke={strokeColor}
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                      />
+                    );
+                  })}
+                </svg>
+                {/* Center text */}
+                <div className="absolute top-[55px] flex flex-col items-center">
+                  <span className={`${animatedPercentage === 100 ? 'text-[54px] tracking-tight' : 'text-[64px] tracking-tighter'} font-bold text-slate-900 dark:text-white leading-none`}>{animatedPercentage}</span>
+                  <span className="text-[13px] font-medium text-slate-400 mt-2">sur 100</span>
+                  <div className="mt-3 bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 px-2.5 py-0.5 rounded text-[12px] font-bold flex items-center gap-1">
+                    ↑ {comptabilises} vs cible
+                  </div>
+                </div>
+                <div className="absolute bottom-2 left-6 text-sm font-medium text-slate-400">0</div>
+                <div className="absolute bottom-2 right-6 text-sm font-medium text-slate-400">100</div>
+              </div>
+
+              {/* Summary Sentence */}
+              <p className="text-[14px] text-center text-slate-600 dark:text-slate-300 mt-2 mb-6 px-4">
+                Excellent rythme — <span className="font-semibold text-slate-900 dark:text-white">les dossiers traités</span> sont {comptabilises} ce mois-ci.
+              </p>
+
+              <hr className="border-slate-100 dark:border-slate-800/60 mb-6" />
+
+              {/* Details List */}
+              <div className="flex flex-col flex-1">
+                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Répartition</h4>
+                <div className="space-y-4">
+                  {[
+                    { label: "À Accuser", value: aAccuser, max: totalDossiers || 1, total: totalDossiers, icon: Clock, color: "text-orange-500", bg: "bg-orange-50 dark:bg-orange-500/10" },
+                    { label: "À Saisir", value: aComptabiliser, max: totalDossiers || 1, total: totalDossiers, icon: Wallet, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
+                    { label: "Corrections", value: enCorrection, max: totalDossiers || 1, total: totalDossiers, icon: RotateCcw, color: "text-red-500", bg: "bg-red-50 dark:bg-red-500/10" },
+                    { label: "Traités", value: comptabilises, max: totalDossiers || 1, total: totalDossiers, icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${item.bg}`}>
+                        <item.icon className={`w-4 h-4 ${item.color}`} />
+                      </div>
+                      <span className="text-[13px] font-medium text-slate-900 dark:text-white w-24">{item.label}</span>
+                      <div className="flex-1 h-[6px] bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden relative">
+                        <div className="h-full bg-[#3b82f6] rounded-full transition-all duration-[1500ms] ease-out" style={{ width: isMounted ? `${(item.value / item.max) * 100}%` : '0%' }}></div>
+                      </div>
+                      <span className="text-[12px] font-semibold text-slate-900 dark:text-white w-10 text-right whitespace-nowrap">{item.value} <span className="text-slate-400 font-normal">/ {item.total}</span></span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right Sidebar */}
-        <div className="xl:col-span-1 space-y-8">
-            <ProfileProgressCard dossiersTraites={comptabilises} objTraites={comptabilises + aComptabiliser > 0 ? comptabilises + aComptabiliser : 10} />
 
-            <ActivityTimeline timelineEvents={buildTimelineEvents(dossiers)} />
+
         </div>
       </div>
 
       {/* Success Modal */}
       {successModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+            <h3 className="text-[17px] font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
               Action réussie
             </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
+            <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed">
               {successMessage}
             </p>
           </div>
@@ -564,5 +501,3 @@ export default function DashboardDCF() {
     </div>
   );
 }
-
-

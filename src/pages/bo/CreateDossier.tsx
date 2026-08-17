@@ -527,9 +527,9 @@ export default function CreateDossier() {
                     Destinataire <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={formData.prescripteur}
+                    value={formData.personne_a_livrer}
                     onChange={(e) =>
-                      setFormData({ ...formData, prescripteur: e.target.value })
+                      setFormData({ ...formData, personne_a_livrer: e.target.value })
                     }
                     required
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
@@ -830,7 +830,7 @@ export default function CreateDossier() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isUploaded ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-blue-600 dark:group-hover:text-blue-400"}`}
+                        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isUploaded ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 group-hover:text-primary dark:group-hover:text-blue-400"}`}
                       >
                         {isUploaded ? (
                           <CheckCircle2 className="w-6 h-6" />
@@ -873,7 +873,7 @@ export default function CreateDossier() {
                         <div className="relative">
                           <button
                             type="button"
-                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm transition-colors pointer-events-none whitespace-nowrap"
+                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-primary dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 shadow-sm transition-colors pointer-events-none whitespace-nowrap"
                           >
                             Parcourir...
                           </button>
@@ -915,7 +915,7 @@ export default function CreateDossier() {
             type="button"
             onClick={(e) => handleSubmit(e, false)}
             disabled={loading}
-            className="px-8 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
+            className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
           >
             <Send className="w-4 h-4" /> Transmettre Dossier
           </button>

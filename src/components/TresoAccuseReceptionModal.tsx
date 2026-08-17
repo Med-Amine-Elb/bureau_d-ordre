@@ -91,7 +91,7 @@ export default function TresoAccuseReceptionModal({
         
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-          <h3 className="text-lg font-bold text-[#2b4c7e] dark:text-blue-400 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-[#1F3B73] dark:text-blue-400 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" /> Accusé de Réception (Trésorerie)
           </h3>
           <button
@@ -124,7 +124,7 @@ export default function TresoAccuseReceptionModal({
                 Date de Réception (Automatique)
               </label>
               <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold">
-                <Calendar className="w-4 h-4 text-[#2b4c7e] dark:text-blue-400" />
+                <Calendar className="w-4 h-4 text-[#1F3B73] dark:text-blue-400" />
                 {todayStr}
               </div>
             </div>
@@ -139,7 +139,7 @@ export default function TresoAccuseReceptionModal({
                   <button
                     type="button"
                     onClick={handleSelectAll}
-                    className="text-xs font-semibold text-[#2b4c7e] dark:text-blue-400 hover:underline"
+                    className="text-xs font-semibold text-[#1F3B73] dark:text-blue-400 hover:underline"
                   >
                     Tout cocher
                   </button>
@@ -194,7 +194,7 @@ export default function TresoAccuseReceptionModal({
                 type="checkbox"
                 checked={confirmedPhysical}
                 onChange={(e) => setConfirmedPhysical(e.target.checked)}
-                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-blue-500 h-4 w-4"
               />
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 select-none leading-relaxed">
                 Je confirme avoir reçu physiquement le dossier et ses pièces jointes conformes. <span className="text-red-500">*</span>
@@ -216,7 +216,7 @@ export default function TresoAccuseReceptionModal({
               disabled={!canConfirm}
               className={`px-5 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${
                 canConfirm
-                  ? "bg-[#2b4c7e] hover:bg-[#203a61] text-white shadow-blue-500/20 active:scale-95"
+                  ? "bg-[#1F3B73] hover:bg-[#16294F] text-white shadow-primary/20 active:scale-95"
                   : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
               }`}
             >

@@ -104,7 +104,7 @@ export default function DossierDetailTresorerie() {
         <h2 className="text-xl font-bold text-slate-700">Dossier introuvable</h2>
         <button
           onClick={() => navigate("/tresorerie/dossiers")}
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="text-primary dark:text-blue-400 hover:underline"
         >
           Retour à la liste
         </button>
@@ -129,7 +129,7 @@ export default function DossierDetailTresorerie() {
               if (window.parent && (window.parent as any).Xrm) {
                 return (window.parent as any).Xrm;
               }
-            } catch (e) {}
+            } catch (e) { }
             return null;
           };
           const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
@@ -168,11 +168,11 @@ export default function DossierDetailTresorerie() {
         toast.error("Erreur", { description: "Veuillez remplir la date de virement et le RIB." });
         return;
       }
-      
+
       const ribCleaned = compteBancaireDest.replace(/\s+/g, '');
       if (ribCleaned.length !== 24 || !/^\d+$/.test(ribCleaned)) {
-        toast.error("Erreur de validation", { 
-          description: "Le RIB d'une banque marocaine doit contenir exactement 24 chiffres." 
+        toast.error("Erreur de validation", {
+          description: "Le RIB d'une banque marocaine doit contenir exactement 24 chiffres."
         });
         return;
       }
@@ -198,10 +198,10 @@ export default function DossierDetailTresorerie() {
       };
 
       await dataService.updateDossier(dossier.new_folderid, payload);
-      toast.success("Succès", { 
-        description: isCheque 
-          ? "Le chèque a été préparé et transmis au Bureau d'Ordre." 
-          : "Le virement a été enregistré et le dossier est clôturé." 
+      toast.success("Succès", {
+        description: isCheque
+          ? "Le chèque a été préparé et transmis au Bureau d'Ordre."
+          : "Le virement a été enregistré et le dossier est clôturé."
       });
       fetchDossier();
     } catch (err) {
@@ -279,54 +279,48 @@ export default function DossierDetailTresorerie() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate("/tresorerie/dossiers")}
-            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors soft-shadow"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                {dossier.new_folder_number}
-              </h1>
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-wider">
-                {getTypeBadge(dossier.new_document_type)}
-              </span>
-              <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                dossier.new_is_blocked ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                dossier.new_status === 150 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                dossier.new_status === 120 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                dossier.new_status === 110 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
-                dossier.new_status === 100 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+    <div className="w-full max-w-6xl mx-auto pb-12 animate-in fade-in duration-500">
+
+      {/* Back button */}
+      <button
+        onClick={() => navigate("/tresorerie/dossiers")}
+        className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
+      >
+        <ArrowLeft className="w-4 h-4" /> Retour à la liste
+      </button>
+
+      {/* Header Profile Card */}
+      <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow mb-6 flex flex-col md:flex-row md:items-start justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{dossier.new_folder_number}</h1>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 uppercase tracking-wider">
+              {getTypeBadge(dossier.new_document_type)}
+            </span>
+            <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${dossier.new_status === 110 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                dossier.new_status === 120 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                  dossier.new_status === 100 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
               }`}>
-                {dossier.new_is_blocked ? "Bloqué" : renderStatus()}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              {dossier.new_document_type === 600 ? (
-                <>Destinataire: {dossier.new_prescriber_id || "-"}</>
-              ) : (
-                <>Fournisseur: {dossier.new_supplier_id || "-"}</>
-              )}
-            </p>
+              {renderStatus()}
+            </span>
           </div>
+          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
+            Créé le {new Date(dossier.new_reception_date).toLocaleDateString('fr-FR')} par <span className="font-semibold text-slate-700 dark:text-slate-300">Bureau d'Ordre</span>
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {dossier.new_status === 100 && (
-            <button
-              onClick={handleAccuse}
-              className="bg-[#2b4c7e] hover:bg-[#203a61] text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2"
-            >
-              <CheckCircle2 className="w-4 h-4" /> Accuser Réception
-            </button>
-          )}
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            {dossier.new_status === 100 && (
+              <button
+                onClick={handleAccuse}
+                className="bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -341,11 +335,10 @@ export default function DossierDetailTresorerie() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              activeTab === tab.id
-                ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === tab.id
+                ? "border-blue-600 text-primary dark:border-blue-400 dark:text-blue-400"
                 : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300"
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" /> {tab.label}
           </button>
@@ -361,7 +354,7 @@ export default function DossierDetailTresorerie() {
                 <FileText className="w-5 h-5 text-blue-500" />
                 Détails du Dossier
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
                 {dossier.new_document_type === 600 ? (
                   <>
@@ -491,7 +484,7 @@ export default function DossierDetailTresorerie() {
                         </div>
                       </>
                     )}
-                    
+
                     {dossier.new_payment_method === 1 && (
                       <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
                         <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date Transmission BO</label>
@@ -518,7 +511,7 @@ export default function DossierDetailTresorerie() {
                         <input
                           type="radio"
                           name="modePaiement"
-                          className="text-[#2b4c7e] focus:ring-[#2b4c7e]"
+                          className="text-[#1F3B73] focus:ring-[#1F3B73]"
                           checked={modePaiement === 2}
                           onChange={() => setModePaiement(2)}
                         />
@@ -528,7 +521,7 @@ export default function DossierDetailTresorerie() {
                         <input
                           type="radio"
                           name="modePaiement"
-                          className="text-[#2b4c7e] focus:ring-[#2b4c7e]"
+                          className="text-[#1F3B73] focus:ring-[#1F3B73]"
                           checked={modePaiement === 1}
                           onChange={() => setModePaiement(1)}
                         />
@@ -650,11 +643,10 @@ export default function DossierDetailTresorerie() {
                   <button
                     type="submit"
                     disabled={modePaiement === 1 && !selectedAgenceGuid}
-                    className={`w-full py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${
-                      (modePaiement === 1 && !selectedAgenceGuid)
+                    className={`w-full py-3 font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 ${(modePaiement === 1 && !selectedAgenceGuid)
                         ? "bg-slate-300 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed"
-                        : "bg-[#2b4c7e] hover:bg-[#203a61] text-white"
-                    }`}
+                        : "bg-[#1F3B73] hover:bg-[#16294F] text-white"
+                      }`}
                   >
                     <CheckCircle2 className="w-5 h-5" /> Enregistrer et transmettre au BO
                   </button>
@@ -750,7 +742,7 @@ export default function DossierDetailTresorerie() {
                   ) : (
                     <form onSubmit={handleConfirmerBlocage} className="space-y-4 p-5 border border-red-100 dark:border-red-950/30 rounded-xl bg-red-50/20 dark:bg-red-950/10 animate-in slide-in-from-top-2">
                       <h4 className="font-bold text-red-800 dark:text-red-400 text-sm">Déclarer un blocage</h4>
-                      
+
                       <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Source du Blocage</label>
                         <select
@@ -805,12 +797,12 @@ export default function DossierDetailTresorerie() {
                 <FileText className="w-5 h-5 text-blue-500" />
                 Pièces Jointes
               </h3>
-              
+
               {dossier.new_documents_complements && dossier.new_documents_complements.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {dossier.new_documents_complements.map((doc, idx) => (
                     <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-blue-300 dark:hover:border-blue-700 transition-colors group cursor-pointer">
-                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-primary dark:text-blue-400 flex items-center justify-center shrink-0">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div className="overflow-hidden">
@@ -836,7 +828,7 @@ export default function DossierDetailTresorerie() {
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Historique
             </h3>
-            
+
             <div className="relative border-l-2 border-slate-200 dark:border-slate-700 ml-3 space-y-6">
               <div className="relative pl-6">
                 <div className="absolute w-3 h-3 bg-white border-2 border-slate-300 rounded-full -left-[7px] top-1.5"></div>
@@ -853,20 +845,20 @@ export default function DossierDetailTresorerie() {
               </div>
               <div className="relative pl-6">
                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 100 ? 'border-blue-500' : 'border-slate-300'}`}></div>
-                <p className={`text-sm font-bold ${dossier.new_status >= 100 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}>Transmission Trésorerie</p>
+                <p className={`text-sm font-bold ${dossier.new_status >= 100 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Transmission Trésorerie</p>
               </div>
               <div className="relative pl-6">
-                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 120 ? 'border-blue-500' : dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
-                 <p className={`text-sm font-bold ${dossier.new_status >= 120 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500'}`}>Règlement Préparé</p>
+                <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 120 ? 'border-blue-500' : dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
+                <p className={`text-sm font-bold ${dossier.new_status >= 120 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Règlement Préparé</p>
               </div>
               <div className="relative pl-6">
-                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
-                 <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>Remise Chèque (Clôture)</p>
+                <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
+                <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>Remise Chèque (Clôture)</p>
               </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
       {/* Accusé Réception Modal */}
       <TresoAccuseReceptionModal
         isOpen={isAccuseModalOpen}

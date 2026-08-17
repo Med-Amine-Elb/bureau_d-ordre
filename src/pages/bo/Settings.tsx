@@ -63,7 +63,7 @@ export default function Settings() {
                   onClick={() => setActiveSection(section.id)}
                   className={`flex items-center gap-3 px-6 py-4 text-sm font-semibold transition-all border-l-4 ${
                     activeSection === section.id
-                      ? "bg-blue-50 dark:bg-blue-900/20 border-blue-600 text-blue-600 dark:text-blue-400"
+                      ? "bg-blue-50 dark:bg-blue-900/20 border-blue-600 text-primary dark:text-blue-400"
                       : "border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200"
                   }`}
                 >
@@ -95,7 +95,7 @@ export default function Settings() {
                <button 
                  onClick={handleSave}
                  disabled={loading}
-                 className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-semibold soft-shadow transition-all flex items-center gap-2 disabled:opacity-50"
+                 className="bg-primary hover:bg-primary-hover text-white rounded-lg px-4 py-2 text-sm font-semibold soft-shadow transition-all flex items-center gap-2 disabled:opacity-50"
                >
                  {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
                  Enregistrer
@@ -166,7 +166,7 @@ export default function Settings() {
                            onClick={() => setTheme(mode.id as any)}
                            className={`flex flex-col items-center p-6 rounded-2xl border-2 transition-all gap-4 text-center ${
                              theme === mode.id
-                               ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                               ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400"
                                : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-700"
                            }`}
                          >
@@ -202,7 +202,7 @@ export default function Settings() {
                          </div>
                          <button 
                            onClick={() => setNotifs({...notifs, [item.id]: !notifs[item.id as keyof typeof notifs]})}
-                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${notifs[item.id as keyof typeof notifs] ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-700'}`}
+                           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${notifs[item.id as keyof typeof notifs] ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`}
                          >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${notifs[item.id as keyof typeof notifs] ? 'translate-x-6' : 'translate-x-1'}`} />
                          </button>

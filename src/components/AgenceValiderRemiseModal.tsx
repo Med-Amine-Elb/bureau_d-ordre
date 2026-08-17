@@ -50,7 +50,7 @@ export default function AgenceValiderRemiseModal({
         
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-          <h3 className="text-lg font-bold text-[#2b4c7e] dark:text-blue-400 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-[#1F3B73] dark:text-blue-400 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" /> Confirmer la Remise du Chèque
           </h3>
           <button
@@ -73,7 +73,7 @@ export default function AgenceValiderRemiseModal({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">N° Chèque :</span>
-                <span className="font-bold text-[#2b4c7e] dark:text-blue-400">{dossier.new_cheque_number || "-"}</span>
+                <span className="font-bold text-[#1F3B73] dark:text-blue-400">{dossier.new_cheque_number || "-"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Banque Émettrice :</span>
@@ -109,7 +109,7 @@ export default function AgenceValiderRemiseModal({
                 type="checkbox"
                 checked={hasSigned}
                 onChange={(e) => setHasSigned(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                className="mt-0.5 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-blue-500 h-4 w-4"
                 required
               />
               <div className="select-none leading-tight">

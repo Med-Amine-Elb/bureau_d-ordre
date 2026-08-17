@@ -133,11 +133,11 @@ export default function RemiseCheque() {
   });
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3 dark:text-slate-100">
-          <Package className="w-8 h-8 text-blue-600 dark:text-blue-600 " />{" "}
+          <Package className="w-8 h-8 text-primary dark:text-primary " />{" "}
           Remise des Chèques
         </h1>
         <p className="text-slate-500 mt-1 ml-11 dark:text-slate-400">
@@ -153,7 +153,7 @@ export default function RemiseCheque() {
             onClick={() => setActiveTab("casa")}
             className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
               activeTab === "casa"
-                ? "border-blue-600 text-blue-600 bg-white dark:bg-[#0F172B]"
+                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
@@ -163,7 +163,7 @@ export default function RemiseCheque() {
             onClick={() => setActiveTab("hors_casa")}
             className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
               activeTab === "hors_casa"
-                ? "border-blue-600 text-blue-600 bg-white dark:bg-[#0F172B]"
+                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
@@ -229,7 +229,7 @@ export default function RemiseCheque() {
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-primary dark:text-indigo-400 flex items-center justify-center">
                             <CreditCard className="w-4 h-4" />
                           </div>
                           <div>
@@ -247,7 +247,7 @@ export default function RemiseCheque() {
                           {dossier.new_supplier_id || "Fournisseur inconnu"}
                         </div>
                         <div className="text-xs text-slate-400 dark:text-slate-500">
-                          Banque : {dossier.new_banque_emettrice || "Non renseignée"} | Agence : <span className="font-semibold text-blue-600 dark:text-blue-400">{dossier.new_destination_branch_id || "Casa Anfa (Siège)"}</span>
+                          Banque : {dossier.new_banque_emettrice || "Non renseignée"} | Agence : <span className="font-semibold text-primary dark:text-blue-400">{dossier.new_destination_branch_id || "Casa Anfa (Siège)"}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -339,7 +339,7 @@ export default function RemiseCheque() {
                         type="checkbox"
                         checked={signatureChecked}
                         onChange={(e) => setSignatureChecked(e.target.checked)}
-                        className="mt-1 w-4 h-4 text-blue-600 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700"
+                        className="mt-1 w-4 h-4 text-primary rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700"
                       />
                       <div>
                         <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 block">
@@ -391,7 +391,7 @@ export default function RemiseCheque() {
                           value="camion"
                           checked={typeExpedition === "camion"}
                           onChange={() => setTypeExpedition("camion")}
-                          className="text-blue-600 focus:ring-blue-500"
+                          className="text-primary focus:ring-blue-500"
                         />
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Camion de la société</span>
                       </label>
@@ -402,7 +402,7 @@ export default function RemiseCheque() {
                           value="courrier"
                           checked={typeExpedition === "courrier"}
                           onChange={() => setTypeExpedition("courrier")}
-                          className="text-blue-600 focus:ring-blue-500"
+                          className="text-primary focus:ring-blue-500"
                         />
                         <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Courrier / Autre</span>
                       </label>

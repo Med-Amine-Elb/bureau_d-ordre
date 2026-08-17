@@ -270,7 +270,7 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
 
 export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   const entity: any = {};
-  
+
   if (d.new_folder_number !== undefined) entity.new_folder_number = d.new_folder_number;
   if (d.new_document_type !== undefined) entity.new_documenttype = mapFrontendDocumentTypeToCrm(d.new_document_type);
   if (d.new_status !== undefined) entity.new_status = d.new_status;
@@ -289,7 +289,7 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   if (d.new_banque_emettrice !== undefined) entity.new_banque_emettrice = d.new_banque_emettrice;
   if (d.new_commentaire_treso !== undefined) entity.new_treasury_comment = d.new_commentaire_treso;
   if (d.new_final_delivery_date !== undefined) entity.new_finaldeliverydate = d.new_final_delivery_date;
-  
+
   if (d.new_reception_date_agence !== undefined) entity.new_delivery_date = d.new_reception_date_agence;
   if (d.new_date_livraison !== undefined) entity.new_delivery_date = d.new_date_livraison;
   if (d.new_livreur_nom !== undefined) entity.new_delivery_person = d.new_livreur_nom;
@@ -305,7 +305,7 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   if (d.new_date_trans_dcf !== undefined) entity.new_date_trans_dcf = d.new_date_trans_dcf;
   if (d.new_date_accuse_dcf !== undefined) entity.new_date_accuse_dcf = d.new_date_accuse_dcf;
   if (d.new_date_val_dcf !== undefined) entity.new_date_val_dcf = d.new_date_val_dcf;
-  
+
   if (d.new_cheque_recu_bo !== undefined) entity.new_cheque_received_bo = d.new_cheque_recu_bo;
   if (d.new_reception_comment !== undefined) entity.new_reception_comment = d.new_reception_comment;
   if (d.new_date_accuse !== undefined) entity.new_acknowledgment_date = d.new_date_accuse;
@@ -459,15 +459,15 @@ export const dataService = {
     const context = xrm ? xrm.Utility.getGlobalContext() : null;
     const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
     const nowStr = new Date().toISOString();
-    
-    const updateData: any = { 
+
+    const updateData: any = {
       new_status: nextStatus,
       new_acknowledgment_date: nowStr
     };
     if (userId) {
       updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
     }
-    
+
     const result = await New_foldersService.update(id, updateData);
     if (result.error) {
       throw new Error("Failed to acknowledge receipt: " + JSON.stringify(result.error));
@@ -618,8 +618,8 @@ export const dataService = {
     if (excludeFolderId) {
       filter += ` and new_folderid ne ${excludeFolderId}`;
     }
-    const result = await New_foldersService.getAll({ 
-      filter, 
+    const result = await New_foldersService.getAll({
+      filter,
       select: ["new_folderid"],
       top: 1
     });

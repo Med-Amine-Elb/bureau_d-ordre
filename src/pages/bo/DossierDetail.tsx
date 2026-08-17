@@ -37,7 +37,7 @@ export default function DossierDetail() {
   if (!dossier) return <div className="p-12 text-center text-red-500">Dossier introuvable.</div>;
 
   const getStatusDisplay = (status: number) => {
-    switch(status) {
+    switch (status) {
       case 10: return { label: "Sauvegarder", color: "slate" };
       case 20: return { label: "Hors Délai", color: "red" };
       case 30: return { label: "En Transit (Prescr.)", color: "blue" };
@@ -77,7 +77,7 @@ export default function DossierDetail() {
       const isReturningFromPrescripteur = dossier.new_status === 60;
       const isToDCF = isFluxCourt || isReturningFromPrescripteur;
       const nextStatus = isToDCF ? 70 : 30;
-      
+
       const payload: Partial<Dossier> = {
         new_status: nextStatus,
         ...(isToDCF ? { new_dcf_collector_id: data.collecteur } : { new_prescriber_id: data.collecteur }),
@@ -88,7 +88,7 @@ export default function DossierDetail() {
 
       await dataService.updateDossier(dossier.new_folderid, payload);
       toast.success("Dossier transmis avec succès.");
-      
+
       // Update local state
       setDossier({
         ...dossier,
@@ -103,9 +103,9 @@ export default function DossierDetail() {
 
   return (
     <div className="w-full max-w-6xl mx-auto pb-12 animate-in fade-in duration-500">
-      
+
       {/* Back button */}
-      <button 
+      <button
         onClick={() => navigate("/bo/dossiers")}
         className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
       >
@@ -130,7 +130,7 @@ export default function DossierDetail() {
         <div className="flex flex-wrap gap-3">
           {/* Action: Accuser Réception (Traceability) - Visible uniquement si le dossier est en Transit BO (Statut 50) */}
           {dossier.new_status === 50 && (
-            <button 
+            <button
               onClick={async () => {
                 setLoading(true);
                 try {
@@ -140,7 +140,7 @@ export default function DossierDetail() {
                       if (window.parent && (window.parent as any).Xrm) {
                         return (window.parent as any).Xrm;
                       }
-                    } catch (e) {}
+                    } catch (e) { }
                     return null;
                   };
                   const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
@@ -156,8 +156,8 @@ export default function DossierDetail() {
                   if (found) setDossier(found);
                 } catch (e: any) {
                   console.error("DEBUG ACCUSE ERROR:", e);
-                  toast.error("Erreur", { 
-                    description: e.message || "Impossible d'accuser la réception." 
+                  toast.error("Erreur", {
+                    description: e.message || "Impossible d'accuser la réception."
                   });
                 } finally {
                   setLoading(false);
@@ -170,7 +170,7 @@ export default function DossierDetail() {
           )}
 
           {(dossier.new_status === 10 || dossier.new_status === 60) && (
-            <button onClick={handleTransmit} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
+            <button onClick={handleTransmit} className="bg-primary hover:bg-primary-hover text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
               <Send className="w-4 h-4" /> {dossier.new_document_type === 400 || dossier.new_document_type === 500 || dossier.new_status === 60 ? "Transmettre à la DCF" : "Transmettre à Prescripteur"}
             </button>
           )}
@@ -185,7 +185,6 @@ export default function DossierDetail() {
         {[
           { id: "infos", label: "Informations Générales", icon: FileText },
           { id: "timeline", label: "Flux de Traitement", icon: Clock },
-          { id: "transmissions", label: "Transmissions", icon: Share2 },
           { id: "blocages", label: "Blocages", icon: AlertOctagon },
           { id: "relances", label: "Relances", icon: PhoneCall },
           { id: "documents", label: "Documents", icon: LinkIcon }
@@ -193,11 +192,10 @@ export default function DossierDetail() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-t-lg text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${
-              activeTab === tab.id 
-                ? "border-blue-600 text-blue-600 bg-blue-50/50 dark:bg-blue-900/20" 
+            className={`flex items-center gap-2 px-5 py-3 rounded-t-lg text-sm font-semibold transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id
+                ? "border-blue-600 text-primary bg-blue-50/50 dark:bg-blue-900/20"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-            }`}
+              }`}
           >
             <tab.icon className="w-4 h-4" /> {tab.label}
           </button>
@@ -299,85 +297,85 @@ export default function DossierDetail() {
 
         {activeTab === "timeline" && (
           <div className="p-8">
-             {dossier.new_status === 20 && (
-               <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3">
-                 <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                 <div>
-                   <h4 className="text-sm font-bold text-red-800 dark:text-red-400">Dossier Hors Délai</h4>
-                   <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé la règle des 5 jours entre la date de la facture et sa réception. Il est classé Hors Délai et nécessite une action d'override administrateur ou une dérogation.</p>
-                 </div>
-               </div>
-             )}
-             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
-               
-               {[
-                 { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
-                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
-                 { id: 40, label: "Chez Prescripteur", desc: dossier.new_prescriber_id ? `Le dossier est chez ${dossier.new_prescriber_id} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
-                 { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
-                 { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
-                 { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
-                 { id: 80, label: "Chez DCF", desc: dossier.new_dcf_collector_id ? `Le dossier est entre les mains de ${dossier.new_dcf_collector_id} (DCF).` : "Vérification de la conformité comptable et fiscale.", icon: "shield" },
-                 { id: 90, label: "Retour Correction", desc: "Besoin de corrections ou pièces manquantes.", icon: "alert" },
-                 { id: 100, label: "Transit Trésorerie", desc: "Dossier conforme envoyé à la Trésorerie pour règlement.", icon: "send" },
-                 { id: 110, label: "Chez Trésorerie", desc: "La Trésorerie prépare le règlement (Chèque/Virement).", icon: "bank" },
-                 { id: 120, label: "Prêt pour Remise", desc: "Chèque prêt au BO pour remise au fournisseur.", icon: "credit" },
-                 { id: 130, label: "En Transport (Agence)", desc: dossier.new_destination_branch_id ? `Chèque expédié vers l'agence ${dossier.new_destination_branch_id}.` : "Chèque en cours d'expédition vers l'agence.", icon: "truck" },
-                 { id: 140, label: "Disponible Agence", desc: dossier.new_destination_branch_id ? `Le chèque est arrivé à l'agence ${dossier.new_destination_branch_id} pour retrait.` : "Le chèque est arrivé en agence pour retrait.", icon: "map" },
-                 { id: 150, label: "Payé / Clôturé", desc: "Remise effectuée et dossier clôturé définitivement.", icon: "check" }
-               ].map((step, index) => {
-                 // Logic for visibility and state
-                 const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
-                 
-                 // Handle Retour Correction separately if it's not the current status
-                 if (step.id === 90 && dossier.new_status !== 90) return null;
+            {dossier.new_status === 20 && (
+              <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3">
+                <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-red-800 dark:text-red-400">Dossier Hors Délai</h4>
+                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé la règle des 5 jours entre la date de la facture et sa réception. Il est classé Hors Délai et nécessite une action d'override administrateur ou une dérogation.</p>
+                </div>
+              </div>
+            )}
+            <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
 
-                 const actuallyCurrent = (dossier.new_status === step.id);
-                 const isFuture = dossier.new_status < step.id;
+              {[
+                { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
+                { id: 40, label: "Chez Prescripteur", desc: dossier.new_prescriber_id ? `Le dossier est chez ${dossier.new_prescriber_id} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
+                { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
+                { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
+                { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
+                { id: 80, label: "Chez DCF", desc: dossier.new_dcf_collector_id ? `Le dossier est entre les mains de ${dossier.new_dcf_collector_id} (DCF).` : "Vérification de la conformité comptable et fiscale.", icon: "shield" },
+                { id: 90, label: "Retour Correction", desc: "Besoin de corrections ou pièces manquantes.", icon: "alert" },
+                { id: 100, label: "Transit Trésorerie", desc: "Dossier conforme envoyé à la Trésorerie pour règlement.", icon: "send" },
+                { id: 110, label: "Chez Trésorerie", desc: "La Trésorerie prépare le règlement (Chèque/Virement).", icon: "bank" },
+                { id: 120, label: "Prêt pour Remise", desc: "Chèque prêt au BO pour remise au fournisseur.", icon: "credit" },
+                { id: 130, label: "En Transport (Agence)", desc: dossier.new_destination_branch_id ? `Chèque expédié vers l'agence ${dossier.new_destination_branch_id}.` : "Chèque en cours d'expédition vers l'agence.", icon: "truck" },
+                { id: 140, label: "Disponible Agence", desc: dossier.new_destination_branch_id ? `Le chèque est arrivé à l'agence ${dossier.new_destination_branch_id} pour retrait.` : "Le chèque est arrivé en agence pour retrait.", icon: "map" },
+                { id: 150, label: "Payé / Clôturé", desc: "Remise effectuée et dossier clôturé définitivement.", icon: "check" }
+              ].map((step, index) => {
+                // Logic for visibility and state
+                const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
 
-                 if (isFuture && !actuallyCurrent) {
-                    return (
-                      <div key={step.id} className="relative pl-8 opacity-40">
-                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 ring-4 ring-white dark:ring-[#0F172B]"></div>
-                        <h4 className="font-bold text-slate-400 dark:text-slate-500 text-sm">{step.label}</h4>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{step.desc}</p>
+                // Handle Retour Correction separately if it's not the current status
+                if (step.id === 90 && dossier.new_status !== 90) return null;
+
+                const actuallyCurrent = (dossier.new_status === step.id);
+                const isFuture = dossier.new_status < step.id;
+
+                if (isFuture && !actuallyCurrent) {
+                  return (
+                    <div key={step.id} className="relative pl-8 opacity-40">
+                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-800 ring-4 ring-white dark:ring-[#0F172B]"></div>
+                      <h4 className="font-bold text-slate-400 dark:text-slate-500 text-sm">{step.label}</h4>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{step.desc}</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={step.id} className="relative pl-8">
+                    <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${actuallyCurrent ? 'bg-blue-500 animate-pulse ring-blue-100 dark:ring-blue-900/30' : 'bg-emerald-500'} ring-4 ring-white dark:ring-[#0F172B]`}></div>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Étape {index + 1}</p>
+                        <h4 className={`font-bold text-sm ${actuallyCurrent ? 'text-primary dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>{step.label}</h4>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-md">{step.desc}</p>
                       </div>
-                    );
-                 }
-
-                 return (
-                   <div key={step.id} className="relative pl-8">
-                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full ${actuallyCurrent ? 'bg-blue-500 animate-pulse ring-blue-100 dark:ring-blue-900/30' : 'bg-emerald-500'} ring-4 ring-white dark:ring-[#0F172B]`}></div>
-                     <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Étape {index + 1}</p>
-                          <h4 className={`font-bold text-sm ${actuallyCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-slate-800 dark:text-slate-200'}`}>{step.label}</h4>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 max-w-md">{step.desc}</p>
+                      {actuallyCurrent && (
+                        <span className="bg-blue-50 dark:bg-blue-900/30 text-primary dark:text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-full">ACTUEL</span>
+                      )}
+                      {!actuallyCurrent && isCompleted && (
+                        <div className="text-right">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
+                          {dossier.new_accuse_par && step.id === 60 && (
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-1">Accusé par {dossier.new_accuse_par}</p>
+                          )}
+                          {dossier.new_date_accuse && step.id === 60 && (
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500">{new Date(dossier.new_date_accuse).toLocaleDateString('fr-FR')}</p>
+                          )}
                         </div>
-                        {actuallyCurrent && (
-                          <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-bold px-2 py-0.5 rounded-full">ACTUEL</span>
-                        )}
-                        {!actuallyCurrent && isCompleted && (
-                          <div className="text-right">
-                             <CheckCircle2 className="w-4 h-4 text-emerald-500 ml-auto" />
-                             {dossier.new_accuse_par && step.id === 60 && (
-                               <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-1">Accusé par {dossier.new_accuse_par}</p>
-                             )}
-                             {dossier.new_date_accuse && step.id === 60 && (
-                               <p className="text-[9px] text-slate-400 dark:text-slate-500">{new Date(dossier.new_date_accuse).toLocaleDateString('fr-FR')}</p>
-                             )}
-                          </div>
-                        )}
-                     </div>
-                   </div>
-                 );
-               })}
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
 
-             </div>
+            </div>
           </div>
         )}
 
-        {(activeTab === "transmissions" || activeTab === "blocages" || activeTab === "relances" || activeTab === "documents") && (
+        {(activeTab === "blocages" || activeTab === "relances" || activeTab === "documents") && (
           <div className="p-12 flex flex-col items-center justify-center text-center">
             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
               <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600" />

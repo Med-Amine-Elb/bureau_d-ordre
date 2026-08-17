@@ -47,7 +47,7 @@ export default function AgenceAccuseReceptionModal({
         
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
-          <h3 className="text-lg font-bold text-[#2b4c7e] dark:text-blue-400 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-[#1F3B73] dark:text-blue-400 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" /> Accusé de Réception Chèque (Agence)
           </h3>
           <button
@@ -91,12 +91,12 @@ export default function AgenceAccuseReceptionModal({
               {dossier.new_livreur_nom && (
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-slate-400 font-medium">Chauffeur :</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">{dossier.new_livreur_nom}</span>
+                  <span className="font-bold text-primary dark:text-blue-400">{dossier.new_livreur_nom}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-slate-500 dark:text-slate-400 font-medium">Agence Destination :</span>
-                <span className="font-semibold text-[#2b4c7e] dark:text-blue-400">{dossier.new_destination_branch_id || "-"}</span>
+                <span className="font-semibold text-[#1F3B73] dark:text-blue-400">{dossier.new_destination_branch_id || "-"}</span>
               </div>
             </div>
 
@@ -106,7 +106,7 @@ export default function AgenceAccuseReceptionModal({
                 Date de Réception en Agence (Automatique)
               </label>
               <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold">
-                <Calendar className="w-4 h-4 text-[#2b4c7e] dark:text-blue-400" />
+                <Calendar className="w-4 h-4 text-[#1F3B73] dark:text-blue-400" />
                 {todayStr}
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function AgenceAccuseReceptionModal({
                 type="checkbox"
                 checked={confirmedPhysical}
                 onChange={(e) => setConfirmedPhysical(e.target.checked)}
-                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 h-4 w-4"
+                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-blue-500 h-4 w-4"
               />
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 select-none leading-relaxed">
                 Je confirme avoir reçu physiquement le chèque signé correspondant à ce dossier. <span className="text-red-500">*</span>
@@ -153,7 +153,7 @@ export default function AgenceAccuseReceptionModal({
               disabled={!confirmedPhysical}
               className={`px-5 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${
                 confirmedPhysical
-                  ? "bg-[#2b4c7e] hover:bg-[#203a61] text-white shadow-blue-500/20 active:scale-95"
+                  ? "bg-[#1F3B73] hover:bg-[#16294F] text-white shadow-primary/20 active:scale-95"
                   : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
               }`}
             >

@@ -175,7 +175,7 @@ export default function AdminUtilisateurs() {
         </div>
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-[#2b4c7e] hover:bg-[#20395f] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#2b4c7e]/20"
+          className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
         >
           <UserPlus className="w-5 h-5" /> Ajouter un Utilisateur
         </button>
@@ -191,7 +191,7 @@ export default function AdminUtilisateurs() {
             placeholder="Rechercher par nom, email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 transition-all text-slate-950 dark:text-white"
+            className="w-full pl-12 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 transition-all text-slate-950 dark:text-white"
           />
         </div>
 
@@ -203,7 +203,7 @@ export default function AdminUtilisateurs() {
               onClick={() => setRoleFilter(r)}
               className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${
                 roleFilter === r
-                  ? "bg-[#2b4c7e] text-white border-[#2b4c7e] shadow-sm"
+                  ? "bg-[#1F3B73] text-white border-[#1F3B73] shadow-sm"
                   : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
               }`}
             >
@@ -239,7 +239,7 @@ export default function AdminUtilisateurs() {
                     {/* User profile */}
                     <td className="py-4 px-6 font-bold text-slate-850 dark:text-slate-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-850 flex items-center justify-center font-bold text-[#2b4c7e] text-sm">
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-850 flex items-center justify-center font-bold text-[#1F3B73] text-sm">
                           {u.fullname.split(" ").map(n => n[0]).join("")}
                         </div>
                         {u.fullname}
@@ -301,7 +301,7 @@ export default function AdminUtilisateurs() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleOpenEdit(u)}
-                          className="p-2 text-slate-450 hover:text-[#2b4c7e] hover:bg-[#2b4c7e]/5 rounded-lg transition-colors"
+                          className="p-2 text-slate-450 hover:text-[#1F3B73] hover:bg-[#1F3B73]/5 rounded-lg transition-colors"
                           title="Modifier l'utilisateur"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -337,7 +337,7 @@ export default function AdminUtilisateurs() {
             </button>
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
-              <Users className="w-6 h-6 text-[#2b4c7e]" />
+              <Users className="w-6 h-6 text-[#1F3B73]" />
               {isEditing ? "Modifier l'Utilisateur" : "Nouvel Utilisateur"}
             </h2>
 
@@ -351,7 +351,7 @@ export default function AdminUtilisateurs() {
                   placeholder="Ex: Sarah Alaoui"
                   value={fullname}
                   onChange={(e) => setFullname(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -364,7 +364,7 @@ export default function AdminUtilisateurs() {
                   placeholder="Ex: s.alaoui@gbm.ma"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -375,7 +375,7 @@ export default function AdminUtilisateurs() {
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                   >
                     <option value="BO">Bureau d'Ordre</option>
                     <option value="Prescripteur">Prescripteur</option>
@@ -391,7 +391,7 @@ export default function AdminUtilisateurs() {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                   >
                     <option value="Actif">Actif</option>
                     <option value="Inactif">Inactif</option>
@@ -408,7 +408,7 @@ export default function AdminUtilisateurs() {
                   <select
                     value={agence}
                     onChange={(e) => setAgence(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                   >
                     {agences.map((a) => (
                       <option key={a.new_branchid} value={a.new_name}>
@@ -430,7 +430,7 @@ export default function AdminUtilisateurs() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-sm font-bold transition-all"
+                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
                 >
                   Enregistrer
                 </button>

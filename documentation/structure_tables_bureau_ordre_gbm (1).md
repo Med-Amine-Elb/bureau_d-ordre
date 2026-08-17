@@ -270,3 +270,54 @@ Ces tables dépendent toutes de `new_folder`. La relation est configurée en **R
 | 4 | `new_notification` | Notifications in-app | `new_folder` |
 
 **Total : 10 tables custom | ~80 colonnes | Relations Referential Restrict Delete sur toutes les tables historiques**
+
+---
+
+## Mappings Techniques et Ajustements de Production (Dataverse CRM)
+
+Afin d'assurer la communication directe avec les services officiels Dataverse (sans données simulées locales), plusieurs ajustements techniques et mappings ont été appliqués entre l'application frontend React et les schémas CRM réels :
+
+### 1. Types de Documents (`new_documenttype`)
+Les valeurs d'Option Set générées par Dataverse ont été mappées avec les identifiants numériques du frontend :
+- **Facture (Normal & Court)** : Frontend `100` / `400` ↔ Dataverse `871840000`
+- **Avoir** : Frontend `200` ↔ Dataverse `871840001`
+- **Acompte (Normal & Court)** : Frontend `500` ↔ Dataverse `871840002`
+- **Courrier** : Frontend `600` ↔ Dataverse `871840003`
+
+### 2. Référentiel Directions (`new_departement`)
+Les noms de colonnes physiques de votre CRM ont été alignés :
+- Clé primaire CRM : `new_departementid` (orthographe française) ↔ Frontend : `new_departmentid`
+- Champ d'activité CRM : `new_isactive` (sans tiret) ↔ Frontend : `new_is_active`
+
+### 3. Référentiel Fournisseurs (`new_supplier`)
+- La colonne de code fournisseur dans Dataverse correspond à l'identifiant fiscal de l'ICE (**`new_tax_id`**). La colonne `new_code` n'existait pas en CRM. Elle est lue depuis `new_tax_id` et mappée vers `new_code` dans l'interface.
+
+### 4. Spécificités de la table Dossier (`new_folder`)
+- **Date Retour BO** : Renseignée sous le nom technique **`new_date_return_bo`** en CRM (et non `new_date_retour_bo`).
+- **Date Transmission BO** : Renseignée sous le nom technique **`new_bo_transmission_date`** en CRM (et non `new_date_transmission_bo`).
+- **Liaison Agence Destination** : Liaison OData configurée sur le chemin d'entité pluriel exact **`/new_branchs(...)`** (et non `/new_branches`).
+
+### 5. Filtrage Dynamique Prescripteurs
+- Le filtrage par direction s'effectue dynamiquement en comparant l'identifiant de la direction sélectionnée avec la valeur de la colonne de recherche **`_new_department_id_value`** de la table native **Utilisateur** (`SystemUser`).
+
+### 6. Règle d'Unicité des Factures (Clé de Substitution)
+- **Règle** : Un fournisseur donné ne peut pas avoir deux factures avec le même numéro de facture.
+- **Base de données (Dataverse)** : Une clé de substitution alternative unique (**`new_FactureUniqueparFournisseur`**) a été configurée sur la table des dossiers (**`new_folder`**). Elle est composée du couple de colonnes : **Fournisseur** (`new_supplier_id`) + **Numéro Facture** (`new_invoicenumber`).
+- **Frontend (React)** : Une validation en temps réel a été implémentée dans `CreateDossier.tsx` via `dataService.checkDuplicateInvoice` pour interroger Dataverse et alerter l'utilisateur immédiatement en cas de doublon avant la soumission.
+
+### 7. Restructuration des Rôles (Accusés de Réception)
+- **Problème** : En mode simulation (maquette), le Bureau d'Ordre (BO) pouvait accuser réception pour n'importe quel rôle (Prescripteur, DCF, Trésorerie) lors des étapes de transit.
+- **Correction (Production)** : Le bouton d'action **"Accuser Réception"** dans la fiche détail du BO ([DossierDetail.tsx](file:///c:/Users/melboubakri/bureau/src/pages/bo/DossierDetail.tsx)) a été restreint pour s'afficher **uniquement** lorsque le dossier est au statut **`50` (En Transit Vers BO)**.
+- **Traçabilité** : Le nom de l'utilisateur qui accuse réception est désormais extrait dynamiquement du contexte Microsoft CRM (`context.userSettings.userName`) au lieu de valeurs de simulation codées en dur.
+
+### 8. Mapping de l'état "Comptabilisé" du DCF
+- **Problème** : Lorsque l'agent DCF cochait ou décochait l'état "Comptabilisé", la valeur n'était pas persistée en base de données Dataverse car le champ `new_est_comptabilise` n'était pas mappé.
+- **Correction** : Le champ frontend **`new_est_comptabilise`** a été mappé dans `dataService.ts` sur la colonne native **`new_accountingdate`** (Date de Comptabilisation) de la table dossier :
+  - S'il est marqué comme comptabilisé, `new_accountingdate` prend la date/heure actuelle.
+  - Si la comptabilisation est annulée, `new_accountingdate` prend la valeur `null`.
+  - Lors de la récupération (GET), `new_est_comptabilise` est évalué à `true` si `new_accountingdate` contient une valeur.
+
+### 9. Renommage des Labels : "Date de la Facture"
+- **Correction** : Par souci de clarté métier, toutes les occurrences textuelles de **"Date du Document"** ou **"Date Document"** ont été renommées en **"Date de la Facture"** dans l'ensemble des rôles (Création de dossier, Fiche détail BO, Fiche détail Prescripteur, etc.).
+- **Impact technique** : Le champ technique sous-jacent reste inchangé (`new_invoice_date` / `new_invoicedate`), garantissant la compatibilité totale avec le schéma Dataverse existant.
+

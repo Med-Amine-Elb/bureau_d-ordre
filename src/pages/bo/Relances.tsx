@@ -72,12 +72,12 @@ export default function Relances() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="w-full pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-          <PhoneCall className="w-8 h-8 text-blue-600" /> Gestion des Relances
+          <PhoneCall className="w-8 h-8 text-primary" /> Gestion des Relances
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1 ml-11">Centralisez les rappels et suivez les dossiers bloqués.</p>
       </div>
@@ -106,7 +106,7 @@ export default function Relances() {
             onClick={() => setActiveTab("fournisseurs")}
             className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
               activeTab === "fournisseurs" 
-                ? "border-blue-600 text-blue-600 bg-white dark:bg-[#0F172B]" 
+                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]" 
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
@@ -116,7 +116,7 @@ export default function Relances() {
             onClick={() => setActiveTab("prescripteurs")}
             className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
               activeTab === "prescripteurs" 
-                ? "border-blue-600 text-blue-600 bg-white dark:bg-[#0F172B]" 
+                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]" 
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
           >
@@ -203,7 +203,7 @@ export default function Relances() {
             
             <div className="p-6 space-y-4">
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 flex items-center gap-4 border border-slate-100 dark:border-slate-800/50">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 text-primary dark:text-blue-400 rounded-lg flex items-center justify-center">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
@@ -220,7 +220,7 @@ export default function Relances() {
                       type="radio" 
                       checked={relanceType === "email"} 
                       onChange={() => setRelanceType("email")} 
-                      className="text-blue-600 focus:ring-blue-500" 
+                      className="text-primary focus:ring-blue-500" 
                     />
                     <span className="text-sm flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                       <Mail className="w-4 h-4 text-slate-400" /> Email
@@ -231,7 +231,7 @@ export default function Relances() {
                       type="radio" 
                       checked={relanceType === "tel"} 
                       onChange={() => setRelanceType("tel")} 
-                      className="text-blue-600 focus:ring-blue-500" 
+                      className="text-primary focus:ring-blue-500" 
                     />
                     <span className="text-sm flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
                       <PhoneCall className="w-4 h-4 text-slate-400" /> Téléphone
@@ -309,7 +309,7 @@ export default function Relances() {
               <button 
                 onClick={handleSendRelance} 
                 disabled={isSending || !selectedUserId}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all disabled:opacity-50"
+                className="px-6 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-lg flex items-center gap-2 shadow-lg shadow-primary/20 transition-all disabled:opacity-50"
               >
                 {isSending ? (
                   <>

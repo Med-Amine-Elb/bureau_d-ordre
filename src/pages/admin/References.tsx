@@ -204,14 +204,14 @@ export default function AdminReferences() {
         {activeTab === "fournisseurs" ? (
           <button
             onClick={handleOpenAddFour}
-            className="flex items-center gap-2 bg-[#2b4c7e] hover:bg-[#20395f] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#2b4c7e]/20"
+            className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
           >
             <Plus className="w-5 h-5" /> Ajouter un Fournisseur
           </button>
         ) : (
           <button
             onClick={handleOpenAddAgence}
-            className="flex items-center gap-2 bg-[#2b4c7e] hover:bg-[#20395f] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#2b4c7e]/20"
+            className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
           >
             <Plus className="w-5 h-5" /> Ajouter une Agence
           </button>
@@ -224,7 +224,7 @@ export default function AdminReferences() {
           onClick={() => setActiveTab("fournisseurs")}
           className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-sm transition-colors ${
             activeTab === "fournisseurs"
-              ? "border-[#2b4c7e] text-[#2b4c7e] dark:border-blue-400 dark:text-blue-400"
+              ? "border-[#1F3B73] text-[#1F3B73] dark:border-blue-400 dark:text-blue-400"
               : "border-transparent text-slate-450 hover:text-slate-900 dark:text-slate-500 dark:hover:text-white"
           }`}
         >
@@ -234,7 +234,7 @@ export default function AdminReferences() {
           onClick={() => setActiveTab("agences")}
           className={`flex items-center gap-2 px-6 py-3 border-b-2 font-bold text-sm transition-colors ${
             activeTab === "agences"
-              ? "border-[#2b4c7e] text-[#2b4c7e] dark:border-blue-400 dark:text-blue-400"
+              ? "border-[#1F3B73] text-[#1F3B73] dark:border-blue-400 dark:text-blue-400"
               : "border-transparent text-slate-450 hover:text-slate-900 dark:text-slate-500 dark:hover:text-white"
           }`}
         >
@@ -254,7 +254,7 @@ export default function AdminReferences() {
                 placeholder="Rechercher un fournisseur par nom ou code..."
                 value={fourSearch}
                 onChange={(e) => setFourSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 transition-all text-slate-950 dark:text-white"
+                className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 transition-all text-slate-950 dark:text-white"
               />
             </div>
           </div>
@@ -304,7 +304,7 @@ export default function AdminReferences() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleOpenEditFour(f)}
-                              className="p-2 text-slate-400 hover:text-[#2b4c7e] hover:bg-[#2b4c7e]/5 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-[#1F3B73] hover:bg-[#1F3B73]/5 rounded-lg transition-colors"
                               title="Modifier Fournisseur"
                             >
                               <Edit2 className="w-4 h-4" />
@@ -340,7 +340,7 @@ export default function AdminReferences() {
                 placeholder="Rechercher une agence par nom ou ville..."
                 value={agenceSearch}
                 onChange={(e) => setAgenceSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 transition-all text-slate-950 dark:text-white"
+                className="w-full pl-11 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 transition-all text-slate-950 dark:text-white"
               />
             </div>
           </div>
@@ -396,7 +396,7 @@ export default function AdminReferences() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => handleOpenEditAgence(a)}
-                              className="p-2 text-slate-400 hover:text-[#2b4c7e] hover:bg-[#2b4c7e]/5 rounded-lg transition-colors"
+                              className="p-2 text-slate-400 hover:text-[#1F3B73] hover:bg-[#1F3B73]/5 rounded-lg transition-colors"
                               title="Modifier l'Agence"
                             >
                               <Edit2 className="w-4 h-4" />
@@ -435,7 +435,7 @@ export default function AdminReferences() {
             </button>
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
-              <FileText className="w-6 h-6 text-[#2b4c7e]" />
+              <FileText className="w-6 h-6 text-[#1F3B73]" />
               {isEditingFour ? "Modifier Fournisseur" : "Nouveau Fournisseur"}
             </h2>
 
@@ -448,7 +448,7 @@ export default function AdminReferences() {
                   placeholder="Ex: MAROC TELECOM"
                   value={fourName}
                   onChange={(e) => setFourName(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -459,7 +459,7 @@ export default function AdminReferences() {
                   placeholder="Ex: FR-IAM-01"
                   value={fourCode}
                   onChange={(e) => setFourCode(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-mono"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-mono"
                 />
               </div>
 
@@ -468,7 +468,7 @@ export default function AdminReferences() {
                 <select
                   value={fourActif ? "true" : "false"}
                   onChange={(e) => setFourActif(e.target.value === "true")}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 >
                   <option value="true">Actif</option>
                   <option value="false">Inactif</option>
@@ -486,7 +486,7 @@ export default function AdminReferences() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-sm font-bold transition-all"
+                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
                 >
                   Enregistrer
                 </button>
@@ -521,7 +521,7 @@ export default function AdminReferences() {
                   placeholder="Ex: Casa Anfa"
                   value={agenceName}
                   onChange={(e) => setAgenceName(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 />
               </div>
 
@@ -533,7 +533,7 @@ export default function AdminReferences() {
                   placeholder="Ex: Casablanca"
                   value={agenceVille}
                   onChange={(e) => setAgenceVille(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
                 />
               </div>
 
@@ -542,7 +542,7 @@ export default function AdminReferences() {
                 <select
                   value={agenceActif ? "true" : "false"}
                   onChange={(e) => setAgenceActif(e.target.value === "true")}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2b4c7e]/20 text-sm text-slate-950 dark:text-white font-semibold"
+                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 >
                   <option value="true">Active</option>
                   <option value="false">Inactive</option>
@@ -560,7 +560,7 @@ export default function AdminReferences() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#2b4c7e] hover:bg-[#20395f] text-white rounded-xl text-sm font-bold transition-all"
+                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
                 >
                   Enregistrer
                 </button>
