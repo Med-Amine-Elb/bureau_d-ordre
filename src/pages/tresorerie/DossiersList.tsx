@@ -34,7 +34,7 @@ export default function DossiersListTresorerie() {
   const [showFilters, setShowFilters] = useState(!!location.state?.filterStatus);
   const [filterType, setFilterType] = useState<number | "ALL">("ALL");
   const [filterStatus, setFilterStatus] = useState<number | string | "ALL">(
-    location.state?.filterStatus || "ALL"
+    location.state?.filterStatus ?? "ACTIFS"
   );
   const [filterFournisseur, setFilterFournisseur] = useState("");
   const [filterModePaiement, setFilterModePaiement] = useState<string>("ALL");
@@ -99,7 +99,11 @@ export default function DossiersListTresorerie() {
       filterType === "ALL" || d.new_document_type === filterType;
 
     let matchesStatus = filterStatus === "ALL";
-    if (filterStatus === "BLOQUE") {
+    if (filterStatus === "ACTIFS") {
+      matchesStatus = d.new_status >= 100 && d.new_status !== 150;
+    } else if (filterStatus === "ARCHIVES") {
+      matchesStatus = d.new_status === 150;
+    } else if (filterStatus === "BLOQUE") {
       matchesStatus = !!d.new_is_blocked;
     } else if (filterStatus !== "ALL") {
       matchesStatus = d.new_status === Number(filterStatus);
@@ -178,6 +182,8 @@ export default function DossiersListTresorerie() {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="ALL">Tous les statuts</option>
+                <option value="ACTIFS">Dossiers actifs</option>
+                <option value="ARCHIVES">Archives — dossiers clôturés</option>
                 <option value="100">{getDossierStatusLabel(100)}</option>
                 <option value="110">{getDossierStatusLabel(110)}</option>
                 <option value="120">{getDossierStatusLabel(120)}</option>
