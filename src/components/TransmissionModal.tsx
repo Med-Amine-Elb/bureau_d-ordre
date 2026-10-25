@@ -23,7 +23,6 @@ export default function TransmissionModal({
 }: TransmissionModalProps) {
   const [collector, setCollector] = useState(initialCollector);
   const [comment, setComment] = useState("");
-  const [physicalHandoffConfirmed, setPhysicalHandoffConfirmed] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +30,6 @@ export default function TransmissionModal({
     if (isOpen) {
       setCollector(initialCollector);
       setComment("");
-      setPhysicalHandoffConfirmed(false);
       setLoading(true);
       
       dataService.getUsers()
@@ -59,7 +57,7 @@ export default function TransmissionModal({
     return true;
   });
 
-  const canConfirm = collector !== "" && physicalHandoffConfirmed;
+  const canConfirm = collector !== "";
 
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +73,7 @@ export default function TransmissionModal({
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
           <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Send className="w-5 h-5 text-blue-500" /> Transmission du Dossier
+            <Send className="w-5 h-5 text-blue-500" /> Transmission du dossier
           </h3>
           <button
             type="button"
@@ -103,7 +101,7 @@ export default function TransmissionModal({
                 required
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               >
-                <option value="">
+                <option value="" disabled>
                   {loading
                     ? "Chargement des destinataires..."
                     : filteredUsers.length === 0
@@ -132,18 +130,6 @@ export default function TransmissionModal({
               />
             </div>
 
-            {/* Physical Checkbox */}
-            <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-              <input
-                type="checkbox"
-                checked={physicalHandoffConfirmed}
-                onChange={(e) => setPhysicalHandoffConfirmed(e.target.checked)}
-                className="mt-1 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-blue-500 h-4 w-4"
-              />
-              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 select-none leading-relaxed">
-                Je confirme avoir physiquement transmis ce dossier / pli à l'acteur ou au collecteur concerné. <span className="text-red-500">*</span>
-              </span>
-            </label>
           </div>
 
           {/* Footer */}

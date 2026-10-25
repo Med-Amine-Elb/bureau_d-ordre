@@ -34,7 +34,6 @@ export default function RemiseCheque() {
   const fetchDossiers = async () => {
     setLoading(true);
     const data = await dataService.getDossiers();
-    // On filtre pour ne garder que ceux "En Attente Remise Finale" (120) et de type "Chèque" (new_payment_method === 1)
     const aRemettre = data.filter(
       (d) => d.new_status === 120 && d.new_payment_method === 1,
     );
@@ -101,10 +100,10 @@ export default function RemiseCheque() {
         });
       } else {
         const selectedAg = agences.find(a => a.new_name === agenceDestination);
-        const commentary = typeExpedition === "camion" 
-          ? "Expédié via Camion de la société" 
+        const commentary = typeExpedition === "camion"
+          ? "Expédié via Camion de la société"
           : `Expédié via Courrier (${modeEnvoi})`;
-        
+
         await dataService.updateDossier(selectedDossier.new_folderid, {
           new_status: 130,
           new_destination_branch_id: agenceDestination,
@@ -122,9 +121,9 @@ export default function RemiseCheque() {
   };
 
   const filteredDossiers = dossiers.filter((d) => {
-    const isCasaBranch = !d.new_destination_branch_id || 
-                         d.new_destination_branch_id === "Casa Anfa" || 
-                         d.new_destination_branch_id.toLowerCase().includes("casa");
+    const isCasaBranch = !d.new_destination_branch_id ||
+      d.new_destination_branch_id === "Casa Anfa" ||
+      d.new_destination_branch_id.toLowerCase().includes("casa");
     if (activeTab === "casa") {
       return isCasaBranch;
     } else {
@@ -138,7 +137,7 @@ export default function RemiseCheque() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3 dark:text-slate-100">
           <Package className="w-8 h-8 text-primary dark:text-primary " />{" "}
-          Remise des Chèques
+          Remise des chèques
         </h1>
         <p className="text-slate-500 mt-1 ml-11 dark:text-slate-400">
           Gestion de la remise physique des chèques aux fournisseurs ou agences.
@@ -151,21 +150,19 @@ export default function RemiseCheque() {
         <div className="flex items-center border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
           <button
             onClick={() => setActiveTab("casa")}
-            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
-              activeTab === "casa"
+            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${activeTab === "casa"
                 ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-            }`}
+              }`}
           >
             Chèques Casa (Remise Directe)
           </button>
           <button
             onClick={() => setActiveTab("hors_casa")}
-            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
-              activeTab === "hors_casa"
+            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${activeTab === "hors_casa"
                 ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]"
                 : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-            }`}
+              }`}
           >
             Chèques Hors Casa (Expédition)
           </button>
@@ -260,14 +257,14 @@ export default function RemiseCheque() {
                             }}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-semibold transition-colors shadow-sm"
                           >
-                            <UserCheck className="w-4 h-4" /> Accuser Réception
+                            <UserCheck className="w-4 h-4" /> Accuser réception
                           </button>
                         ) : activeTab === "casa" ? (
                           <button
                             onClick={() => handleOpenRemise(dossier)}
                             className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm font-semibold transition-colors shadow-sm"
                           >
-                            <UserCheck className="w-4 h-4" /> Remettre Chèque
+                            <UserCheck className="w-4 h-4" /> Remettre le chèque
                           </button>
                         ) : (
                           <button
@@ -294,8 +291,8 @@ export default function RemiseCheque() {
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
               <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
                 {activeTab === "casa"
-                  ? "Validation Remise Chèque"
-                  : "Expédition vers Agence"}
+                  ? "Validation de remise de chèque"
+                  : "Expédition vers agence"}
               </h2>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -359,7 +356,7 @@ export default function RemiseCheque() {
                     <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">
                       Agence de Destination
                     </label>
-                    <select 
+                    <select
                       value={agenceDestination}
                       onChange={(e) => setAgenceDestination(e.target.value)}
                       className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -470,7 +467,7 @@ export default function RemiseCheque() {
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
               <h2 className="text-lg font-bold text-slate-950 dark:text-white flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-amber-500" /> Accuser Réception du Chèque
+                <CheckCircle className="w-5 h-5 text-amber-500" /> Accuser réception du chèque
               </h2>
               <button
                 onClick={() => {
@@ -498,7 +495,7 @@ export default function RemiseCheque() {
                   <span className="font-bold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_cheque_number || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400 font-medium">Banque Émettrice :</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Banque émettrice :</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedForAccuse.new_banque_emettrice || "N/A"}</span>
                 </div>
                 <div className="flex justify-between">

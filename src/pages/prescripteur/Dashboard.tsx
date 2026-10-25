@@ -17,7 +17,9 @@ import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
-import { differenceInDays, parseISO } from "date-fns";
+import { addMonths, differenceInDays, format, parseISO, startOfYear } from "date-fns";
+import { fr } from "date-fns/locale";
+import { isDateInMonth } from "@/lib/monthlyMetrics";
 import {
   PieChart, Pie, ResponsiveContainer, Cell
 } from "recharts";
@@ -36,6 +38,10 @@ export default function DashboardPrescripteur() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
 
   const fetchDossiers = async () => {
     try {
@@ -59,32 +65,51 @@ export default function DashboardPrescripteur() {
 
   const aValider = dossiers.filter((d) => d.new_status === 30 || d.new_status === 40).length;
   const enCorrection = dossiers.filter((d) => d.new_status === 90).length;
-  const validesCeMois = dossiers.filter((d) => d.new_status >= 50 && d.new_status !== 90).length;
+  const validesCeMois = dossiers.filter(
+    (d) => d.new_status >= 50 && d.new_status !== 90 && isDateInMonth(d.new_date_val_prescripteur, new Date()),
+  ).length;
   const horsDelai = dossiers.filter((d) => {
     if (!d.new_reception_date) return false;
     return differenceInDays(new Date(), parseISO(d.new_reception_date)) > 5;
   }).length;
 
+  const monthlyDossiers = dossiers.filter((d) => isDateInMonth(d.new_reception_date, selectedMonth));
+  const monthlyCounts = {
+    aValider: monthlyDossiers.filter((d) => d.new_status === 30 || d.new_status === 40).length,
+    enCorrection: monthlyDossiers.filter((d) => d.new_status === 90).length,
+    horsDelai: monthlyDossiers.filter((d) => {
+      if (d.new_status !== 20 || !d.new_reception_date) return false;
+      return differenceInDays(new Date(), parseISO(d.new_reception_date)) > 5;
+    }).length,
+    traites: monthlyDossiers.filter((d) => d.new_status >= 50 && d.new_status !== 90).length,
+  };
   const chartData = [
-    { name: "À Valider", value: aValider, color: "#3b82f6", grad: "url(#grad-blue)", icon: FileText },
-    { name: "Corrections", value: enCorrection, color: "#a855f7", grad: "url(#grad-purple)", icon: RotateCcw },
-    { name: "Hors Délai", value: horsDelai, color: "#ef4444", grad: "url(#grad-red)", icon: Clock },
-    { name: "Traités", value: validesCeMois, color: "#14b8a6", grad: "url(#grad-teal)", icon: CheckCircle }
+    { name: "À valider", value: monthlyCounts.aValider, color: "#3b82f6", grad: "url(#grad-blue)", icon: FileText },
+    { name: "Corrections", value: monthlyCounts.enCorrection, color: "#a855f7", grad: "url(#grad-purple)", icon: RotateCcw },
+    { name: "Hors délai", value: monthlyCounts.horsDelai, color: "#ef4444", grad: "url(#grad-red)", icon: Clock },
+    { name: "Traités", value: monthlyCounts.traites, color: "#14b8a6", grad: "url(#grad-teal)", icon: CheckCircle }
   ];
-
-  const totalDossiers = aValider + validesCeMois + enCorrection + horsDelai;
+  const totalDossiers = chartData.reduce((total, entry) => total + entry.value, 0);
+  const monthsOfYear = Array.from({ length: 12 }, (_, index) => addMonths(startOfYear(selectedMonth), index));
   const activeItem = chartData[activeIndex] || chartData[0];
   const activePercentage = totalDossiers > 0 ? Math.round((activeItem.value / totalDossiers) * 100) : 0;
 
   const handleAccuse = async (dossier: Dossier) => {
     try {
-      await dataService.accuseReception(dossier.new_folderid, 40, "Amine Elboubakri");
-      setSuccessMessage(`Réception physique confirmée pour le dossier ${dossier.new_folder_number}.`);
+      const auditRecorded = await dataService.accuseReception(dossier.new_folderid, 40, "Amine Elboubakri");
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
+      if (!auditRecorded) {
+        toast.warning("Réception enregistrée", {
+          description: "Le dossier est bien accusé réception, mais la transmission n’a pas pu être ajoutée à l’historique.",
+        });
+      }
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err) {
-      toast.error("Erreur", { description: "Impossible d'accuser réception." });
+      toast.error("Erreur", {
+        description: err instanceof Error ? err.message : "Impossible d'enregistrer l'accusé de réception du dossier.",
+      });
     }
   };
 
@@ -144,7 +169,7 @@ export default function DashboardPrescripteur() {
       {/* Greeting Section */}
       <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-0">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          Dashboard {role} <span className="animate-pulse text-[#1F3B73]">⚡</span>
+          Dashboard {role === "DCF" ? role : role.toLocaleLowerCase("fr-FR")} <span className="animate-pulse text-[#1F3B73]">⚡</span>
         </h1>
         <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
           Bonjour {userName}. Validez vos saisies et pilotez vos flux.
@@ -154,7 +179,7 @@ export default function DashboardPrescripteur() {
       {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <KpiCard
-          title="À Valider / Accuser"
+          title="À valider / accuser"
           icon={FileText}
           value={aValider.toLocaleString()}
           loading={loading}
@@ -165,7 +190,7 @@ export default function DashboardPrescripteur() {
           subtext={<span className="text-xs text-slate-400">En attente de votre action</span>}
         />
         <KpiCard
-          title="Validés (Mois en cours)"
+          title="Validés (mois en cours)"
           icon={CheckCircle}
           value={validesCeMois.toLocaleString()}
           loading={loading}
@@ -181,7 +206,7 @@ export default function DashboardPrescripteur() {
           }
         />
         <KpiCard
-          title="Retours Correction"
+          title="Retours de correction"
           icon={RotateCcw}
           value={enCorrection.toLocaleString()}
           loading={loading}
@@ -192,7 +217,7 @@ export default function DashboardPrescripteur() {
           subtext={<span className="text-xs text-slate-400">Anomalies relevées</span>}
         />
         <KpiCard
-          title="Hors Délai"
+          title="Hors délai"
           icon={Clock}
           value={horsDelai.toLocaleString()}
           loading={loading}
@@ -389,9 +414,21 @@ export default function DashboardPrescripteur() {
 
                 {/* Month selector at bottom */}
                 <div className="flex justify-center gap-5 mt-6 z-10">
-                  {['JAN', 'FÉV', 'MAR', 'AVR', 'MAI'].map((m) => (
-                    <span key={m} className={`text-[11px] font-medium uppercase tracking-widest cursor-pointer transition-all ${m === 'MAI' ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white pb-1' : 'text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500 pb-1 border-b-2 border-transparent'}`}>{m}</span>
-                  ))}
+                  {monthsOfYear.map((month) => {
+                    const isSelected = month.getMonth() === selectedMonth.getMonth();
+                    return (
+                      <button
+                        key={month.toISOString()}
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={format(month, "MMMM yyyy", { locale: fr })}
+                        onClick={() => setSelectedMonth(month)}
+                        className={`text-[11px] font-medium uppercase tracking-widest cursor-pointer transition-all ${isSelected ? 'text-slate-900 dark:text-white border-b-2 border-slate-900 dark:border-white pb-1' : 'text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400 pb-1 border-b-2 border-transparent'}`}
+                      >
+                        {format(month, "MMM", { locale: fr }).replace(".", "")}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -511,7 +548,7 @@ export default function DashboardPrescripteur() {
 
               {/* Details List */}
               <div className="flex flex-col flex-1">
-                <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Répartition</h4>
+                <h4 className="text-[11px] font-bold text-slate-400 tracking-widest mb-4">Répartition</h4>
                 <div className="space-y-4">
                   {[
                     { label: "Factures", value: facturesTraites, max: countFactures || 1, total: countFactures, icon: Receipt, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },

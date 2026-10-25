@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { DOCUMENT_UPLOADS_ENABLED } from "@/lib/features";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
 import {
   ArrowLeft, FileText, CheckCircle2, RotateCcw,
   UploadCloud, AlertCircle,
@@ -59,8 +61,13 @@ export default function DossierDetailPrescripteur() {
       const context = getXrm() ? getXrm().Utility.getGlobalContext() : null;
       const userName = context ? context.userSettings.userName : "Prescripteur";
 
-      await dataService.accuseReception(dossier.new_folderid, 40, userName);
-      setSuccessMessage(`Réception accusée. Vous pouvez maintenant traiter le dossier.`);
+      const auditRecorded = await dataService.accuseReception(dossier.new_folderid, 40, userName);
+      if (!auditRecorded) {
+        toast.warning("Réception enregistrée", {
+          description: "Le dossier est bien accusé réception, mais la transmission n’a pas pu être ajoutée à l’historique.",
+        });
+      }
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossier();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -74,14 +81,17 @@ export default function DossierDetailPrescripteur() {
 
   const handleValider = async () => {
     if (!dossier) return;
-    if (!hasBR && dossier.new_document_type !== 200) { // Avoir (200) might not need BR, but others usually do
+    if (DOCUMENT_UPLOADS_ENABLED && !hasBR && dossier.new_document_type !== 200) {
       toast.error("Veuillez charger le Bon de Réception pour valider.");
       return;
     }
     try {
-      await dataService.updateDossier(dossier.new_folderid, { new_status: 50 }); // En transit vers BO
+      await dataService.updateDossier(dossier.new_folderid, {
+        new_status: 50,
+        new_date_val_prescripteur: new Date().toISOString(),
+      }); // En transit vers BO
       setShowValidationModal(false);
-      setSuccessMessage(`Dossier validé et renvoyé au Bureau d'Ordre.`);
+      setSuccessMessage("Dossier validé.");
       setSuccessModalOpen(true);
       // Wait a bit before leaving
       setTimeout(() => navigate("/prescripteur/dossiers"), 2000);
@@ -103,7 +113,7 @@ export default function DossierDetailPrescripteur() {
         new_date_retour_bo: new Date().toISOString()
       });
       setShowRetourModal(false);
-      setSuccessMessage(`Dossier retourné au Bureau d'Ordre pour correction.`);
+      setSuccessMessage("Dossier retourné.");
       setSuccessModalOpen(true);
       setTimeout(() => navigate("/prescripteur/dossiers"), 2000);
     } catch (err) {
@@ -114,22 +124,24 @@ export default function DossierDetailPrescripteur() {
   if (loading) return <div className="p-12 text-center text-slate-500">Chargement...</div>;
   if (!dossier) return <div className="p-12 text-center text-slate-500">Dossier introuvable</div>;
 
+  const canValidate = !DOCUMENT_UPLOADS_ENABLED || dossier.new_document_type === 200 || hasBR;
+
   const getStatusDisplay = (status: number) => {
     switch (status) {
-      case 10: return { label: "Sauvegarder", color: "slate" };
-      case 20: return { label: "Hors Délai", color: "red" };
-      case 30: return { label: "En Transit (Prescr.)", color: "blue" };
-      case 40: return { label: "Chez Prescripteur", color: "indigo" };
-      case 50: return { label: "En Transit (BO)", color: "blue" };
+      case 10: return { label: "Chez BO — à traiter", color: "slate" };
+      case 20: return { label: "Hors délai", color: "red" };
+      case 30: return { label: "En transit (prescr.)", color: "blue" };
+      case 40: return { label: "Chez prescripteur", color: "indigo" };
+      case 50: return { label: "En transit (BO)", color: "blue" };
       case 60: return { label: "Prêt DCF", color: "emerald" };
-      case 70: return { label: "En Transit (DCF)", color: "blue" };
+      case 70: return { label: "En transit (DCF)", color: "blue" };
       case 80: return { label: "Chez DCF", color: "purple" };
-      case 90: return { label: "Retour Correction", color: "orange" };
-      case 100: return { label: "En Transit (Tréso.)", color: "blue" };
+      case 90: return { label: "Retour correction", color: "orange" };
+      case 100: return { label: "En transit (tréso.)", color: "blue" };
       case 110: return { label: "Chez Trésorerie", color: "indigo" };
       case 120: return { label: "Attente Remise", color: "emerald" };
       case 130: return { label: "En Transport", color: "orange" };
-      case 140: return { label: "Disponible Agence", color: "emerald" };
+      case 140: return { label: "Disponible agence", color: "emerald" };
       case 150: return { label: dossier?.new_document_type === 600 ? "Livré (Clôturé)" : "Payé", color: "emerald" };
       default: return { label: `Statut ${status}`, color: "slate" };
     }
@@ -167,7 +179,7 @@ export default function DossierDetailPrescripteur() {
               onClick={handleAccuse}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+              <CheckCircle2 className="w-4 h-4" /> Accuser réception
             </button>
           )}
 
@@ -177,13 +189,13 @@ export default function DossierDetailPrescripteur() {
                 onClick={() => setShowRetourModal(true)}
                 className="px-4 py-2 bg-white dark:bg-slate-800 border border-orange-200 dark:border-orange-900/50 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl text-sm font-bold transition-all flex items-center gap-2"
               >
-                <RotateCcw className="w-4 h-4" /> Retour Correction
+                <RotateCcw className="w-4 h-4" /> Retour pour correction
               </button>
               <button
                 onClick={() => setShowValidationModal(true)}
                 className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4" /> Valider la Facture
+                <CheckCircle2 className="w-4 h-4" /> Valider la facture
               </button>
             </>
           )}
@@ -194,6 +206,7 @@ export default function DossierDetailPrescripteur() {
       <div className="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-1 scrollbar-hide mt-4">
         {[
           { id: "infos", label: "Informations Générales", icon: FileText },
+          { id: "details", label: "Détails complets", icon: FileText },
           { id: "timeline", label: "Flux de Traitement", icon: Clock },
           { id: "blocages", label: "Blocages", icon: AlertOctagon },
           { id: "relances", label: "Relances", icon: PhoneCall },
@@ -216,15 +229,15 @@ export default function DossierDetailPrescripteur() {
       <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow min-h-[400px]">
         {activeTab === "infos" && (
           <div className="p-8">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">Informations Détaillées</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">Informations détaillées</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
               {dossier.new_document_type === 600 ? (
                 <>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Livreur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_livreur_nom || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société Destinataire</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société destinataire</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Destinataire (Prescripteur)</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de Livraison</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_livraison ? format(parseISO(dossier.new_date_livraison), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de livraison</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_livraison ? format(parseISO(dossier.new_date_livraison), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description / Objet</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>
               ) : (
@@ -233,14 +246,15 @@ export default function DossierDetailPrescripteur() {
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la Facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Type Document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_document_type === 100 ? "FACTURE" : dossier.new_document_type === 200 ? "AVOIR" : dossier.new_document_type === 500 ? "ACOMPTE" : "AUTRE"}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Type de document</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_document_type === 100 ? "Facture" : dossier.new_document_type === 200 ? "Avoir" : dossier.new_document_type === 500 ? "Acompte" : "Autre"}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>
               )}
             </div>
 
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces Jointes & Validation</h3>
+            {DOCUMENT_UPLOADS_ENABLED && <>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces jointes et validation</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-6">
@@ -271,7 +285,7 @@ export default function DossierDetailPrescripteur() {
                 <div className="flex items-center justify-between p-3 bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-xl mb-4">
                   <div className="flex items-center gap-3">
                     <FileText className="w-5 h-5 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Bon de Réception (BR)</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Bon de réception (BR)</span>
                   </div>
                   {dossier.new_status >= 50 && dossier.new_status !== 90 ? (
                     <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded-md font-bold">Fourni & Validé</span>
@@ -285,16 +299,19 @@ export default function DossierDetailPrescripteur() {
                 </div>
               </div>
             </div>
+            </>}
           </div>
         )}
+
+        {activeTab === "details" && <div className="p-5 md:p-8"><DossierInformationPanel dossier={dossier} /></div>}
 
         {activeTab === "timeline" && (
           <div className="p-8">
             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
               {[
-                { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                { id: 10, label: "Chez BO — à traiter", desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle.", icon: "edit" },
                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
-                { id: 40, label: "Chez Prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
+                { id: 40, label: "Chez prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
                 { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
                 { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
                 { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
@@ -356,15 +373,17 @@ export default function DossierDetailPrescripteur() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Validation du Dossier</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Validation du dossier</h3>
             </div>
             <div className="p-6 space-y-6">
               <p className="text-sm text-slate-600 dark:text-slate-400">
                 Vous êtes sur le point de valider le dossier <strong className="text-slate-900 dark:text-white">{dossier.new_folder_number}</strong>.
-                Pour finaliser cette étape, vous devez obligatoirement joindre le Bon de Réception (BR).
+                {DOCUMENT_UPLOADS_ENABLED && dossier.new_document_type !== 200 && (
+                  <>Pour finaliser cette étape, vous devez joindre le bon de réception (BR).</>
+                )}
               </p>
 
-              <div
+              {DOCUMENT_UPLOADS_ENABLED && dossier.new_document_type !== 200 && <div
                 className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${hasBR
                     ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10"
                     : "border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-slate-50 dark:hover:bg-slate-800"
@@ -382,7 +401,7 @@ export default function DossierDetailPrescripteur() {
                     <span className="font-medium text-slate-700 dark:text-slate-300">Cliquez pour charger le BR (PDF)</span>
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
               <button
@@ -393,8 +412,8 @@ export default function DossierDetailPrescripteur() {
               </button>
               <button
                 onClick={handleValider}
-                disabled={!hasBR}
-                className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${hasBR
+                disabled={!canValidate}
+                className={`px-4 py-2 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${canValidate
                     ? "bg-primary hover:bg-primary-hover text-white shadow-primary/20"
                     : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                   }`}
@@ -412,7 +431,7 @@ export default function DossierDetailPrescripteur() {
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <RotateCcw className="w-5 h-5 text-orange-500" /> Retour au Bureau d'Ordre
+                <RotateCcw className="w-5 h-5 text-orange-500" /> Retour au bureau d’ordre
               </h3>
             </div>
             <div className="p-6 space-y-4">
@@ -456,7 +475,7 @@ export default function DossierDetailPrescripteur() {
                 <CheckCircle className="w-12 h-12 text-emerald-500" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Action Réussie
+                Confirmation
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
                 {successMessage}

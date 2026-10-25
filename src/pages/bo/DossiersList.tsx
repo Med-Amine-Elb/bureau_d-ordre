@@ -14,10 +14,11 @@ import {
   Send,
   CheckCircle,
   CheckCircle2,
-  List,
 } from "lucide-react";
 import { toast } from "sonner";
 import DossierDetailDrawer from "@/components/DossierDetailDrawer";
+import SupplierFilterInput from "@/components/SupplierFilterInput";
+import { matchesSupplierFilter } from "@/lib/supplierFilter";
 import { exportDossiersToExcelDetailed } from "@/utils/excelExport";
 
 export default function DossiersList() {
@@ -33,7 +34,7 @@ export default function DossiersList() {
   const [filterStatus, setFilterStatus] = useState<number | string | "ALL">(
     location.state?.filterStatus || "ALL",
   );
-  const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
+  const [filterFournisseur, setFilterFournisseur] = useState("");
   const [filterDate, setFilterDate] = useState<string>("");
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -46,7 +47,9 @@ export default function DossiersList() {
   const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
 
   // New SBM Table UX states
-  const [density, setDensity] = useState<"comfortable" | "compact">("compact");
+  const [density] = useState<"comfortable" | "compact">("compact");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [selectedDossiers, setSelectedDossiers] = useState<string[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedDossierIdForDrawer, setSelectedDossierIdForDrawer] = useState<string | null>(null);
@@ -70,23 +73,42 @@ export default function DossiersList() {
     setLoading(true);
     try {
       let count = 0;
+      let skipped = 0;
+      let couriersClosed = 0;
       for (const id of selectedDossiers) {
         const dossier = dossiers.find(d => d.new_folderid === id);
         if (dossier && (dossier.new_status === 10 || dossier.new_status === 60)) {
+          if (dossier.new_document_type === 600) {
+            await dataService.completeCourierDelivery(dossier.new_folderid);
+            couriersClosed++;
+            continue;
+          }
           const isFluxCourt = dossier.new_document_type === 400 || dossier.new_document_type === 500;
           const isReturningFromPrescripteur = dossier.new_status === 60;
           const isToDCF = isFluxCourt || isReturningFromPrescripteur;
           const nextStatus = isToDCF ? 70 : 30;
-          const collector = isToDCF ? (dossier.new_dcf_collector_id || "DCF Agent") : (dossier.new_prescriber_id || "Prescripteur Agent");
-
-          await dataService.updateDossier(dossier.new_folderid, {
-            new_status: nextStatus,
-            ...(isToDCF ? { new_dcf_collector_id: collector } : { new_prescriber_id: collector })
+          const collectorId = isToDCF
+            ? dossier.new_dcf_collector_guid
+            : dossier.new_prescriber_guid;
+          if (!collectorId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(collectorId)) {
+            skipped++;
+            continue;
+          }
+          await dataService.transmitDossier({
+            folderId: dossier.new_folderid,
+            folderNumber: dossier.new_folder_number,
+            dossierChanges: {
+              new_status: nextStatus,
+              ...(isToDCF ? { new_dcf_collector_id: collectorId } : { new_prescriber_id: collectorId }),
+            },
+            fromRole: "BO",
+            toRole: isToDCF ? "DCF" : "Prescripteur",
+            collectorId,
           });
           count++;
         }
       }
-      toast.success(`${count} dossiers transmis avec succès.`);
+      toast.success(`${count} dossiers transmis${couriersClosed ? ` ; ${couriersClosed} courriers marqués livrés et clôturés` : ""}${skipped ? ` ; ${skipped} ignoré(s), destinataire non identifié` : ""}.`);
       setSelectedDossiers([]);
       const result = await dataService.getDossiers();
       setDossiers(result);
@@ -152,8 +174,23 @@ export default function DossiersList() {
 
     setSelectedDossierForTransmission(dossier);
     setTransmissionTargetRole(isToDCF ? "DCF" : "Prescripteur");
-    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_id || "") : (dossier.new_prescriber_id || ""));
+    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_guid || "") : (dossier.new_prescriber_guid || ""));
     setShowTransmissionModal(true);
+  };
+
+  const handleDeliverCourier = async (dossier: Dossier) => {
+    setLoading(true);
+    try {
+      await dataService.completeCourierDelivery(dossier.new_folderid);
+      toast.success(`Le courrier ${dossier.new_folder_number} est marqué livré et clôturé.`);
+      setDossiers(await dataService.getDossiers());
+    } catch (error) {
+      toast.error("Impossible de clôturer le courrier.", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleConfirmTransmission = async (data: { collecteur: string; commentaire: string }) => {
@@ -175,16 +212,22 @@ export default function DossiersList() {
           : selectedDossierForTransmission.new_description
       };
 
-      await dataService.updateDossier(selectedDossierForTransmission.new_folderid, payload);
-      setSuccessMessage(
-        `Le dossier ${selectedDossierForTransmission.new_folder_number} a été transmis avec succès vers ${nextStatus === 70 ? "la DCF" : "le Prescripteur"}.`,
-      );
+      await dataService.transmitDossier({
+        folderId: selectedDossierForTransmission.new_folderid,
+        folderNumber: selectedDossierForTransmission.new_folder_number,
+        dossierChanges: payload,
+        fromRole: "BO",
+        toRole: isToDCF ? "DCF" : "Prescripteur",
+        collectorId: data.collecteur,
+        sendingComment: data.commentaire,
+      });
+      setSuccessMessage("Dossier transmis.");
       setSuccessModalOpen(true);
       const updated = await dataService.getDossiers();
       setDossiers(updated);
     } catch (err) {
       toast.error("Erreur", {
-        description: "Impossible de transmettre le dossier.",
+        description: err instanceof Error ? err.message : "Impossible de transmettre le dossier.",
       });
     } finally {
       setLoading(false);
@@ -198,9 +241,7 @@ export default function DossiersList() {
         60,
         "Med Amine (Liste)",
       );
-      setSuccessMessage(
-        `Réception accusée pour le dossier ${dossier.new_folder_number}. Il est maintenant prêt pour la DCF.`,
-      );
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       const updated = await dataService.getDossiers();
       setDossiers(updated);
@@ -249,13 +290,13 @@ export default function DossiersList() {
       case 10:
         return (
           <span className="flex items-center gap-1.5 text-slate-600">
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Sauvegarder
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Chez BO — à traiter
           </span>
         );
       case 20:
         return (
           <span className="flex items-center gap-1.5 text-red-700 font-medium">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>Hors Délai
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>Hors délai
           </span>
         );
       case 30:
@@ -335,7 +376,7 @@ export default function DossiersList() {
         return (
           <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            Disponible Agence
+            Disponible agence
           </span>
         );
       case 150:
@@ -362,10 +403,6 @@ export default function DossiersList() {
     }
   };
 
-  const uniqueFournisseurs = Array.from(
-    new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
-  ).sort();
-
   const filteredDossiers = dossiers.filter((d) => {
     const matchesSearch =
       d.new_folder_number?.toLowerCase().includes(search.toLowerCase()) ||
@@ -382,9 +419,7 @@ export default function DossiersList() {
       matchesStatus = d.new_status === Number(filterStatus);
     }
 
-    const matchesFournisseur =
-      filterFournisseur === "ALL" ||
-      d.new_supplier_id === filterFournisseur;
+    const matchesFournisseur = matchesSupplierFilter(d.new_supplier_id, filterFournisseur);
     const matchesDate =
       !filterDate || d.new_reception_date.startsWith(filterDate);
 
@@ -397,13 +432,26 @@ export default function DossiersList() {
     );
   });
 
+  const pageCount = Math.max(1, Math.ceil(filteredDossiers.length / pageSize));
+  const pageDossiers = filteredDossiers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const firstVisibleDossier = filteredDossiers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const lastVisibleDossier = Math.min(currentPage * pageSize, filteredDossiers.length);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterType, filterStatus, filterFournisseur, filterDate]);
+
+  useEffect(() => {
+    setCurrentPage(page => Math.min(page, pageCount));
+  }, [pageCount]);
+
   return (
     <div className="w-full h-[calc(100vh-112px)] sm:h-[calc(100vh-128px)] md:h-[calc(100vh-144px)] flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
-            Liste des Dossiers
+            Liste des dossiers
           </h1>
           <p className="text-slate-500 mt-1 dark:text-slate-400">
             Recherche et gestion de tous les dossiers fournisseurs.
@@ -441,22 +489,14 @@ export default function DossiersList() {
                 : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
               }`}
           >
-            <Filter className="w-4 h-4" /> Filtres Avancés
+            <Filter className="w-4 h-4" /> Filtres avancés
           </button>
           <button 
             onClick={handleExportExcel}
             className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
           >
-            <Download className="w-4 h-4" /> Exporter Excel
+            <Download className="w-4 h-4" /> Exporter au format Excel
           </button>
-          <button
-            onClick={() => setDensity(density === "comfortable" ? "compact" : "comfortable")}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-            title="Ajuster la densité de la table"
-          >
-            <List className="w-4 h-4" /> {density === "comfortable" ? "Vue Compacte" : "Vue Aérée"}
-          </button>
-
           {/* Column Visibility Filter */}
           <div className="relative">
             <button
@@ -475,8 +515,8 @@ export default function DossiersList() {
                   {[
                     { id: "folder", label: "N° Dossier" },
                     { id: "type", label: "Type / Document" },
-                    { id: "supplier", label: "Fournisseur / Livreur" },
-                    { id: "company", label: "Société / Destinataire" },
+                    { id: "supplier", label: "Fournisseur" },
+                    { id: "company", label: "Société / Direction" },
                     { id: "prescriber", label: "Prescripteur" },
                     { id: "dates", label: "Dates (Fact. / Réc.)" },
                     { id: "status", label: "Statut" }
@@ -546,21 +586,21 @@ export default function DossiersList() {
             >
               <option value="ALL">Tous les statuts</option>
               <option value="EN_COURS">Dossiers en cours</option>
-              <option value="10">Sauvegarder</option>
-              <option value="20">Hors Délai</option>
-              <option value="30">Transit Prescripteur</option>
-              <option value="40">Chez Prescripteur</option>
-              <option value="50">En Transit BO</option>
+              <option value="10">Chez BO — à traiter</option>
+              <option value="20">Hors délai</option>
+              <option value="30">Transit vers le prescripteur</option>
+              <option value="40">Chez le prescripteur</option>
+              <option value="50">En transit vers le BO</option>
               <option value="60">Prêt DCF</option>
               <option value="70">Transit DCF</option>
               <option value="80">Chez DCF</option>
-              <option value="90">Retour Correction</option>
-              <option value="100">Transit Trésorerie</option>
-              <option value="110">Chez Trésorerie</option>
-              <option value="120">Attente Remise</option>
-              <option value="130">En Transport</option>
-              <option value="140">Disponible Agence</option>
-              <option value="150">Payé / Clôturé</option>
+              <option value="90">Retour pour correction</option>
+              <option value="100">Transit vers la trésorerie</option>
+              <option value="110">Chez la trésorerie</option>
+              <option value="120">En attente de remise</option>
+              <option value="130">En transport</option>
+              <option value="140">Disponible en agence</option>
+              <option value="150">Payé / clôturé</option>
             </select>
           </div>
 
@@ -568,18 +608,7 @@ export default function DossiersList() {
             <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               Fournisseur
             </label>
-            <select
-              className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-slate-50 dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none text-slate-700 dark:text-slate-300"
-              value={filterFournisseur}
-              onChange={(e) => setFilterFournisseur(e.target.value)}
-            >
-              <option value="ALL">Tous les fournisseurs</option>
-              {uniqueFournisseurs.map((f) => (
-                <option key={f as string} value={f as string}>
-                  {f as string}
-                </option>
-              ))}
-            </select>
+            <SupplierFilterInput value={filterFournisseur} onValueChange={setFilterFournisseur} />
           </div>
 
           <div className="space-y-1.5">
@@ -599,7 +628,7 @@ export default function DossiersList() {
               onClick={() => {
                 setFilterType("ALL");
                 setFilterStatus("ALL");
-                setFilterFournisseur("ALL");
+                setFilterFournisseur("");
                 setFilterDate("");
                 setSearch("");
               }}
@@ -612,19 +641,20 @@ export default function DossiersList() {
       )}
 
       {/* Table */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 min-h-0 overflow-auto">
+      <div className="bg-white dark:bg-[#0F172B] rounded-b-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
               <th className={`w-10 px-4 ${density === "comfortable" ? "py-4" : "py-2"}`}>
                 <input
                   type="checkbox"
-                  checked={filteredDossiers.length > 0 && selectedDossiers.length === filteredDossiers.length}
+                  checked={pageDossiers.length > 0 && pageDossiers.every(d => selectedDossiers.includes(d.new_folderid))}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedDossiers(filteredDossiers.map(d => d.new_folderid));
+                      setSelectedDossiers(current => Array.from(new Set([...current, ...pageDossiers.map(d => d.new_folderid)])));
                     } else {
-                      setSelectedDossiers([]);
+                      setSelectedDossiers(current => current.filter(id => !pageDossiers.some(d => d.new_folderid === id)));
                     }
                   }}
                   className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary/20 cursor-pointer"
@@ -645,13 +675,13 @@ export default function DossiersList() {
               {visibleColumns.includes("supplier") && (
                 <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
                   }`}>
-                  Fournisseur / Livreur
+                  Fournisseur
                 </th>
               )}
               {visibleColumns.includes("company") && (
                 <th className={`text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider ${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"
                   }`}>
-                  Société / Destinataire
+                  Société / Direction
                 </th>
               )}
               {visibleColumns.includes("prescriber") && (
@@ -695,7 +725,7 @@ export default function DossiersList() {
                 </td>
               </tr>
             ) : (
-              filteredDossiers.map((dossier) => (
+              pageDossiers.map((dossier) => (
                 <tr
                   key={dossier.new_folderid}
                   className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group ${selectedDossiers.includes(dossier.new_folderid) ? "bg-slate-50/50 dark:bg-slate-900/10" : ""
@@ -763,7 +793,7 @@ export default function DossiersList() {
                   {visibleColumns.includes("supplier") && (
                     <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"}`}>
                       <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        {dossier.new_document_type === 600 ? dossier.new_livreur_nom || "N/A" : dossier.new_supplier_id || "Non renseigné"}
+                        {dossier.new_document_type === 600 ? "Non applicable" : dossier.new_supplier_id || "Non renseigné"}
                       </div>
                     </td>
                   )}
@@ -824,7 +854,7 @@ export default function DossiersList() {
                   )}
                   <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"} text-right whitespace-nowrap`}>
                     <div className="flex items-center justify-end gap-2">
-                      {/* Bouton Modifier: Visible uniquement si le dossier est au statut Sauvegarder (Statut 10) */}
+                      {/* Le dossier peut être modifié tant qu'il est encore chez le BO (statut 10). */}
                       {dossier.new_status === 10 && (
                         <button
                           onClick={() => {
@@ -839,13 +869,15 @@ export default function DossiersList() {
                         </button>
                       )}
 
-                      {/* Bouton Transmettre: Visible uniquement si le dossier est Chez BO (Sauvegarder) ou Prêt DCF (Statut 60) */}
+                      {/* Les courriers sont livrés/clôturés au BO ; les autres dossiers sont transmis au prochain rôle. */}
                       {(dossier.new_status === 10 || dossier.new_status === 60) && (
                         <button
-                          onClick={() => handleTransmit(dossier)}
+                          onClick={() => dossier.new_document_type === 600 ? handleDeliverCourier(dossier) : handleTransmit(dossier)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-bold transition-all shadow-lg shadow-primary/20"
                         >
-                          <Send className="w-3.5 h-3.5" /> Transmettre
+                          {dossier.new_document_type === 600
+                            ? <><CheckCircle2 className="w-3.5 h-3.5" /> Marquer livré</>
+                            : <><Send className="w-3.5 h-3.5" /> Transmettre</>}
                         </button>
                       )}
 
@@ -866,27 +898,30 @@ export default function DossiersList() {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
-        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+        <div className="shrink-0 px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0F172B]">
           <div>
-            Affichage de 1 à {filteredDossiers.length} sur{" "}
+            Affichage de {firstVisibleDossier} à {lastVisibleDossier} sur{" "}
             {filteredDossiers.length} résultats
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
               className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
-              disabled
+              disabled={currentPage === 1}
             >
               Précédent
             </button>
-            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-md bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 font-medium">
-              1
-            </button>
-            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
-              2
-            </button>
-            <button className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800">
+            <span className="px-3 py-1 text-slate-600 dark:text-slate-300" aria-current="page">
+              Page {currentPage} / {pageCount}
+            </span>
+            <button
+              onClick={() => setCurrentPage(page => Math.min(pageCount, page + 1))}
+              className="px-3 py-1 border border-slate-200 dark:border-slate-700 dark:text-slate-400 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
+              disabled={currentPage >= pageCount}
+            >
               Suivant
             </button>
           </div>
@@ -900,7 +935,7 @@ export default function DossiersList() {
                 <CheckCircle className="w-12 h-12 text-emerald-500" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Action Réussie
+                Confirmation
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
                 {successMessage}
@@ -923,7 +958,7 @@ export default function DossiersList() {
         dossierNumber={selectedDossierForTransmission?.new_folder_number || ""}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
-        directionId={selectedDossierForTransmission?.new_department_id}
+        directionId={selectedDossierForTransmission?.new_department_guid}
       />
 
       {/* Floating Bulk Actions Bar */}
@@ -940,7 +975,7 @@ export default function DossiersList() {
               onClick={handleBulkAccuse}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-500/10 cursor-pointer"
             >
-              <CheckCircle2 className="w-3.5 h-3.5" /> Accuser Réception
+              <CheckCircle2 className="w-3.5 h-3.5" /> Accuser réception
             </button>
             <button
               onClick={handleBulkTransmit}

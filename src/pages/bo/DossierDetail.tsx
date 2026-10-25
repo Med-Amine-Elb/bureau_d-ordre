@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import TransmissionModal from "@/components/TransmissionModal";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
 import { ArrowLeft, Clock, FileText, Share2, AlertOctagon, PhoneCall, Link as LinkIcon, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,20 +39,20 @@ export default function DossierDetail() {
 
   const getStatusDisplay = (status: number) => {
     switch (status) {
-      case 10: return { label: "Sauvegarder", color: "slate" };
-      case 20: return { label: "Hors Délai", color: "red" };
-      case 30: return { label: "En Transit (Prescr.)", color: "blue" };
-      case 40: return { label: "Chez Prescripteur", color: "indigo" };
-      case 50: return { label: "En Transit (BO)", color: "blue" };
+      case 10: return { label: "Chez BO — à traiter", color: "slate" };
+      case 20: return { label: "Hors délai", color: "red" };
+      case 30: return { label: "En transit (prescr.)", color: "blue" };
+      case 40: return { label: "Chez prescripteur", color: "indigo" };
+      case 50: return { label: "En transit (BO)", color: "blue" };
       case 60: return { label: "Prêt DCF", color: "emerald" };
-      case 70: return { label: "En Transit (DCF)", color: "blue" };
+      case 70: return { label: "En transit (DCF)", color: "blue" };
       case 80: return { label: "Chez DCF", color: "purple" };
-      case 90: return { label: "Retour Correction", color: "orange" };
-      case 100: return { label: "En Transit (Tréso.)", color: "blue" };
+      case 90: return { label: "Retour correction", color: "orange" };
+      case 100: return { label: "En transit (tréso.)", color: "blue" };
       case 110: return { label: "Chez Trésorerie", color: "indigo" };
       case 120: return { label: "Attente Remise", color: "emerald" };
       case 130: return { label: "En Transport", color: "orange" };
-      case 140: return { label: "Disponible Agence", color: "emerald" };
+      case 140: return { label: "Disponible agence", color: "emerald" };
       case 150: return { label: dossier?.new_document_type === 600 ? "Livré (Clôturé)" : "Payé", color: "emerald" };
       default: return { label: `Statut ${status}`, color: "slate" };
     }
@@ -65,7 +66,7 @@ export default function DossierDetail() {
     const isToDCF = isFluxCourt || isReturningFromPrescripteur;
 
     setTransmissionTargetRole(isToDCF ? "DCF" : "Prescripteur");
-    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_id || "") : (dossier.new_prescriber_id || ""));
+    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_guid || "") : (dossier.new_prescriber_guid || ""));
     setShowTransmissionModal(true);
   };
 
@@ -86,7 +87,15 @@ export default function DossierDetail() {
           : dossier.new_description
       };
 
-      await dataService.updateDossier(dossier.new_folderid, payload);
+      await dataService.transmitDossier({
+        folderId: dossier.new_folderid,
+        folderNumber: dossier.new_folder_number,
+        dossierChanges: payload,
+        fromRole: "BO",
+        toRole: isToDCF ? "DCF" : "Prescripteur",
+        collectorId: data.collecteur,
+        sendingComment: data.commentaire,
+      });
       toast.success("Dossier transmis avec succès.");
 
       // Update local state
@@ -94,8 +103,24 @@ export default function DossierDetail() {
         ...dossier,
         ...payload
       });
-    } catch (e) {
-      toast.error("Erreur de transmission");
+    } catch (error) {
+      toast.error("Erreur de transmission", { description: error instanceof Error ? error.message : "Le dossier n’a pas pu être transmis." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeliverCourier = async () => {
+    setLoading(true);
+    try {
+      await dataService.completeCourierDelivery(dossier.new_folderid);
+      const deliveredAt = new Date().toISOString();
+      setDossier({ ...dossier, new_status: 150, new_final_delivery_date: deliveredAt });
+      toast.success("Courrier marqué livré et dossier clôturé.");
+    } catch (error) {
+      toast.error("Impossible de clôturer le courrier.", {
+        description: error instanceof Error ? error.message : undefined,
+      });
     } finally {
       setLoading(false);
     }
@@ -165,13 +190,13 @@ export default function DossierDetail() {
               }}
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2"
             >
-              <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+              <CheckCircle2 className="w-4 h-4" /> Accuser réception
             </button>
           )}
 
           {(dossier.new_status === 10 || dossier.new_status === 60) && (
-            <button onClick={handleTransmit} className="bg-primary hover:bg-primary-hover text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
-              <Send className="w-4 h-4" /> {dossier.new_document_type === 400 || dossier.new_document_type === 500 || dossier.new_status === 60 ? "Transmettre à la DCF" : "Transmettre à Prescripteur"}
+            <button onClick={dossier.new_document_type === 600 ? handleDeliverCourier : handleTransmit} disabled={loading} className="bg-primary hover:bg-primary-hover text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2 disabled:opacity-60">
+              {dossier.new_document_type === 600 ? <><CheckCircle2 className="w-4 h-4" /> Marquer livré</> : <><Send className="w-4 h-4" /> {dossier.new_document_type === 400 || dossier.new_document_type === 500 || dossier.new_status === 60 ? "Transmettre à la DCF" : "Transmettre à Prescripteur"}</>}
             </button>
           )}
           <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg px-4 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2">
@@ -184,6 +209,7 @@ export default function DossierDetail() {
       <div className="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-1 scrollbar-hide">
         {[
           { id: "infos", label: "Informations Générales", icon: FileText },
+          { id: "details", label: "Détails complets", icon: FileText },
           { id: "timeline", label: "Flux de Traitement", icon: Clock },
           { id: "blocages", label: "Blocages", icon: AlertOctagon },
           { id: "relances", label: "Relances", icon: PhoneCall },
@@ -206,15 +232,15 @@ export default function DossierDetail() {
       <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow min-h-[400px]">
         {activeTab === "infos" && (
           <div className="p-8">
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">Informations Détaillées</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">Informations détaillées</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
               {dossier.new_document_type === 600 ? (
                 <>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Livreur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_livreur_nom || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société Destinataire</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société destinataire</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Destinataire (Prescripteur)</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de Livraison</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_livraison ? new Date(dossier.new_date_livraison).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de livraison</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_date_livraison ? new Date(dossier.new_date_livraison).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description / Objet</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>
               ) : (
@@ -223,7 +249,7 @@ export default function DossierDetail() {
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Société GBM</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_company_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Direction</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_department_id || 'N/A'}</p></div>
                   <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Prescripteur</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_prescriber_id || 'N/A'}</p></div>
-                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la Facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? new Date(dossier.new_invoice_date).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
+                  <div><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de la facture</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_invoice_date ? new Date(dossier.new_invoice_date).toLocaleDateString('fr-FR') : 'N/A'}</p></div>
                   <div className="col-span-1 md:col-span-2"><p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Description</p><p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_description || 'N/A'}</p></div>
                 </>
               )}
@@ -231,7 +257,7 @@ export default function DossierDetail() {
 
             {dossier.new_payment_method && (
               <>
-                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Informations de Règlement</h3>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Informations de règlement</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
                   <div>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Mode de règlement</p>
@@ -242,15 +268,15 @@ export default function DossierDetail() {
                   {dossier.new_payment_method === 1 ? (
                     <>
                       <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Numéro de Chèque</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Numéro du chèque</p>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_cheque_number || "N/A"}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Banque Émettrice</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Banque émettrice</p>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_banque_emettrice || "N/A"}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de Préparation</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date de préparation</p>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">
                           {dossier.new_cheque_preparation_date ? new Date(dossier.new_cheque_preparation_date).toLocaleDateString('fr-FR') : "N/A"}
                         </p>
@@ -259,20 +285,20 @@ export default function DossierDetail() {
                   ) : (
                     <>
                       <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date du Virement</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Date du virement</p>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">
                           {dossier.new_date_virement ? new Date(dossier.new_date_virement).toLocaleDateString('fr-FR') : "N/A"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">RIB du Bénéficiaire</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">RIB du bénéficiaire</p>
                         <p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_compte_bancaire_dest || "N/A"}</p>
                       </div>
                     </>
                   )}
                   {dossier.new_commentaire_treso && (
                     <div className="col-span-1 md:col-span-2">
-                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Commentaire Trésorerie</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 mb-1">Commentaire de la trésorerie</p>
                       <p className="font-semibold text-slate-900 dark:text-slate-200">{dossier.new_commentaire_treso}</p>
                     </div>
                   )}
@@ -280,7 +306,7 @@ export default function DossierDetail() {
               </>
             )}
 
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces Jointes Validées</h3>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-4 mt-10 border-b border-slate-100 dark:border-slate-800 pb-2">Pièces jointes validées</h3>
             <div className="flex flex-wrap gap-3">
               {dossier.new_documents_complements && dossier.new_documents_complements.length > 0 ? (
                 dossier.new_documents_complements.map(doc => (
@@ -295,34 +321,36 @@ export default function DossierDetail() {
           </div>
         )}
 
+        {activeTab === "details" && <div className="p-5 md:p-8"><DossierInformationPanel dossier={dossier} /></div>}
+
         {activeTab === "timeline" && (
           <div className="p-8">
             {dossier.new_status === 20 && (
               <div className="mb-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl flex items-start gap-3">
                 <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-sm font-bold text-red-800 dark:text-red-400">Dossier Hors Délai</h4>
-                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé la règle des 5 jours entre la date de la facture et sa réception. Il est classé Hors Délai et nécessite une action d'override administrateur ou une dérogation.</p>
+                  <h4 className="text-sm font-bold text-red-800 dark:text-red-400">Dossier hors délai</h4>
+                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé le délai de 5 jours entre la date de la facture et sa réception. Il est classé hors délai et nécessite une dérogation ou une action d’un administrateur.</p>
                 </div>
               </div>
             )}
             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
 
               {[
-                { id: 10, label: "Sauvegarder", desc: "Dossier en cours de saisie au Bureau d'Ordre.", icon: "edit" },
+                { id: 10, label: "Chez BO — à traiter", desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle.", icon: "edit" },
                 { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
-                { id: 40, label: "Chez Prescripteur", desc: dossier.new_prescriber_id ? `Le dossier est chez ${dossier.new_prescriber_id} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
+                { id: 40, label: "Chez prescripteur", desc: dossier.new_prescriber_id ? `Le dossier est chez ${dossier.new_prescriber_id} pour validation.` : "Le prescripteur examine et valide le service fait.", icon: "user" },
                 { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
                 { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
                 { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
                 { id: 80, label: "Chez DCF", desc: dossier.new_dcf_collector_id ? `Le dossier est entre les mains de ${dossier.new_dcf_collector_id} (DCF).` : "Vérification de la conformité comptable et fiscale.", icon: "shield" },
-                { id: 90, label: "Retour Correction", desc: "Besoin de corrections ou pièces manquantes.", icon: "alert" },
+                { id: 90, label: "Retour correction", desc: "Besoin de corrections ou pièces manquantes.", icon: "alert" },
                 { id: 100, label: "Transit Trésorerie", desc: "Dossier conforme envoyé à la Trésorerie pour règlement.", icon: "send" },
                 { id: 110, label: "Chez Trésorerie", desc: "La Trésorerie prépare le règlement (Chèque/Virement).", icon: "bank" },
-                { id: 120, label: "Prêt pour Remise", desc: "Chèque prêt au BO pour remise au fournisseur.", icon: "credit" },
+                { id: 120, label: "Prêt pour remise", desc: "Chèque prêt au BO pour remise au fournisseur.", icon: "credit" },
                 { id: 130, label: "En Transport (Agence)", desc: dossier.new_destination_branch_id ? `Chèque expédié vers l'agence ${dossier.new_destination_branch_id}.` : "Chèque en cours d'expédition vers l'agence.", icon: "truck" },
-                { id: 140, label: "Disponible Agence", desc: dossier.new_destination_branch_id ? `Le chèque est arrivé à l'agence ${dossier.new_destination_branch_id} pour retrait.` : "Le chèque est arrivé en agence pour retrait.", icon: "map" },
-                { id: 150, label: "Payé / Clôturé", desc: "Remise effectuée et dossier clôturé définitivement.", icon: "check" }
+                { id: 140, label: "Disponible agence", desc: dossier.new_destination_branch_id ? `Le chèque est arrivé à l'agence ${dossier.new_destination_branch_id} pour retrait.` : "Le chèque est arrivé en agence pour retrait.", icon: "map" },
+                { id: 150, label: "Payé / clôturé", desc: "Remise effectuée et dossier clôturé définitivement.", icon: "check" }
               ].map((step, index) => {
                 // Logic for visibility and state
                 const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
@@ -393,7 +421,7 @@ export default function DossierDetail() {
         dossierNumber={dossier.new_folder_number}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
-        directionId={dossier.new_department_id}
+        directionId={dossier.new_department_guid}
       />
     </div>
   )

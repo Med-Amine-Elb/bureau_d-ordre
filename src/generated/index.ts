@@ -10,6 +10,7 @@ export * as New_companiesModel from './models/New_companiesModel';
 export * as New_departementsModel from './models/New_departementsModel';
 export * as New_foldersModel from './models/New_foldersModel';
 export * as New_suppliersModel from './models/New_suppliersModel';
+export * as New_transmissionsModel from './models/New_transmissionsModel';
 export * as SystemusersModel from './models/SystemusersModel';
 
 // Services
@@ -18,4 +19,5 @@ export * from './services/New_companiesService';
 export * from './services/New_departementsService';
 export * from './services/New_foldersService';
 export * from './services/New_suppliersService';
+export * from './services/New_transmissionsService';
 export * from './services/SystemusersService';

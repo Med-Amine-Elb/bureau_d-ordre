@@ -6,7 +6,6 @@ import {
   Search,
   Filter,
   CheckCircle2,
-  Building2,
   Wallet,
   Truck,
   CreditCard,
@@ -19,6 +18,8 @@ import { toast } from "sonner";
 import { exportDossiersToExcelDetailed } from "@/utils/excelExport";
 import AgenceAccuseReceptionModal from "@/components/AgenceAccuseReceptionModal";
 import AgenceValiderRemiseModal from "@/components/AgenceValiderRemiseModal";
+import SupplierFilterInput from "@/components/SupplierFilterInput";
+import { matchesSupplierFilter } from "@/lib/supplierFilter";
 
 export default function DossiersListAgence() {
   const location = useLocation();
@@ -32,7 +33,7 @@ export default function DossiersListAgence() {
   const [filterStatus, setFilterStatus] = useState<string>(() =>
     location.state?.filterStatus || "ALL"
   );
-  const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
+  const [filterFournisseur, setFilterFournisseur] = useState("");
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -80,9 +81,7 @@ export default function DossiersListAgence() {
         new_accuse_reception_agence_par: "Utilisateur Agence",
         new_commentaire_agence: data.commentaire
       });
-      setSuccessMessage(
-        `Réception du chèque validée pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -98,13 +97,11 @@ export default function DossiersListAgence() {
       await dataService.updateDossier(selectedDossier.new_folderid, {
         new_status: 150, // Payé / Clôturé
         new_final_delivery_date: data.dateRemise,
-        new_recu_signe_scan: data.scanNom,
+        new_recu_signe_scan: data.scanNom || undefined,
         new_fournisseur_signe: true,
         new_commentaire_agence: data.commentaire
       });
-      setSuccessMessage(
-        `Remise du chèque validée avec succès pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      setSuccessMessage("Dossier validé.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -112,10 +109,6 @@ export default function DossiersListAgence() {
       toast.error("Erreur", { description: "Impossible de valider la remise." });
     }
   };
-
-  const uniqueFournisseurs = Array.from(
-    new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
-  ).sort();
 
   const handleExportExcel = () => {
     exportDossiersToExcelDetailed(filteredDossiers, "Agence_Dossiers");
@@ -131,16 +124,14 @@ export default function DossiersListAgence() {
       matchesStatus = d.new_status === Number(filterStatus);
     }
 
-    const matchesFournisseur =
-      filterFournisseur === "ALL" ||
-      d.new_supplier_id === filterFournisseur;
+    const matchesFournisseur = matchesSupplierFilter(d.new_supplier_id, filterFournisseur);
 
     return matchesSearch && matchesStatus && matchesFournisseur;
   });
 
   const getStatusBadge = (status: number) => {
-    if (status === 130) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><Truck className="w-3.5 h-3.5" />En Transport</span>;
-    if (status === 140) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Wallet className="w-3.5 h-3.5" />Disponible Agence</span>;
+    if (status === 130) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><Truck className="w-3.5 h-3.5" />En transport</span>;
+    if (status === 140) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Wallet className="w-3.5 h-3.5" />Disponible en agence</span>;
     if (status === 150) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />Remis / Payé</span>;
 
     return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Statut {status}</span>;
@@ -151,7 +142,7 @@ export default function DossiersListAgence() {
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
-            Suivi des chèques (Agence Régionale)
+            Suivi des chèques (agence régionale)
           </h1>
           <p className="text-slate-500 mt-1 dark:text-slate-400">
             Validez la réception des chèques et confirmez leur remise aux fournisseurs.
@@ -190,7 +181,7 @@ export default function DossiersListAgence() {
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <Download className="w-4 h-4" /> Exporter Excel
+              <Download className="w-4 h-4" /> Exporter au format Excel
             </button>
           </div>
         </div>
@@ -205,26 +196,14 @@ export default function DossiersListAgence() {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="ALL">Tous les statuts</option>
-                <option value="130">En Transport</option>
-                <option value="140">Disponible en Agence</option>
+                <option value="130">En transport</option>
+                <option value="140">Disponible en agence</option>
                 <option value="150">Remis / Clôturé</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Fournisseur</label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  value={filterFournisseur}
-                  onChange={(e) => setFilterFournisseur(e.target.value)}
-                >
-                  <option value="ALL">Tous les fournisseurs</option>
-                  {uniqueFournisseurs.map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
-              </div>
+              <SupplierFilterInput value={filterFournisseur} onValueChange={setFilterFournisseur} />
             </div>
           </div>
         )}
@@ -349,7 +328,7 @@ export default function DossiersListAgence() {
                             onClick={() => handleAccuse(dossier)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-xs font-bold transition-all shadow-sm"
                           >
-                            <Truck className="w-3.5 h-3.5" /> Accuser Réception
+                            <Truck className="w-3.5 h-3.5" /> Accuser réception
                           </button>
                         )}
                         {dossier.new_status === 140 && (
@@ -382,7 +361,7 @@ export default function DossiersListAgence() {
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-              Action réussie
+              Confirmation
             </h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm">
               {successMessage}

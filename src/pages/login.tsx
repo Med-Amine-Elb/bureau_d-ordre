@@ -254,7 +254,7 @@ export default function Login() {
 
           <div className="space-y-1.5">
             <h1 className="text-[32px] font-normal leading-tight text-[#111827] tracking-tight">
-              Connexion au Bureau d'Ordre
+              Connexion au bureau d'ordre
             </h1>
             <p className="text-[14px] text-slate-400">
               Plateforme de gestion des dossiers financiers.

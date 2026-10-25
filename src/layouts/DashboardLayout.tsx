@@ -135,34 +135,6 @@ export default function DashboardLayout() {
 
   const activeNotifications = notifications.filter(n => !dismissedNotifIds.includes(n.id));
 
-  const [avatar, setAvatar] = useState(
-    localStorage.getItem("userAvatar") ||
-    (role === 'Prescripteur' ? "https://api.dicebear.com/7.x/micah/svg?seed=Felix&backgroundColor=b6e3f4" :
-      role === 'DCF' ? "https://api.dicebear.com/7.x/micah/svg?seed=Lily&backgroundColor=ffdfbf" :
-        role === 'Tresorerie' ? "https://api.dicebear.com/7.x/micah/svg?seed=Treasury&backgroundColor=c0aede" :
-          role === 'Agence' ? "https://api.dicebear.com/7.x/micah/svg?seed=Regional&backgroundColor=ffd5e5" :
-            role === 'Admin' ? "https://api.dicebear.com/7.x/micah/svg?seed=Admin&backgroundColor=d1c4e9" :
-              "https://api.dicebear.com/7.x/micah/svg?seed=Alex&backgroundColor=c0aede")
-  );
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem("userAvatar");
-      if (saved) setAvatar(saved);
-    };
-    const interval = setInterval(() => {
-      const saved = localStorage.getItem("userAvatar");
-      if (saved && saved !== avatar) {
-        setAvatar(saved);
-      }
-    }, 1000);
-    window.addEventListener("storage", handleStorageChange);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
-    };
-  }, [avatar]);
-
   useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
@@ -324,13 +296,8 @@ export default function DashboardLayout() {
           </nav>
 
           {/* User Profile */}
-          <div className="p-3 mx-4 mb-2 rounded-xl flex items-center justify-between transition-colors bg-white border border-slate-100 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-            <div className="flex items-center gap-3">
-              <img
-                src={avatar}
-                alt="Profile Avatar"
-                className="w-10 h-10 rounded-full shadow-sm bg-slate-100"
-              />
+          <div className="p-3 mx-4 mb-2 rounded-xl transition-colors bg-white border border-slate-100 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+            <div>
               <div>
                 <p className="text-sm font-bold text-slate-900 dark:text-white">
                   {role === 'Prescripteur' ? 'Prescripteur' : role === 'DCF' ? 'Comptabilité' : role === 'Tresorerie' ? 'Trésorerie' : role === 'Agence' ? 'Agence Régionale' : role === 'Admin' ? 'Administrateur' : 'Bureau d\'Ordre'}

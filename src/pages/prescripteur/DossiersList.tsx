@@ -19,6 +19,8 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { exportDossiersToExcelDetailed } from "../../utils/excelExport";
+import SupplierFilterInput from "@/components/SupplierFilterInput";
+import { matchesSupplierFilter } from "@/lib/supplierFilter";
 
 export default function DossiersListPrescripteur() {
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export default function DossiersListPrescripteur() {
   const [filterStatus, setFilterStatus] = useState<number | string | "ALL">(
     location.state?.filterStatus || "ALL"
   );
-  const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
+  const [filterFournisseur, setFilterFournisseur] = useState("");
   const [filterDate, setFilterDate] = useState<string>("");
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -65,29 +67,30 @@ export default function DossiersListPrescripteur() {
 
   const handleAccuse = async (dossier: Dossier) => {
     try {
-      await dataService.accuseReception(
+      const auditRecorded = await dataService.accuseReception(
         dossier.new_folderid,
         40,
         "Amine Elboubakri"
       );
-      setSuccessMessage(
-        `Réception accusée pour le dossier ${dossier.new_folder_number}. Il est maintenant chez vous.`,
-      );
+      if (!auditRecorded) {
+        toast.warning("Réception enregistrée", {
+          description: "Le dossier est bien accusé réception, mais la transmission n’a pas pu être ajoutée à l’historique.",
+        });
+      }
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err) {
-      toast.error("Erreur", { description: "Impossible d'accuser réception." });
+      toast.error("Erreur", {
+        description: err instanceof Error ? err.message : "Impossible d'enregistrer l'accusé de réception du dossier.",
+      });
     }
   };
 
   const handleExportExcel = () => {
     exportDossiersToExcelDetailed(filteredDossiers, "Prescripteur_Dossiers");
   };
-
-  const uniqueFournisseurs = Array.from(
-    new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
-  ).sort();
 
   const filteredDossiers = dossiers.filter((d) => {
     const matchesSearch =
@@ -106,9 +109,7 @@ export default function DossiersListPrescripteur() {
       matchesStatus = d.new_status === Number(filterStatus);
     }
 
-    const matchesFournisseur =
-      filterFournisseur === "ALL" ||
-      d.new_supplier_id === filterFournisseur;
+    const matchesFournisseur = matchesSupplierFilter(d.new_supplier_id, filterFournisseur);
 
     const matchesDate =
       !filterDate || d.new_reception_date.startsWith(filterDate);
@@ -160,12 +161,12 @@ export default function DossiersListPrescripteur() {
                   : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                 }`}
             >
-              <Filter className="w-4 h-4" /> Filtres Avancés
+              <Filter className="w-4 h-4" /> Filtres avancés
             </button>
             <button 
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
-              <Download className="w-4 h-4" /> Exporter Excel
+              <Download className="w-4 h-4" /> Exporter au format Excel
             </button>
           </div>
         </div>
@@ -208,7 +209,7 @@ export default function DossiersListPrescripteur() {
                 <option value="30">À réceptionner (30)</option>
                 <option value="40">Chez moi (40)</option>
                 <option value=">=50">Validés &amp; Transmis ({">="} 50)</option>
-                <option value="90">Retour Correction (90)</option>
+                <option value="90">Retour pour correction (90)</option>
               </select>
             </div>
 
@@ -216,18 +217,7 @@ export default function DossiersListPrescripteur() {
               <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Fournisseur
               </label>
-              <select
-                className="w-full min-w-[200px] border border-slate-200 dark:border-slate-700 rounded-lg text-sm px-3 py-2 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none text-slate-700 dark:text-slate-300"
-                value={filterFournisseur}
-                onChange={(e) => setFilterFournisseur(e.target.value)}
-              >
-                <option value="ALL">Tous les fournisseurs</option>
-                {uniqueFournisseurs.map((f) => (
-                  <option key={f as string} value={f as string}>
-                    {f as string}
-                  </option>
-                ))}
-              </select>
+              <SupplierFilterInput value={filterFournisseur} onValueChange={setFilterFournisseur} />
             </div>
 
             <div className="space-y-1.5">
@@ -247,7 +237,7 @@ export default function DossiersListPrescripteur() {
                 onClick={() => {
                   setFilterType("ALL");
                   setFilterStatus("ALL");
-                  setFilterFournisseur("ALL");
+                  setFilterFournisseur("");
                   setFilterDate("");
                   setSearch("");
                 }}
@@ -444,7 +434,7 @@ export default function DossiersListPrescripteur() {
                 <CheckCircle className="w-12 h-12 text-emerald-500" />
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Action Réussie
+                Confirmation
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">
                 {successMessage}
@@ -480,9 +470,9 @@ function getTypeBadge(type: number) {
 function getStatutBadge(statut: number) {
   switch (statut) {
     case 30: return <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2.5 py-1 rounded-full text-xs font-bold">À réceptionner</span>;
-    case 40: return <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded-full text-xs font-bold">Chez Vous</span>;
-    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold">Retour Correction</span>;
-    default: return <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold">En Cours</span>;
+    case 40: return <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded-full text-xs font-bold">Chez vous</span>;
+    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold">Retour pour correction</span>;
+    default: return <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold">En cours</span>;
   }
 }
 

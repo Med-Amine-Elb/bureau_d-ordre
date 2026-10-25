@@ -4,6 +4,7 @@ import {
   Eye,
   FileText,
   CheckCircle,
+  CheckCircle2,
   Plus,
   Send,
   Sparkles,
@@ -119,7 +120,7 @@ export default function DashboardBO() {
     { name: "Prescripteur", value: statutCounts[40] || 0, color: "#8b5cf6" },
     { name: "DCF (Compta)", value: statutCounts[80] || 0, color: "#ec4899" },
     { name: "Trésorerie", value: statutCounts[110] || 0, color: "#f97316" },
-    { name: "En Agence", value: statutCounts[140] || 0, color: "#10b981" }
+    { name: "En agence", value: statutCounts[140] || 0, color: "#10b981" }
   ].filter(item => item.value > 0);
 
   if (pieData.length === 0) {
@@ -234,7 +235,6 @@ export default function DashboardBO() {
         status: u.new_status || "Actif",
         workload,
         count,
-        avatar: `https://api.dicebear.com/7.x/micah/svg?seed=${u.fullname}&backgroundColor=b6e3f4`
       };
     })
     .filter((c): c is NonNullable<typeof c> => c !== null)
@@ -248,7 +248,7 @@ export default function DashboardBO() {
 
     setSelectedDossierForTransmission(dossier);
     setTransmissionTargetRole(isToDCF ? "DCF" : "Prescripteur");
-    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_id || "") : (dossier.new_prescriber_id || ""));
+    setTransmissionInitialCollector(isToDCF ? (dossier.new_dcf_collector_guid || "") : (dossier.new_prescriber_guid || ""));
     setShowTransmissionModal(true);
   };
 
@@ -271,14 +271,20 @@ export default function DashboardBO() {
           : selectedDossierForTransmission.new_description
       };
 
-      await dataService.updateDossier(selectedDossierForTransmission.new_folderid, payload);
-      setSuccessMessage(
-        `Le dossier ${selectedDossierForTransmission.new_folder_number} a été transmis vers ${nextStatus === 70 ? "la DCF" : "le Prescripteur"}.`,
-      );
+      await dataService.transmitDossier({
+        folderId: selectedDossierForTransmission.new_folderid,
+        folderNumber: selectedDossierForTransmission.new_folder_number,
+        dossierChanges: payload,
+        fromRole: "BO",
+        toRole: isToDCF ? "DCF" : "Prescripteur",
+        collectorId: data.collecteur,
+        sendingComment: data.commentaire,
+      });
+      setSuccessMessage("Dossier transmis.");
       setSuccessModalOpen(true);
       fetchData();
     } catch (err) {
-      toast.error("Erreur", { description: "Impossible de transmettre le dossier." });
+      toast.error("Erreur", { description: err instanceof Error ? err.message : "Impossible de transmettre le dossier." });
     } finally {
       setLoading(false);
     }
@@ -287,7 +293,7 @@ export default function DashboardBO() {
   const handleAccuse = async (dossier: Dossier) => {
     try {
       await dataService.accuseReception(dossier.new_folderid, 60, "Agent BO");
-      setSuccessMessage(`Réception accusée pour le dossier ${dossier.new_folder_number}. Prêt pour la DCF.`);
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchData();
     } catch (err) {
@@ -295,23 +301,38 @@ export default function DashboardBO() {
     }
   };
 
+  const handleDeliverCourier = async (dossier: Dossier) => {
+    setLoading(true);
+    try {
+      await dataService.completeCourierDelivery(dossier.new_folderid);
+      toast.success(`Le courrier ${dossier.new_folder_number} est marqué livré et clôturé.`);
+      await fetchData();
+    } catch (error) {
+      toast.error("Impossible de clôturer le courrier.", {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getStatusLabelText = (status: number) => {
     switch (status) {
-      case 10: return "Sauvegarde";
-      case 20: return "Hors Délai";
+      case 10: return "Chez BO — à traiter";
+      case 20: return "Hors délai";
       case 30:
       case 50:
       case 70:
-      case 100: return "En Transit";
-      case 40: return "Chez Prescripteur";
+      case 100: return "En transit";
+      case 40: return "Chez prescripteur";
       case 60: return "Prêt DCF";
       case 80: return "Chez DCF";
-      case 90: return "Retour Correction";
+      case 90: return "Retour correction";
       case 110: return "Trésorerie";
-      case 120: return "Attente Remise";
-      case 130: return "En Transport";
-      case 140: return "Disponible Agence";
-      case 150: return "Payé / Clôturé";
+      case 120: return "En attente de remise";
+      case 130: return "En transport";
+      case 140: return "Disponible en agence";
+      case 150: return "Payé / clôturé";
       default: return `Statut ${status}`;
     }
   };
@@ -375,19 +396,35 @@ export default function DashboardBO() {
     <div className="w-full space-y-6">
 
       {/* Greeting Section */}
-      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Dashboard
-        </h1>
-        <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
-          Bienvenue, {userName}. Voici le récapitulatif de vos activités aujourd'hui.
-        </p>
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            Dashboard
+          </h1>
+          <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
+            Bienvenue, {userName}. Voici le récapitulatif de vos activités aujourd'hui.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 sm:justify-end">
+          <button
+            onClick={() => navigate("/bo/dossiers/nouveau")}
+            className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl py-2.5 px-4 text-sm font-bold transition-all shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Nouveau dossier
+          </button>
+          <button
+            onClick={() => navigate("/bo/relances")}
+            className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl py-2.5 px-4 text-sm font-bold transition-colors cursor-pointer"
+          >
+            <PhoneCall className="w-4 h-4" /> Relances
+          </button>
+        </div>
       </div>
 
       {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <KpiCard
-          title="Dossiers Actifs"
+          title="Dossiers actifs"
           icon={Layers}
           value={enCoursTotal.toLocaleString()}
           loading={loading}
@@ -404,7 +441,7 @@ export default function DashboardBO() {
           }
         />
         <KpiCard
-          title="Chèques Attente"
+          title="Chèques en attente"
           icon={PackageSearch}
           value={chequesAttente.toLocaleString()}
           loading={loading}
@@ -434,7 +471,7 @@ export default function DashboardBO() {
           }
         />
         <KpiCard
-          title="Clôturés / Payés"
+          title="Clôturés / payés"
           icon={CheckCircle}
           value={payesCount.toLocaleString()}
           loading={loading}
@@ -458,7 +495,7 @@ export default function DashboardBO() {
           >
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               <div>
-                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Vue Globale des Dossiers</h3>
+                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Vue globale des dossiers</h3>
                 <div className="mt-2">
                   <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{totalDossiersCount}</span>
                 </div>
@@ -467,20 +504,6 @@ export default function DashboardBO() {
                   <span className="text-xs font-semibold text-teal-500">{complianceRate}%</span>
                   <span className="text-xs text-slate-400">conformes SLA</span>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate("/bo/dossiers/nouveau")}
-                  className="flex items-center gap-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl py-2.5 px-4 text-xs font-bold transition-all shadow-sm cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Nouveau Dossier
-                </button>
-                <button
-                  onClick={() => navigate("/bo/relances")}
-                  className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl py-2.5 px-4 text-xs font-bold transition-all cursor-pointer"
-                >
-                  <PhoneCall className="w-3.5 h-3.5" /> Relances
-                </button>
               </div>
             </div>
 
@@ -554,7 +577,7 @@ export default function DashboardBO() {
             {/* Sub-stats row (Shopeers 'Customers' Card Style) */}
             <div className="mt-8 pt-6 border-t border-slate-100/60 dark:border-slate-800">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par Rôle</h3>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par rôle</h3>
                 <button className="text-slate-400 hover:text-slate-600 transition-colors">
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
@@ -585,7 +608,7 @@ export default function DashboardBO() {
                     <FileText className="w-3.5 h-3.5 text-amber-500" />
                     <span className="font-bold text-lg text-slate-900 dark:text-white leading-none">{dossiersDCF}</span>
                   </div>
-                  <span className="text-[11px] text-slate-400 font-medium">DCF / Compta</span>
+                  <span className="text-[11px] text-slate-400 font-medium">Comptabilité</span>
                 </div>
 
                 {/* Trésorerie */}
@@ -618,7 +641,7 @@ export default function DashboardBO() {
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Chèques reçus de Trésorerie ({dossiersEnAttenteBO.length})
+                  Chèques reçus de trésorerie ({dossiersEnAttenteBO.length})
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -655,7 +678,7 @@ export default function DashboardBO() {
           >
             <div className="p-5 pb-0 flex items-center justify-between flex-none">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Dossiers en Cours de Traitement</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Dossiers en cours de traitement</h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">Suivi des étapes actives et relances des acteurs.</p>
               </div>
               <div className="flex items-center gap-2">
@@ -718,8 +741,8 @@ export default function DashboardBO() {
                           <td className="py-3.5 px-5 text-right">
                             <div className="flex justify-end items-center gap-1.5">
                               {(d.new_status === 10 || d.new_status === 60) && (
-                                <button onClick={() => handleTransmit(d)} className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer">
-                                  <Send className="w-3 h-3" /> Transmettre
+                                <button onClick={() => d.new_document_type === 600 ? handleDeliverCourier(d) : handleTransmit(d)} className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer">
+                                  {d.new_document_type === 600 ? <><CheckCircle2 className="w-3 h-3" /> Marquer livré</> : <><Send className="w-3 h-3" /> Transmettre</>}
                                 </button>
                               )}
                               <button onClick={() => navigate(`/bo/dossiers/${d.new_folderid}`)} className="p-1.5 text-slate-400 hover:text-[#1F3B73] transition-colors cursor-pointer">
@@ -805,7 +828,7 @@ export default function DashboardBO() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
           >
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Dossiers Complétés</h3>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Dossiers complétés</h3>
               <button className="text-slate-400 hover:text-slate-600 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
@@ -839,11 +862,7 @@ export default function DashboardBO() {
                 computedCollaborators.slice(0, 5).map((col, idx) => (
                   <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <div className="flex items-center gap-2.5">
-                      <div className="relative">
-                        <img src={col.avatar} alt={col.name} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700" />
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-[#0F172B] ${col.workload === "low" ? "bg-emerald-500" : col.workload === "medium" ? "bg-amber-500" : "bg-red-500"
-                          }`}></div>
-                      </div>
+                      <span aria-label={`Charge ${col.workload === "low" ? "faible" : col.workload === "medium" ? "moyenne" : "élevée"}`} className={`h-2.5 w-2.5 shrink-0 rounded-full ${col.workload === "low" ? "bg-emerald-500" : col.workload === "medium" ? "bg-amber-500" : "bg-red-500"}`} />
                       <div>
                         <h4 className="text-xs font-semibold text-slate-900 dark:text-white">{col.name}</h4>
                         <span className="text-[10px] text-slate-400">{col.role}</span>
@@ -870,7 +889,7 @@ export default function DashboardBO() {
               <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
                 <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Action Réussie</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Confirmation</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{successMessage}</p>
               <button
                 onClick={() => setSuccessModalOpen(false)}
@@ -890,7 +909,7 @@ export default function DashboardBO() {
         dossierNumber={selectedDossierForTransmission?.new_folder_number || ""}
         targetRole={transmissionTargetRole}
         initialCollector={transmissionInitialCollector}
-        directionId={selectedDossierForTransmission?.new_department_id}
+        directionId={selectedDossierForTransmission?.new_department_guid}
       />
     </div>
   );

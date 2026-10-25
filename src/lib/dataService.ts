@@ -7,6 +7,18 @@ import { New_branchsService } from '../generated/services/New_branchsService';
 import { SystemusersService } from '../generated/services/SystemusersService';
 import { New_companiesService } from '../generated/services/New_companiesService';
 import { New_departementsService } from '../generated/services/New_departementsService';
+import { New_transmissionsService } from '../generated/services/New_transmissionsService';
+import type {
+  New_transmissions,
+  New_transmissionsBase,
+  New_transmissionsnew_fromrole,
+  New_transmissionsnew_torole,
+  New_transmissionsnew_transmissionstatus,
+} from '../generated/models/New_transmissionsModel';
+import { getContext } from '@microsoft/power-apps/app';
+import { companyRecord, departmentRecord, supplierRecord } from './referenceForms';
+import type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
+export type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
 
 const getXrm = (): any => {
   if (typeof window === "undefined") return null;
@@ -128,11 +140,22 @@ export interface SystemUser {
   new_department_id?: string;
 }
 
-export interface FournisseurLookup {
+export interface ReferenceAudit {
+  createdon?: string;
+  modifiedon?: string;
+}
+
+export interface FournisseurLookup extends ReferenceAudit {
   new_supplierid: string;
   new_name: string;
   new_code: string;
   new_is_active: boolean;
+  new_address?: string;
+  new_city?: string;
+  new_email?: string;
+  new_phone?: string;
+  new_branch_id?: string;
+  new_branch_name?: string;
 }
 
 export interface AgenceLookup {
@@ -142,18 +165,20 @@ export interface AgenceLookup {
   new_is_active: boolean;
 }
 
-export interface CompanyLookup {
+export interface CompanyLookup extends ReferenceAudit {
   new_companyid: string;
   new_name: string;
   new_code: string;
   new_is_active: boolean;
 }
 
-export interface DepartmentLookup {
+export interface DepartmentLookup extends ReferenceAudit {
   new_departmentid: string;
   new_name: string;
   new_code: string;
   new_is_active: boolean;
+  new_company_id?: string;
+  new_company_name?: string;
 }
 
 export interface SystemConfig {
@@ -162,6 +187,83 @@ export interface SystemConfig {
   new_relance_seuil_jours: number;
   new_alerte_blocage_jours: number;
 }
+
+export type TransmissionRole = "BO" | "Prescripteur" | "DCF" | "Trésorerie" | "Agence" | "Admin";
+
+export interface DossierTransmission extends New_transmissions {
+  new_fromrole_label?: string;
+  new_torole_label?: string;
+}
+
+const TRANSMISSION_ROLE_CODES: Record<TransmissionRole, number> = {
+  BO: 871840000,
+  Prescripteur: 871840001,
+  DCF: 871840002,
+  "Trésorerie": 871840003,
+  Agence: 871840004,
+  Admin: 871840005,
+};
+
+const isGuid = (value: string | undefined): value is string =>
+  !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+const getCurrentSystemUserId = async (): Promise<string> => {
+  const xrm = getXrm();
+  const xrmUserId = xrm?.Utility?.getGlobalContext?.()?.userSettings?.userId?.replace(/[{}]/g, "");
+  if (isGuid(xrmUserId)) return xrmUserId;
+
+  try {
+    const context = await getContext();
+    const entraObjectId = context.user.objectId?.replace(/[{}]/g, "");
+    if (isGuid(entraObjectId)) {
+      const result = await SystemusersService.getAll({
+        filter: `azureactivedirectoryobjectid eq ${entraObjectId}`,
+        select: ["systemuserid", "azureactivedirectoryobjectid"],
+        top: 2,
+      });
+      const systemUserId = result.data?.[0]?.systemuserid;
+      if (!result.error && isGuid(systemUserId)) return systemUserId;
+    }
+  } catch {
+    // Local Play may expose the Dataverse user only through Xrm.
+  }
+  throw new Error("Impossible de retrouver votre utilisateur Dataverse (systemuserid) à partir de votre compte Power Apps.");
+};
+
+const getDataverseErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) return error.message;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  return "Erreur Dataverse sans détail retourné.";
+};
+
+const createTransmissionRecord = async (input: {
+  folderId: string;
+  folderNumber: string;
+  fromRole: TransmissionRole;
+  toRole: TransmissionRole;
+  collectorId: string;
+  sendingComment?: string;
+  branchId?: string;
+}, senderId: string): Promise<void> => {
+  const record = {
+    new_transmissionname: `${input.folderNumber} — ${input.fromRole} → ${input.toRole}`,
+    "new_Folder@odata.bind": `/new_folders(${input.folderId})`,
+    "new_SentBy@odata.bind": `/systemusers(${senderId})`,
+    "new_Collector@odata.bind": `/systemusers(${input.collectorId})`,
+    new_fromrole: TRANSMISSION_ROLE_CODES[input.fromRole] as New_transmissionsnew_fromrole,
+    new_torole: TRANSMISSION_ROLE_CODES[input.toRole] as New_transmissionsnew_torole,
+    new_transmissiondate: new Date().toISOString(),
+    new_transmissionstatus: 871840000 as New_transmissionsnew_transmissionstatus,
+    ...(input.sendingComment ? { new_sendingcomment: input.sendingComment } : {}),
+    ...(input.branchId ? { "new_Branch@odata.bind": `/new_branchs(${input.branchId})` } : {}),
+  } as Omit<New_transmissionsBase, "new_transmissionid">;
+  const result = await New_transmissionsService.create(record);
+  if (result.error) {
+    throw new Error(`Création de la transmission refusée par Dataverse : ${getDataverseErrorMessage(result.error)}`);
+  }
+};
 
 export const mapCrmDocumentTypeToFrontend = (crmVal: number): number => {
   switch (crmVal) {
@@ -243,6 +345,7 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
     new_livreur_nom: entity.new_delivery_person || undefined,
     new_signed_receipt_url: entity.new_signed_receipt_url || undefined,
     new_supplier_signed: entity.new_supplier_signed || false,
+    new_fournisseur_signe: entity.new_supplier_signed || false,
     new_commentaire_agence: entity.new_branch_comment || undefined,
     new_date_trans_prescripteur: entity.new_date_trans_prescriber || undefined,
     new_date_accuse_prescripteur: entity.new_date_accuse_prescriber || undefined,
@@ -260,6 +363,7 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
     new_treasury_comment: entity.new_treasury_comment || undefined,
     new_return_reason: entity.new_return_reason || undefined,
     new_person_to_deliver: entity.new_person_to_deliver || undefined,
+    new_personne_a_livrer: entity.new_person_to_deliver || undefined,
     new_sharepoint_url: entity.new_sharepointurl || undefined,
     new_cancellation_reason: entity.new_cancellationstatus || undefined,
     new_advance_phase: entity.new_advancephase || undefined,
@@ -295,7 +399,9 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   if (d.new_livreur_nom !== undefined) entity.new_delivery_person = d.new_livreur_nom;
   if (d.new_signed_receipt_url !== undefined) entity.new_signed_receipt_url = d.new_signed_receipt_url;
   if (d.new_recu_signe_scan !== undefined) entity.new_signed_receipt_url = d.new_recu_signe_scan;
-  if (d.new_supplier_signed !== undefined) entity.new_supplier_signed = d.new_supplier_signed;
+  // Prefer the Dataverse-facing name if a caller supplies both aliases.
+  const supplierSigned = d.new_supplier_signed ?? d.new_fournisseur_signe;
+  if (supplierSigned !== undefined) entity.new_supplier_signed = supplierSigned;
   if (d.new_commentaire_agence !== undefined) entity.new_branch_comment = d.new_commentaire_agence;
 
   if (d.new_date_trans_prescripteur !== undefined) entity.new_date_trans_prescriber = d.new_date_trans_prescripteur;
@@ -317,7 +423,8 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   }
   if (d.new_treasury_comment !== undefined) entity.new_treasury_comment = d.new_treasury_comment;
   if (d.new_return_reason !== undefined) entity.new_return_reason = d.new_return_reason;
-  if (d.new_person_to_deliver !== undefined) entity.new_person_to_deliver = d.new_person_to_deliver;
+  const recipient = d.new_person_to_deliver ?? d.new_personne_a_livrer;
+  if (recipient !== undefined) entity.new_person_to_deliver = recipient;
   if (d.new_sharepoint_url !== undefined) entity.new_sharepointurl = d.new_sharepoint_url;
   if (d.new_cancellation_reason !== undefined) entity.new_cancellationstatus = d.new_cancellation_reason;
   if (d.new_advance_phase !== undefined) entity.new_advancephase = d.new_advance_phase;
@@ -371,6 +478,110 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 };
 
 export const dataService = {
+  getDossierTransmissions: async (folderId: string): Promise<DossierTransmission[]> => {
+    if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
+    const result = await New_transmissionsService.getAll({
+      filter: `_new_folder_value eq ${folderId}`,
+      select: [
+        "new_transmissionid", "new_transmissionname", "new_fromrole", "new_torole",
+        "new_transmissiondate", "new_acknowledgmentdate", "new_sendingcomment", "new_receiptcomment",
+        "new_transmissionstatus", "_new_folder_value", "_new_sentby_value", "_new_collector_value",
+        "_new_acknowledgedby_value", "_new_branch_value",
+      ],
+      orderBy: ["new_transmissiondate desc"],
+    });
+    if (result.error) throw new Error("Impossible de charger l’historique des transmissions.");
+    return (result.data ?? []).map((row) => {
+      const raw = row as New_transmissions & Record<string, unknown>;
+      return {
+        ...row,
+        new_fromrole_label: String(raw["new_fromrole@OData.Community.Display.V1.FormattedValue"] ?? row.new_fromrolename ?? ""),
+        new_torole_label: String(raw["new_torole@OData.Community.Display.V1.FormattedValue"] ?? row.new_torolename ?? ""),
+        new_sentbyname: String(raw["_new_sentby_value@OData.Community.Display.V1.FormattedValue"] ?? row.new_sentbyname ?? ""),
+        new_collectorname: String(raw["_new_collector_value@OData.Community.Display.V1.FormattedValue"] ?? row.new_collectorname ?? ""),
+        new_acknowledgedbyname: String(raw["_new_acknowledgedby_value@OData.Community.Display.V1.FormattedValue"] ?? row.new_acknowledgedbyname ?? ""),
+        new_branchname: String(raw["_new_branch_value@OData.Community.Display.V1.FormattedValue"] ?? row.new_branchname ?? ""),
+      };
+    });
+  },
+
+  createDossierTransmission: async (input: {
+    folderId: string;
+    folderNumber: string;
+    fromRole: TransmissionRole;
+    toRole: TransmissionRole;
+    collectorId: string;
+    sendingComment?: string;
+    branchId?: string;
+  }): Promise<void> => {
+    if (!isGuid(input.folderId) || !isGuid(input.collectorId) || (input.branchId && !isGuid(input.branchId))) {
+      throw new Error("Le dossier, le destinataire et l’agence éventuelle doivent avoir des identifiants Dataverse valides.");
+    }
+    const senderId = await getCurrentSystemUserId();
+    await createTransmissionRecord(input, senderId);
+  },
+
+  transmitDossier: async (input: {
+    folderId: string;
+    folderNumber: string;
+    dossierChanges: Partial<Dossier>;
+    fromRole: TransmissionRole;
+    toRole: TransmissionRole;
+    collectorId: string;
+    sendingComment?: string;
+  }): Promise<void> => {
+    if (!isGuid(input.folderId) || !isGuid(input.collectorId)) {
+      throw new Error("Le dossier et le destinataire doivent avoir des identifiants Dataverse valides.");
+    }
+    const senderId = await getCurrentSystemUserId();
+    await dataService.updateDossier(input.folderId, input.dossierChanges);
+    await createTransmissionRecord({
+      folderId: input.folderId,
+      folderNumber: input.folderNumber,
+      fromRole: input.fromRole,
+      toRole: input.toRole,
+      collectorId: input.collectorId,
+      sendingComment: input.sendingComment,
+    }, senderId);
+  },
+
+  completeCourierDelivery: async (folderId: string): Promise<void> => {
+    if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
+    await dataService.updateDossier(folderId, {
+      new_status: 150,
+      new_final_delivery_date: new Date().toISOString(),
+    });
+  },
+
+  acknowledgeLatestDossierTransmission: async (
+    folderId: string,
+    receiptComment?: string,
+    acknowledgedById?: string,
+  ): Promise<boolean> => {
+    if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
+    const result = await New_transmissionsService.getAll({
+      filter: `_new_folder_value eq ${folderId} and new_transmissionstatus eq 871840000`,
+      select: ["new_transmissionid", "_new_collector_value", "new_transmissiondate"],
+      orderBy: ["new_transmissiondate desc"],
+      top: 1,
+    });
+    if (result.error) throw new Error("Impossible de retrouver la transmission à accuser.");
+    const pending = result.data?.[0];
+    if (!pending) return false;
+    const currentUserId = acknowledgedById || await getCurrentSystemUserId();
+    if (pending._new_collector_value?.toLowerCase() !== currentUserId.toLowerCase()) {
+      return false;
+    }
+    const update = await New_transmissionsService.update(pending.new_transmissionid, {
+      new_acknowledgmentdate: new Date().toISOString(),
+      "new_AcknowledgedBy@odata.bind": `/systemusers(${currentUserId})`,
+      new_transmissionstatus: 871840001 as New_transmissionsnew_transmissionstatus,
+      ...(receiptComment ? { new_receiptcomment: receiptComment } : {}),
+    });
+    if (update.error) throw new Error("Impossible d’enregistrer l’accusé de réception dans l’historique.");
+    return true;
+  },
+
   getDossiers: async (): Promise<Dossier[]> => {
     const selectFields = [
       "new_folder_number",
@@ -424,7 +635,6 @@ export const dataService = {
 
     const result = await New_foldersService.getAll({ select: selectFields });
     if (result.data) {
-      console.log("DEBUG RAW DOSSIERS FROM CRM:", result.data);
       return result.data.map(mapCrmEntityToDossier);
     }
     throw new Error("Failed to fetch folders: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
@@ -454,7 +664,7 @@ export const dataService = {
     }
   },
 
-  accuseReception: async (id: string, nextStatus: number, _user: string): Promise<void> => {
+  accuseReception: async (id: string, nextStatus: number, _user: string): Promise<boolean> => {
     const xrm = getXrm();
     const context = xrm ? xrm.Utility.getGlobalContext() : null;
     const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
@@ -471,6 +681,16 @@ export const dataService = {
     const result = await New_foldersService.update(id, updateData);
     if (result.error) {
       throw new Error("Failed to acknowledge receipt: " + JSON.stringify(result.error));
+    }
+    // The dossier receipt is the primary operation. Audit logging is a separate
+    // Dataverse request and must not turn a successful receipt into a UI failure.
+    try {
+      const actorId = userId || await getCurrentSystemUserId();
+      await dataService.acknowledgeLatestDossierTransmission(id, undefined, actorId);
+      return true;
+    } catch (error) {
+      console.error("Transmission audit acknowledgment failed after dossier receipt was saved:", error);
+      return false;
     }
   },
 
@@ -504,40 +724,37 @@ export const dataService = {
 
   // Fournisseur Reference
   getFournisseursLookup: async (): Promise<FournisseurLookup[]> => {
-    const result = await New_suppliersService.getAll({ select: ["new_supplierid", "new_name", "new_tax_id", "new_isactive"] });
-    if (result.data) {
-      return result.data.map((e: any) => ({
+    const result = await New_suppliersService.getAll({ select: ["new_supplierid", "new_name", "new_tax_id", "new_isactive", "new_address", "new_city", "new_email", "new_phone", "_new_branch_value", "createdon", "modifiedon"] });
+    if (result.success && result.data) {
+      return result.data.map((e) => ({
         new_supplierid: e.new_supplierid,
         new_name: e.new_name,
         new_code: e.new_tax_id || "",
-        new_is_active: e.new_isactive
+        new_is_active: e.new_isactive ?? false,
+        new_address: e.new_address ?? "",
+        new_city: e.new_city ?? "",
+        new_email: e.new_email ?? "",
+        new_phone: e.new_phone ?? "",
+        new_branch_id: e._new_branch_value,
+        new_branch_name: e.new_branchname,
+        createdon: e.createdon,
+        modifiedon: e.modifiedon,
       }));
     }
     throw new Error("Failed to retrieve suppliers: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
-  updateFournisseurLookup: async (id: string, four: Partial<FournisseurLookup>): Promise<void> => {
-    const updateData: any = {
-      new_name: four.new_name,
-      new_isactive: four.new_is_active
-    };
-    if (four.new_code !== undefined) {
-      updateData.new_tax_id = four.new_code;
-    }
+  updateFournisseurLookup: async (id: string, four: Partial<SupplierInput>): Promise<void> => {
+    const updateData = supplierRecord(four);
     const result = await New_suppliersService.update(id, updateData);
-    if (result.error) {
+    if (!result.success || result.error) {
       throw new Error("Failed to update supplier: " + JSON.stringify(result.error));
     }
   },
-  createFournisseurLookup: async (four: Partial<FournisseurLookup>): Promise<void> => {
-    const createData: any = {
-      new_name: four.new_name,
-      new_isactive: four.new_is_active
-    };
-    if (four.new_code !== undefined) {
-      createData.new_tax_id = four.new_code;
-    }
-    const result = await New_suppliersService.create(createData);
-    if (result.error) {
+  createFournisseurLookup: async (four: SupplierInput): Promise<void> => {
+    const createData = supplierRecord(four, true);
+    // Generated create signatures require managed ownership/state columns; Dataverse supplies them.
+    const result = await New_suppliersService.create(createData as Parameters<typeof New_suppliersService.create>[0]);
+    if (!result.success || result.error) {
       throw new Error("Failed to create supplier: " + JSON.stringify(result.error));
     }
   },
@@ -545,8 +762,8 @@ export const dataService = {
   // Agence Reference
   getAgencesLookup: async (): Promise<AgenceLookup[]> => {
     const result = await New_branchsService.getAll({ select: ["new_branchid", "new_name", "new_code", "new_city", "new_is_active"] });
-    if (result.data) {
-      return result.data.map((e: any) => ({
+    if (result.success && result.data) {
+      return result.data.map((e) => ({
         new_branchid: e.new_branchid,
         new_name: e.new_name,
         new_city: e.new_city,
@@ -556,42 +773,75 @@ export const dataService = {
     throw new Error("Failed to retrieve branches: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
   updateAgenceLookup: async (id: string, agence: Partial<AgenceLookup>): Promise<void> => {
-    const result = await New_branchsService.update(id, agence as any);
-    if (result.error) {
+    const result = await New_branchsService.update(id, {
+      new_name: agence.new_name,
+      new_city: agence.new_city,
+      new_is_active: agence.new_is_active,
+    });
+    if (!result.success || result.error) {
       throw new Error("Failed to update branch: " + JSON.stringify(result.error));
     }
   },
   createAgenceLookup: async (agence: Partial<AgenceLookup>): Promise<void> => {
     const result = await New_branchsService.create(agence as any);
-    if (result.error) {
+    if (!result.success || result.error) {
       throw new Error("Failed to create branch: " + JSON.stringify(result.error));
     }
   },
 
   getCompaniesLookup: async (): Promise<CompanyLookup[]> => {
-    const result = await New_companiesService.getAll({ select: ["new_companyid", "new_name", "new_code", "new_is_active"] });
-    if (result.data) {
-      return result.data.map((e: any) => ({
+    const result = await New_companiesService.getAll({ select: ["new_companyid", "new_name", "new_code", "new_is_active", "createdon", "modifiedon"] });
+    if (result.success && result.data) {
+      return result.data.map((e) => ({
         new_companyid: e.new_companyid,
         new_name: e.new_name,
         new_code: e.new_code,
-        new_is_active: e.new_is_active
+        new_is_active: e.new_is_active ?? false,
+        createdon: e.createdon,
+        modifiedon: e.modifiedon,
       }));
     }
     throw new Error("Failed to retrieve companies: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
 
   getDepartmentsLookup: async (): Promise<DepartmentLookup[]> => {
-    const result = await New_departementsService.getAll({ select: ["new_departementid", "new_name", "new_code", "new_isactive"] });
-    if (result.data) {
-      return result.data.map((e: any) => ({
+    const result = await New_departementsService.getAll({ select: ["new_departementid", "new_name", "new_code", "new_isactive", "_new_company_value", "createdon", "modifiedon"] });
+    if (result.success && result.data) {
+      return result.data.map((e) => ({
         new_departmentid: e.new_departementid,
         new_name: e.new_name,
         new_code: e.new_code,
-        new_is_active: e.new_isactive
+        new_is_active: e.new_isactive ?? false,
+        new_company_id: e._new_company_value,
+        new_company_name: e.new_companyname,
+        createdon: e.createdon,
+        modifiedon: e.modifiedon,
       }));
     }
     throw new Error("Failed to retrieve departments: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
+  },
+
+  createCompanyLookup: async (company: CompanyInput): Promise<void> => {
+    const record = companyRecord(company, true);
+    // Generated create signatures include system-managed ownership fields;
+    // Dataverse supplies those fields. Send only the writable business columns.
+    const result = await New_companiesService.create(record as Parameters<typeof New_companiesService.create>[0]);
+    if (!result.success || result.error) throw new Error("Impossible de créer la société. Vérifiez vos droits Dataverse et les champs saisis.");
+  },
+  updateCompanyLookup: async (id: string, company: Partial<CompanyInput>): Promise<void> => {
+    const record = companyRecord(company);
+    const result = await New_companiesService.update(id, record);
+    if (!result.success || result.error) throw new Error("Impossible de modifier la société. Vérifiez vos droits Dataverse.");
+  },
+  createDepartmentLookup: async (department: DepartmentInput): Promise<void> => {
+    const record = departmentRecord(department, true);
+    const result = await New_departementsService.create(record as Parameters<typeof New_departementsService.create>[0]);
+    if (!result.success || result.error) throw new Error("Impossible de créer la direction. Vérifiez vos droits Dataverse et les champs saisis.");
+  },
+  updateDepartmentLookup: async (id: string, department: Partial<DepartmentInput>): Promise<void> => {
+    const record = departmentRecord(department);
+    const result = await New_departementsService.update(id, record);
+    if (!result.success || result.error) throw new Error("Impossible de modifier la direction. Vérifiez vos droits Dataverse.");
   },
 
   // System Config

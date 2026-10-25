@@ -78,9 +78,7 @@ export default function DashboardAgence() {
         new_accuse_reception_agence_par: "Utilisateur Agence",
         new_commentaire_agence: data.commentaire
       });
-      setSuccessMessage(
-        `Réception du chèque validée pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -96,13 +94,11 @@ export default function DashboardAgence() {
       await dataService.updateDossier(selectedDossier.new_folderid, {
         new_status: 150, // Payé / Clôturé
         new_final_delivery_date: data.dateRemise,
-        new_recu_signe_scan: data.scanNom,
+        new_recu_signe_scan: data.scanNom || undefined,
         new_fournisseur_signe: true,
         new_commentaire_agence: data.commentaire
       });
-      setSuccessMessage(
-        `Remise du chèque validée avec succès pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      setSuccessMessage("Dossier validé.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -123,7 +119,7 @@ export default function DashboardAgence() {
       {/* Greeting Section */}
       <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          Dashboard Agence <span className="animate-pulse text-[#1F3B73]">⚡</span>
+          Dashboard agence <span className="animate-pulse text-[#1F3B73]">⚡</span>
         </h1>
         <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
           Bonjour {userName}. Gérez les chèques pour votre agence régionale : {currentAgence}.
@@ -140,7 +136,7 @@ export default function DashboardAgence() {
           onClick={() => navigate("/agence/cheques", { state: { filterStatus: 130 } })}
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">En Transit</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">En transit</span>
             <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10">
               <Truck className="w-4 h-4 text-amber-500" />
             </div>
@@ -162,7 +158,7 @@ export default function DashboardAgence() {
           onClick={() => navigate("/agence/cheques", { state: { filterStatus: 140 } })}
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Disponibles en Agence</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Disponibles en agence</span>
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10">
               <Wallet className="w-4 h-4 text-blue-500" />
             </div>
@@ -180,7 +176,7 @@ export default function DashboardAgence() {
           onClick={() => navigate("/agence/cheques", { state: { filterStatus: 150 } })}
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Chèques Remis</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Chèques remis</span>
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             </div>
@@ -198,7 +194,7 @@ export default function DashboardAgence() {
           onClick={() => navigate("/agence/cheques", { state: { filterStatus: "ALL" } })}
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Total Gérés</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Total gérés</span>
             <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800">
               <Layers className="w-4 h-4 text-slate-600 dark:text-slate-400" />
             </div>
@@ -225,7 +221,7 @@ export default function DashboardAgence() {
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  Chèques Disponibles en Agence
+                  Chèques disponibles en agence
                 </h3>
                 <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
                   {disponible} chèques
@@ -309,7 +305,7 @@ export default function DashboardAgence() {
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  Chèques en Transit (À Accuser)
+                  Chèques en transit (à accuser)
                 </h3>
                 <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
                   {enTransit} chèques
@@ -320,7 +316,7 @@ export default function DashboardAgence() {
                   <thead className="bg-slate-50/50 dark:bg-slate-800/30">
                     <tr>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
-                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date Envoi</th>
+                      <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date d’envoi</th>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
                     </tr>
                   </thead>
@@ -370,7 +366,7 @@ export default function DashboardAgence() {
           >
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white mb-6">Objectif de Remise</h3>
+            <h3 className="text-[15px] font-bold text-slate-900 dark:text-white mb-6">Objectif de remise</h3>
 
             <div className="flex flex-col items-center justify-center relative mb-4">
               <div className="w-32 h-32 rounded-full border-8 border-slate-100 dark:border-slate-800 flex items-center justify-center relative shadow-sm">
@@ -384,7 +380,7 @@ export default function DashboardAgence() {
             </div>
 
             <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800/50 mt-6 text-center">
-              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Chèques Remis</p>
+              <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Chèques remis</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-lg font-bold text-slate-900 dark:text-white">{remis}</span>
                 <span className="text-slate-400 font-semibold">/</span>
@@ -406,7 +402,7 @@ export default function DashboardAgence() {
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 className="text-[17px] font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
-              Action réussie
+              Confirmation
             </h3>
             <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed">
               {successMessage}

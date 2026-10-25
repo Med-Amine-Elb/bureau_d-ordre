@@ -48,6 +48,15 @@ interface FlowRun {
   entityName: string;
 }
 
+const resolveDossierLabel = (dossiers: Dossier[], identifier: string): string => {
+  const dossier = dossiers.find((item) =>
+    item.new_folder_number === identifier ||
+    item.new_folderid === identifier ||
+    item.new_folderid?.toLowerCase() === identifier.toLowerCase()
+  );
+  return dossier?.new_folder_number || identifier;
+};
+
 const INITIAL_FLOW_RUNS: FlowRun[] = [
   {
     runId: "run-0982-ab",
@@ -55,7 +64,7 @@ const INITIAL_FLOW_RUNS: FlowRun[] = [
     triggerTime: new Date(Date.now() - 15 * 60000).toISOString(),
     triggeredBy: "System (Webhook)",
     status: "Failed",
-    entityName: "new_dossier (DOS-2026-004)"
+    entityName: "DOS-2026-004"
   },
   {
     runId: "run-0981-cd",
@@ -63,7 +72,7 @@ const INITIAL_FLOW_RUNS: FlowRun[] = [
     triggerTime: new Date(Date.now() - 2 * 3600000).toISOString(),
     triggeredBy: "Power Automate Scheduler",
     status: "Succeeded",
-    entityName: "new_dossier (DOS-2026-010)"
+    entityName: "DOS-2026-010"
   },
   {
     runId: "run-0980-ef",
@@ -71,7 +80,7 @@ const INITIAL_FLOW_RUNS: FlowRun[] = [
     triggerTime: new Date(Date.now() - 5 * 3600000).toISOString(),
     triggeredBy: "System (Webhook)",
     status: "Failed",
-    entityName: "new_dossier (DOS-2026-001)"
+    entityName: "DOS-2026-001"
   },
   {
     runId: "run-0979-gh",
@@ -79,7 +88,7 @@ const INITIAL_FLOW_RUNS: FlowRun[] = [
     triggerTime: new Date(Date.now() - 12 * 3600000).toISOString(),
     triggeredBy: "Agent Agence",
     status: "Succeeded",
-    entityName: "new_dossier (DOS-2026-018)"
+    entityName: "DOS-2026-018"
   },
   {
     runId: "run-0978-ij",
@@ -87,7 +96,7 @@ const INITIAL_FLOW_RUNS: FlowRun[] = [
     triggerTime: new Date(Date.now() - 24 * 3600000).toISOString(),
     triggeredBy: "System Trigger",
     status: "Succeeded",
-    entityName: "new_dossier (DOS-2026-015)"
+    entityName: "DOS-2026-015"
   }
 ];
 
@@ -269,7 +278,7 @@ export default function AdminDashboard() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              Supervision Générale <span className="animate-pulse text-[#1F3B73]">⚡</span>
+              Supervision générale <span className="animate-pulse text-[#1F3B73]">⚡</span>
             </h1>
             <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
               Bonjour {userName}. Vue d'ensemble de la plateforme et de l'intégration Dataverse.
@@ -301,14 +310,14 @@ export default function AdminDashboard() {
           className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Volume Total</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Volume total</span>
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10">
               <Layers className="w-4 h-4 text-[#1F3B73]" />
             </div>
           </div>
           <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : totalDossiers.toLocaleString()}</h3>
           <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="text-xs text-slate-400">dossiers Dataverse</span>
+            <span className="text-xs text-slate-400">Dossiers Dataverse</span>
           </div>
         </div>
 
@@ -318,7 +327,7 @@ export default function AdminDashboard() {
           className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Actifs Bloqués</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Actifs bloqués</span>
             <div className="p-2 rounded-xl bg-red-50 dark:bg-red-500/10">
               <ShieldAlert className="w-4 h-4 text-red-500" />
             </div>
@@ -339,7 +348,7 @@ export default function AdminDashboard() {
           className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Clôturés / Payés</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Clôturés / payés</span>
             <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10">
               <CheckCircle className="w-4 h-4 text-emerald-500" />
             </div>
@@ -356,7 +365,7 @@ export default function AdminDashboard() {
           className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Hors Délai</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Hors délai</span>
             <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10">
               <Ban className="w-4 h-4 text-amber-500" />
             </div>
@@ -381,7 +390,7 @@ export default function AdminDashboard() {
           >
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Tendance Globale</h3>
+                <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Tendance globale</h3>
                 <div className="mt-2">
                   <span className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{totalDossiers}</span>
                 </div>
@@ -422,13 +431,13 @@ export default function AdminDashboard() {
             {/* Sub-stats row (Shopeers 'Customers' Card Style) */}
             <div className="mt-8 pt-6 border-t border-slate-100/60 dark:border-slate-800">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par Étape</h3>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par étape</h3>
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                 <div className="border-l-2 border-b-4 border-slate-400 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all duration-300">
                   <span className="font-bold text-lg text-slate-900 dark:text-white leading-none mb-1.5">{dossiersEnTransit}</span>
-                  <span className="text-[11px] text-slate-400 font-medium">En Transit</span>
+                  <span className="text-[11px] text-slate-400 font-medium">En transit</span>
                 </div>
                 <div className="border-l-2 border-b-4 border-emerald-500 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/10 transition-all duration-300">
                   <span className="font-bold text-lg text-slate-900 dark:text-white leading-none mb-1.5">{dossiersPresc}</span>
@@ -456,7 +465,7 @@ export default function AdminDashboard() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex-1 flex flex-col"
           >
             <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" /> Insights Générés par le Système
+              <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" /> Analyses générées par le système
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
               {systemInsights.map((insight, idx) => (
@@ -495,7 +504,7 @@ export default function AdminDashboard() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Ancienneté Blocages</h3>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Ancienneté des blocages</h3>
               <button className="text-slate-400 hover:text-slate-600 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
@@ -523,7 +532,7 @@ export default function AdminDashboard() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
           >
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Conformité Règle 5J</h3>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Conformité à la règle des 5 jours</h3>
               <button className="text-slate-400 hover:text-slate-600 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
@@ -546,7 +555,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-4 flex-none">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">Flux Power Automate</h3>
-                <p className="text-[11px] text-slate-400 mt-0.5">Surveillance temps réel</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Exemples de présentation — historique réel non connecté</p>
               </div>
               <button onClick={() => setFlowRuns(INITIAL_FLOW_RUNS)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-[#1F3B73] dark:text-blue-400">
                 <RefreshCw className="w-4 h-4" />
@@ -572,7 +581,7 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-[10px] text-slate-400 font-mono">{run.entityName}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{resolveDossierLabel(dossiers, run.entityName)}</span>
                     <span className="text-[9px] text-slate-400">{new Date(run.triggerTime).toLocaleTimeString("fr-FR", { hour: '2-digit', minute:'2-digit' })}</span>
                   </div>
                 </div>

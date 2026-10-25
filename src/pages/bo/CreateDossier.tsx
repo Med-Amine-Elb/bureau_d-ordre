@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
-import type { Dossier } from "@/lib/dataService";
-import TransmissionModal from "@/components/TransmissionModal";
+import type { Dossier, FournisseurLookup, CompanyLookup, DepartmentLookup, SystemUser } from "@/lib/dataService";
+import { loadDossierLookups } from "@/lib/dossierLookups";
+import { DOCUMENT_UPLOADS_ENABLED } from "@/lib/features";
 import {
   ArrowLeft,
   Save,
-  Send,
   UploadCloud,
   AlertCircle,
   CheckCircle,
@@ -28,40 +28,39 @@ export default function CreateDossier() {
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  // States for Transmission Modal
-  const [showTransmissionModal, setShowTransmissionModal] = useState(false);
-  const [transmissionTargetRole, setTransmissionTargetRole] = useState<"Prescripteur" | "DCF">("Prescripteur");
-  const [transmissionInitialCollector, setTransmissionInitialCollector] = useState("");
-
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [companies, setCompanies] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<FournisseurLookup[]>([]);
+  const [companies, setCompanies] = useState<CompanyLookup[]>([]);
+  const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
+  const [lookupErrors, setLookupErrors] = useState<string[]>([]);
+  const [lookupsLoading, setLookupsLoading] = useState(true);
+  const [lookupReload, setLookupReload] = useState(0);
   const [allDossiers, setAllDossiers] = useState<Dossier[]>([]);
   const [dossierLieInput, setDossierLieInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const loadLookups = async () => {
+      setLookupsLoading(true);
       try {
-        const [sups, comps, depts, usrs, folders] = await Promise.all([
-          dataService.getFournisseursLookup(),
-          dataService.getCompaniesLookup(),
-          dataService.getDepartmentsLookup(),
-          dataService.getUsers(),
-          dataService.getDossiers()
-        ]);
-        setSuppliers(sups);
-        setCompanies(comps);
-        setDepartments(depts);
-        setUsers(usrs);
-        setAllDossiers(folders);
-      } catch (err) {
-        console.error("Failed to load lookups", err);
+        const result = await loadDossierLookups();
+        if (cancelled) return;
+        setSuppliers(result.suppliers);
+        setCompanies(result.companies);
+        setDepartments(result.departments);
+        setUsers(result.users);
+        setAllDossiers(result.dossiers);
+        setLookupErrors(result.errors);
+      } catch {
+        if (!cancelled) setLookupErrors(["listes de référence"]);
+      } finally {
+        if (!cancelled) setLookupsLoading(false);
       }
     };
-    loadLookups();
-  }, []);
+    void loadLookups();
+    return () => { cancelled = true; };
+  }, [lookupReload]);
 
   useEffect(() => {
     if (editDossier && allDossiers.length > 0) {
@@ -183,6 +182,8 @@ export default function CreateDossier() {
       if (!formData.direction) return "La direction est obligatoire";
       if (!isFluxCourt && !formData.prescripteur) return "Le prescripteur est obligatoire";
       if (formData.type_document === 100 && !formData.numero_facture) return "Le numéro de facture est obligatoire";
+      if (formData.numero_facture && !/^\d+$/.test(formData.numero_facture)) return "Le numéro de facture doit contenir uniquement des chiffres";
+      if (formData.numero_bc && !/^\d+$/.test(formData.numero_bc)) return "Le numéro de BC doit contenir uniquement des chiffres";
       if (formData.type_document === 100 && isDuplicateInvoice) return "Ce numéro de facture existe déjà pour ce fournisseur";
       if (formData.type_document === 100 && !formData.date_facture) return "La date de facture est obligatoire";
     }
@@ -205,58 +206,19 @@ export default function CreateDossier() {
     return null;
   };
 
-  const handleSubmit = async (e: React.FormEvent, isDraft: boolean) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (isDraft) {
-      // Direct submit for drafts, no validation
-      await executeSubmit(true, formData);
-    } else {
-      // Validate mandatory fields for submission
-      const errorMsg = validateForm();
-      if (errorMsg) {
-        toast.error("Champs manquants", { description: errorMsg });
-        return;
-      }
-
-      if (formData.type_document === 100 && isLate) {
-        await executeSubmit(false, formData);
-        return;
-      }
-
-      // Trigger the Transmission Modal (Skip if Courrier)
-      const isCourrier = formData.type_document === 600;
-      if (isCourrier) {
-        await executeSubmit(false, formData);
-        return;
-      }
-
-      const isFluxCourt = formData.type_document === 400 || formData.type_document === 500;
-      setTransmissionTargetRole(isFluxCourt ? "DCF" : "Prescripteur");
-      setTransmissionInitialCollector(isFluxCourt ? formData.collecteur_dcf : formData.prescripteur);
-      setShowTransmissionModal(true);
+    const errorMsg = validateForm();
+    if (errorMsg) {
+      toast.error("Champs manquants", { description: errorMsg });
+      return;
     }
+
+    await executeSubmit(formData);
   };
 
-  const handleConfirmTransmission = async (data: { collecteur: string; commentaire: string }) => {
-    setShowTransmissionModal(false);
-    
-    // Update local form state with selected collector
-    const isFluxCourt = formData.type_document === 400 || formData.type_document === 500;
-    const updatedData = {
-      ...formData,
-      ...(isFluxCourt ? { collecteur_dcf: data.collecteur } : { prescripteur: data.collecteur }),
-      description: data.commentaire 
-        ? `${formData.description ? formData.description + " | " : ""}Transmission : ${data.commentaire}`
-        : formData.description
-    };
-    
-    setFormData(updatedData);
-    await executeSubmit(false, updatedData);
-  };
-
-  const executeSubmit = async (isDraft: boolean, dataToSubmit: typeof formData) => {
-    let statut = isDraft ? 10 : 30; // Brouillon ou En Transit Vers Prescripteur
+  const executeSubmit = async (dataToSubmit: typeof formData) => {
+    let statut = 10; // Première étape : dossier enregistré au Bureau d'Ordre
     let isRejete = false;
 
     const diff = differenceInDays(
@@ -271,7 +233,6 @@ export default function CreateDossier() {
       date_facture: dataToSubmit.date_facture,
       days_diff: diff,
       is_late_calculated: dossierIsLate,
-      isDraft
     });
 
     if (Number(dataToSubmit.type_document) === 100 && dossierIsLate) {
@@ -279,18 +240,7 @@ export default function CreateDossier() {
       isRejete = true;
     }
 
-    // Routage spécifique pour les flux courts ou le courrier
     const isCourrier = dataToSubmit.type_document === 600;
-    
-    if (!isDraft && isCourrier) {
-      statut = 150; // Courrier direct à Livré (Clôturé)
-    } else if (
-      !isDraft &&
-      !isRejete &&
-      (dataToSubmit.type_document === 400 || dataToSubmit.type_document === 500)
-    ) {
-      statut = 70; // En Transit Vers DCF directement
-    }
 
     setLoading(true);
 
@@ -320,20 +270,16 @@ export default function CreateDossier() {
       if (isEditing) {
         await dataService.updateDossier(editDossier.new_folderid, payload);
         setSuccessMessage(
-          isDraft
-            ? `Le brouillon ${dataToSubmit.numero_dossier} a été sauvegardé.`
-            : (isLate && dataToSubmit.type_document === 100)
-            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai et a été archivé.`
-            : `Le dossier ${dataToSubmit.numero_dossier} a été transmis avec succès.`,
+          (isLate && dataToSubmit.type_document === 100)
+            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai.`
+            : "Dossier sauvegardé.",
         );
       } else {
         await dataService.createDossier(payload);
         setSuccessMessage(
-          isDraft
-            ? `Le dossier ${dataToSubmit.numero_dossier} a été sauvegardé en tant que brouillon.`
-            : (isLate && dataToSubmit.type_document === 100)
-            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai et a été archivé.`
-            : `Le dossier ${dataToSubmit.numero_dossier} a été créé et transmis avec succès.`,
+          (isLate && dataToSubmit.type_document === 100)
+            ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai.`
+            : "Dossier sauvegardé.",
         );
       }
 
@@ -341,7 +287,7 @@ export default function CreateDossier() {
     } catch (error) {
       console.error(error);
       toast.error("Erreur système", {
-        description: "Impossible de créer le dossier.",
+        description: `Le dossier a peut-être été enregistré, mais la transmission a échoué. Vérifiez le dossier avant de réessayer. ${error instanceof Error ? error.message : ""}`.trim(),
       });
     } finally {
       setLoading(false);
@@ -363,7 +309,7 @@ export default function CreateDossier() {
         onClick={() => navigate("/bo/dashboard")}
         className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
       >
-        <ArrowLeft className="w-4 h-4" /> Retour au Dashboard
+        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
       </button>
 
       <div className="mb-8">
@@ -379,11 +325,18 @@ export default function CreateDossier() {
         </p>
       </div>
 
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <button type="button" disabled={lookupsLoading} onClick={() => setLookupReload(current => current + 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200 disabled:opacity-50">
+          {lookupsLoading ? "Chargement des listes…" : "Actualiser les listes"}
+        </button>
+        {lookupErrors.length > 0 && <p role="alert" className="text-sm text-red-600 dark:text-red-400">Impossible de charger : {lookupErrors.join(", ")}. Vérifiez votre connexion et vos droits, puis actualisez les listes.</p>}
+      </div>
+
       <form className="space-y-8" noValidate>
         {/* Section 1: Informations Générales */}
         <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
-            1. Informations Générales
+            1. Informations générales
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="space-y-2">
@@ -426,8 +379,8 @@ export default function CreateDossier() {
                     required={!isAvoir}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner un fournisseur...</option>
-                    {suppliers.map(s => (
+                    <option value="" disabled>Sélectionner un fournisseur...</option>
+                    {suppliers.filter(s => s.new_is_active || s.new_supplierid === formData.fournisseur).map(s => (
                       <option key={s.new_supplierid} value={s.new_supplierid}>{s.new_name}</option>
                     ))}
                   </select>
@@ -444,8 +397,8 @@ export default function CreateDossier() {
                     required={!isAvoir}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner une société...</option>
-                    {companies.map(c => (
+                    <option value="" disabled>Sélectionner une société...</option>
+                    {companies.filter(c => c.new_is_active || c.new_companyid === formData.societe_gbm).map(c => (
                       <option key={c.new_companyid} value={c.new_companyid}>{c.new_name}</option>
                     ))}
                   </select>
@@ -457,12 +410,16 @@ export default function CreateDossier() {
                   <select
                     value={formData.direction}
                     onChange={(e) =>
-                      setFormData({ ...formData, direction: e.target.value })
+                      setFormData(prev => ({
+                        ...prev,
+                        direction: e.target.value,
+                        prescripteur: "",
+                      }))
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner une direction...</option>
-                    {departments.map(d => (
+                    <option value="" disabled>Sélectionner une direction...</option>
+                    {departments.filter(d => d.new_is_active || d.new_departmentid === formData.direction).map(d => (
                       <option key={d.new_departmentid} value={d.new_departmentid}>{d.new_name}</option>
                     ))}
                   </select>
@@ -474,13 +431,18 @@ export default function CreateDossier() {
                   </label>
                   <select
                     value={formData.prescripteur}
+                    disabled={!formData.direction}
                     onChange={(e) =>
-                      setFormData({ ...formData, prescripteur: e.target.value })
+                      setFormData(prev => ({ ...prev, prescripteur: e.target.value }))
                     }
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <option value="">Sélectionner un prescripteur...</option>
-                    {users.filter(u => !formData.direction || u.new_department_id === formData.direction).map(u => (
+                    <option value="">
+                      {formData.direction ? "Sélectionner un prescripteur..." : "Sélectionnez d’abord une direction"}
+                    </option>
+                    {users.filter(u =>
+                      u.new_department_id?.toLowerCase() === formData.direction.toLowerCase()
+                    ).map(u => (
                       <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
                     ))}
                   </select>
@@ -516,8 +478,8 @@ export default function CreateDossier() {
                     required
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner une société...</option>
-                    {companies.map(c => (
+                    <option value="" disabled>Sélectionner une société...</option>
+                    {companies.filter(c => c.new_is_active || c.new_companyid === formData.societe_gbm).map(c => (
                       <option key={c.new_companyid} value={c.new_companyid}>{c.new_name}</option>
                     ))}
                   </select>
@@ -534,7 +496,7 @@ export default function CreateDossier() {
                     required
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner un destinataire...</option>
+                    <option value="" disabled>Sélectionner un destinataire...</option>
                     {users.filter(u => !formData.direction || u.new_department_id === formData.direction).map(u => (
                       <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
                     ))}
@@ -564,8 +526,8 @@ export default function CreateDossier() {
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   >
-                    <option value="">Sélectionner une direction...</option>
-                    {departments.map(d => (
+                    <option value="" disabled>Sélectionner une direction...</option>
+                    {departments.filter(d => d.new_is_active || d.new_departmentid === formData.direction).map(d => (
                       <option key={d.new_departmentid} value={d.new_departmentid}>{d.new_name}</option>
                     ))}
                   </select>
@@ -578,7 +540,7 @@ export default function CreateDossier() {
         {/* Section 2: Document Principal */}
         <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
-            2. Document Principal
+            2. Document principal
           </h2>
 
           <div className="mb-2">
@@ -628,13 +590,15 @@ export default function CreateDossier() {
                   </label>
                   <input
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     required={!isAvoir}
-                    placeholder="Ex: FAC-2026-089"
+                    placeholder="Ex: 2026089"
                     value={formData.numero_facture}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        numero_facture: e.target.value,
+                        numero_facture: e.target.value.replace(/\D/g, ""),
                       })
                     }
                     className={`w-full px-4 py-2.5 rounded-xl border bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 outline-none transition-all ${
@@ -655,10 +619,12 @@ export default function CreateDossier() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: BC-2026-104"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Ex: 2026104"
                     value={formData.numero_bc}
                     onChange={(e) =>
-                      setFormData({ ...formData, numero_bc: e.target.value })
+                      setFormData({ ...formData, numero_bc: e.target.value.replace(/\D/g, "") })
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none"
                   />
@@ -703,7 +669,7 @@ export default function CreateDossier() {
         {(isFluxCourt || isAvoir) && (
           <div className="bg-amber-50 dark:bg-amber-900/10 rounded-2xl p-8 border border-amber-200 dark:border-amber-900/30 soft-shadow">
             <h2 className="text-lg font-bold text-amber-900 dark:text-amber-400 mb-6 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5" /> Informations Spécifiques
+              <AlertCircle className="w-5 h-5" /> Informations spécifiques
               Requises
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -796,7 +762,7 @@ export default function CreateDossier() {
                     }
                     className="w-full px-4 py-2.5 rounded-xl border border-amber-300 dark:border-amber-900/50 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none"
                   >
-                    <option value="">
+                    <option value="" disabled>
                       Sélectionner la personne de la DCF...
                     </option>
                     {users.map(u => (
@@ -810,10 +776,10 @@ export default function CreateDossier() {
         )}
 
         {/* Section 3: Documents Requis */}
-        {!isCourrier && (
+        {DOCUMENT_UPLOADS_ENABLED && !isCourrier && (
           <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-8 border border-slate-200 dark:border-slate-700 soft-shadow">
             <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 border-b border-slate-100 dark:border-slate-800 pb-2">
-            3. Documents Requis{" "}
+            3. Documents requis{" "}
             <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-2">
               (Spécifiques au type de document)
             </span>
@@ -905,19 +871,11 @@ export default function CreateDossier() {
         <div className="bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-xl flex items-center justify-end gap-4 sticky bottom-6 z-10">
           <button
             type="button"
-            onClick={(e) => handleSubmit(e, true)}
-            disabled={loading}
-            className="px-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" /> Sauvegarder
-          </button>
-          <button
-            type="button"
-            onClick={(e) => handleSubmit(e, false)}
+            onClick={handleSubmit}
             disabled={loading}
             className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover shadow-lg shadow-blue-500/30 transition-all flex items-center gap-2"
           >
-            <Send className="w-4 h-4" /> Transmettre Dossier
+            <Save className="w-4 h-4" /> Enregistrer le dossier
           </button>
         </div>
       </form>
@@ -937,7 +895,7 @@ export default function CreateDossier() {
                 )}
               </div>
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                {isLate && formData.type_document === 100 ? "Dossier Hors Délai" : "Action Réussie"}
+                {isLate && formData.type_document === 100 ? "Dossier hors délai" : "Confirmation"}
               </h3>
               <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
                 {successMessage}
@@ -956,15 +914,6 @@ export default function CreateDossier() {
         </div>
       )}
 
-      <TransmissionModal
-        isOpen={showTransmissionModal}
-        onClose={() => setShowTransmissionModal(false)}
-        onConfirm={handleConfirmTransmission}
-        dossierNumber={formData.numero_dossier}
-        targetRole={transmissionTargetRole}
-        initialCollector={transmissionInitialCollector}
-        directionId={formData.direction}
-      />
     </div>
   );
 }

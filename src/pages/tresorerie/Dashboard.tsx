@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 import {
   PieChart, Pie, ResponsiveContainer, Cell,
@@ -20,6 +22,7 @@ import {
 } from "recharts";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
 import KpiCard from "@/components/KpiCard";
+import { isDossierPaidInMonth } from "@/lib/monthlyMetrics";
 
 
 
@@ -58,12 +61,14 @@ export default function DashboardTresorerie() {
   const aAccuser = dossiers.filter((d) => d.new_status === 100).length;
   const aRegler = dossiers.filter((d) => d.new_status === 110 && !d.new_is_blocked).length;
   const enAttenteRemise = dossiers.filter((d) => d.new_status === 120).length;
-  const payes = dossiers.filter((d) => d.new_status === 150).length;
+  const payes = dossiers.filter((d) => isDossierPaidInMonth(d, new Date())).length;
+  const moisEnCours = format(new Date(), "MMMM yyyy", { locale: fr });
+  const titrePayes = `Payés — ${moisEnCours.charAt(0).toLocaleUpperCase("fr-FR")}${moisEnCours.slice(1)}`;
 
   const chartData = [
-    { name: "À Accuser", value: aAccuser, color: "#f97316", grad: "url(#grad-orange)", icon: Clock },
-    { name: "À Régler", value: aRegler, color: "#3b82f6", grad: "url(#grad-blue)", icon: Wallet },
-    { name: "Attente Remise", value: enAttenteRemise, color: "#8b5cf6", grad: "url(#grad-purple)", icon: FileText },
+    { name: "À accuser", value: aAccuser, color: "#f97316", grad: "url(#grad-orange)", icon: Clock },
+    { name: "Règlement", value: aRegler, color: "#3b82f6", grad: "url(#grad-blue)", icon: Wallet },
+    { name: "En attente de remise", value: enAttenteRemise, color: "#8b5cf6", grad: "url(#grad-purple)", icon: FileText },
     { name: "Payés", value: payes, color: "#10b981", grad: "url(#grad-teal)", icon: CheckCircle }
   ];
 
@@ -89,9 +94,7 @@ export default function DashboardTresorerie() {
         new_date_accuse: new Date().toISOString(),
         new_commentaire_reception: data.commentaire
       });
-      setSuccessMessage(
-        `Réception confirmée pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -187,7 +190,7 @@ export default function DashboardTresorerie() {
       {/* Greeting Section */}
       <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-          Dashboard Trésorerie <span className="animate-pulse text-[#1F3B73]">⚡</span>
+          Dashboard trésorerie <span className="animate-pulse text-[#1F3B73]">⚡</span>
         </h1>
         <p className="text-[13px] font-medium text-slate-500 dark:text-slate-400 mt-1">
           Bonjour {userName}. Gérez vos règlements et flux financiers.
@@ -197,7 +200,7 @@ export default function DashboardTresorerie() {
       {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
         <KpiCard
-          title="À Accuser Réception"
+          title="À accuser réception"
           icon={Clock}
           value={aAccuser.toLocaleString()}
           loading={loading}
@@ -214,7 +217,7 @@ export default function DashboardTresorerie() {
           }
         />
         <KpiCard
-          title="À Préparer"
+          title="Règlement"
           icon={Wallet}
           value={aRegler.toLocaleString()}
           loading={loading}
@@ -225,7 +228,7 @@ export default function DashboardTresorerie() {
           subtext={<span className="text-xs text-slate-400">En attente de paiement</span>}
         />
         <KpiCard
-          title="En Attente Remise"
+          title="En attente de remise"
           icon={FileText}
           value={enAttenteRemise.toLocaleString()}
           loading={loading}
@@ -236,7 +239,7 @@ export default function DashboardTresorerie() {
           subtext={<span className="text-xs text-slate-400">Chèques / Ordres prêts</span>}
         />
         <KpiCard
-          title="Dossiers Payés"
+          title={titrePayes}
           icon={CheckCircle}
           value={payes.toLocaleString()}
           loading={loading}
@@ -244,7 +247,7 @@ export default function DashboardTresorerie() {
           iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
           animationDelay="180ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 150 } })}
-          subtext={<span className="text-xs text-slate-400">Clôturés ce mois</span>}
+          subtext={<span className="text-xs text-slate-400">Remise finale effectuée durant ce mois</span>}
         />
       </div>
 
@@ -306,7 +309,7 @@ export default function DashboardTresorerie() {
               </div>
             </div>
 
-            {/* Table: À Préparer */}
+            {/* Table: Règlement */}
             <div
               style={{ animationDelay: "280ms", animationFillMode: "both" }}
               className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col h-[350px]"
@@ -314,7 +317,7 @@ export default function DashboardTresorerie() {
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#1F3B73] animate-pulse" />
-                  À Préparer
+                  Règlement
                 </h3>
                 <span className="text-[11px] font-semibold px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400">
                   {aRegler} dossiers
@@ -332,7 +335,7 @@ export default function DashboardTresorerie() {
                     {loading ? (
                       <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Chargement...</td></tr>
                     ) : dossiers.filter((d) => d.new_status === 110 && !d.new_is_blocked).length === 0 ? (
-                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Aucun dossier à préparer.</td></tr>
+                      <tr><td colSpan={2} className="py-4 text-center text-[11px] text-slate-400">Aucun règlement à traiter.</td></tr>
                     ) : (
                       dossiers.filter((d) => d.new_status === 110 && !d.new_is_blocked).map((dossier, i) => (
                         <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
@@ -387,7 +390,7 @@ export default function DashboardTresorerie() {
 
             <div className="flex-1 p-6 relative">
               <h3 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2">
-                <Layers className="w-4 h-4 text-blue-500" /> Répartition des Dossiers
+                <Layers className="w-4 h-4 text-blue-500" /> Répartition des dossiers
               </h3>
 
               <div className="h-[240px] flex items-center justify-center relative -mt-2">
@@ -482,7 +485,7 @@ export default function DashboardTresorerie() {
               className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-7 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative flex flex-col"
             >
               {/* Header */}
-              <h3 className="text-[20px] font-bold text-slate-900 dark:text-white leading-tight mb-6 tracking-tight">Comparaison par Agence</h3>
+              <h3 className="text-[20px] font-bold text-slate-900 dark:text-white leading-tight mb-6 tracking-tight">Comparaison par agence</h3>
 
               {/* Radar Chart */}
               <div className="relative w-full h-[260px] flex items-center justify-center -mt-4">
@@ -560,7 +563,7 @@ export default function DashboardTresorerie() {
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 className="text-[17px] font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
-              Action réussie
+              Confirmation
             </h3>
             <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed">
               {successMessage}

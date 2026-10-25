@@ -166,8 +166,8 @@ export default function AdminUtilisateurs() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Gestion des Utilisateurs
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Gestion des utilisateurs
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Gérez les comptes utilisateurs (`systemuser`) et affectez leurs rôles métiers et agences de destination.
@@ -177,7 +177,7 @@ export default function AdminUtilisateurs() {
           onClick={handleOpenAdd}
           className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
         >
-          <UserPlus className="w-5 h-5" /> Ajouter un Utilisateur
+          <UserPlus className="w-5 h-5" /> Ajouter un utilisateur
         </button>
       </div>
 
@@ -226,10 +226,10 @@ export default function AdminUtilisateurs() {
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/30">
                   <th className="py-4 px-6">Collaborateur</th>
                   <th className="py-4 px-6">Email interne</th>
-                  <th className="py-4 px-6">Rôle Système</th>
-                  <th className="py-4 px-6">Agence Destination</th>
+                  <th className="py-4 px-6">Rôle système</th>
+                  <th className="py-4 px-6">Agence de destination</th>
                   <th className="py-4 px-6">Statut</th>
-                  <th className="py-4 px-6">Dernière Connexion</th>
+                  <th className="py-4 px-6">Dernière connexion</th>
                   <th className="py-4 px-6 text-right">Actions</th>
                 </tr>
               </thead>
@@ -239,9 +239,6 @@ export default function AdminUtilisateurs() {
                     {/* User profile */}
                     <td className="py-4 px-6 font-bold text-slate-850 dark:text-slate-100">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-850 flex items-center justify-center font-bold text-[#1F3B73] text-sm">
-                          {u.fullname.split(" ").map(n => n[0]).join("")}
-                        </div>
                         {u.fullname}
                       </div>
                     </td>
@@ -338,13 +335,13 @@ export default function AdminUtilisateurs() {
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
               <Users className="w-6 h-6 text-[#1F3B73]" />
-              {isEditing ? "Modifier l'Utilisateur" : "Nouvel Utilisateur"}
+              {isEditing ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
             </h2>
 
             <form onSubmit={handleSave} className="space-y-5">
               {/* Fullname */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom Complet</label>
+                <label className="text-xs font-bold text-slate-500 tracking-wider">Nom complet</label>
                 <input
                   type="text"
                   required
@@ -357,7 +354,7 @@ export default function AdminUtilisateurs() {
 
               {/* Email */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email Interne</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">E-mail interne</label>
                 <input
                   type="email"
                   required
@@ -371,7 +368,7 @@ export default function AdminUtilisateurs() {
               {/* Role & Status Row */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rôle Métier</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rôle métier</label>
                   <select
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
@@ -381,13 +378,13 @@ export default function AdminUtilisateurs() {
                     <option value="Prescripteur">Prescripteur</option>
                     <option value="DCF">Comptabilité (DCF)</option>
                     <option value="Tresorerie">Trésorerie</option>
-                    <option value="Agence">Agence Régionale</option>
+                    <option value="Agence">Agence régionale</option>
                     <option value="Admin">Administrateur</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut Compte</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut du compte</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}

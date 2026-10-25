@@ -36,7 +36,7 @@ export default function ErrorPage() {
 
         {error?.status === 404 && (
           <div className="mt-8 pt-8 border-t border-border">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black">Code Erreur: 404 - Not Found</p>
+            <p className="text-[10px] text-muted-foreground tracking-widest font-black">Code erreur : 404 — page introuvable</p>
           </div>
         )}
       </div>

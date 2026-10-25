@@ -7,7 +7,6 @@ import {
   Eye,
   Filter,
   CheckCircle2,
-  Building2,
   Wallet,
   User,
   Banknote,
@@ -20,6 +19,8 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
 import { exportDossiersToExcelDetailed } from "../../utils/excelExport";
+import SupplierFilterInput from "@/components/SupplierFilterInput";
+import { matchesSupplierFilter } from "@/lib/supplierFilter";
 
 export default function DossiersListTresorerie() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function DossiersListTresorerie() {
   const [filterStatus, setFilterStatus] = useState<number | string | "ALL">(
     location.state?.filterStatus || "ALL"
   );
-  const [filterFournisseur, setFilterFournisseur] = useState<string>("ALL");
+  const [filterFournisseur, setFilterFournisseur] = useState("");
   const [filterModePaiement, setFilterModePaiement] = useState<string>("ALL");
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -74,9 +75,8 @@ export default function DossiersListTresorerie() {
         new_date_accuse: new Date().toISOString(),
         new_commentaire_reception: data.commentaire
       });
-      setSuccessMessage(
-        `Réception accusée pour le dossier ${selectedDossier.new_folder_number}.`
-      );
+      await dataService.acknowledgeLatestDossierTransmission(selectedDossier.new_folderid, data.commentaire);
+      setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
       setTimeout(() => setSuccessModalOpen(false), 2000);
@@ -88,10 +88,6 @@ export default function DossiersListTresorerie() {
   const handleExportExcel = () => {
     exportDossiersToExcelDetailed(filteredDossiers, "Tresorerie_Dossiers");
   };
-
-  const uniqueFournisseurs = Array.from(
-    new Set(dossiers.map((d) => d.new_supplier_id).filter(Boolean)),
-  ).sort();
 
   const filteredDossiers = dossiers.filter((d) => {
     const matchesSearch =
@@ -108,9 +104,7 @@ export default function DossiersListTresorerie() {
       matchesStatus = d.new_status === Number(filterStatus);
     }
 
-    const matchesFournisseur =
-      filterFournisseur === "ALL" ||
-      d.new_supplier_id === filterFournisseur;
+    const matchesFournisseur = matchesSupplierFilter(d.new_supplier_id, filterFournisseur);
 
     const matchesModePaiement =
       filterModePaiement === "ALL" ||
@@ -121,9 +115,9 @@ export default function DossiersListTresorerie() {
 
   const getStatusBadge = (status: number, estBloque?: boolean) => {
     if (estBloque) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"><Lock className="w-3 h-3" />Bloqué</span>;
-    if (status === 100) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"><div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>À Accuser Réception</span>;
-    if (status === 110) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"><Wallet className="w-3.5 h-3.5" />Chez Trésorerie (À Préparer)</span>;
-    if (status === 120) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Banknote className="w-3.5 h-3.5" />En Attente Remise</span>;
+    if (status === 100) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"><div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></div>À accuser réception</span>;
+    if (status === 110) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"><Wallet className="w-3.5 h-3.5" />Chez la trésorerie (à préparer)</span>;
+    if (status === 120) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Banknote className="w-3.5 h-3.5" />En attente de remise</span>;
     if (status === 150) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />Payé</span>;
 
     return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Statut {status}</span>;
@@ -134,7 +128,7 @@ export default function DossiersListTresorerie() {
       <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight dark:text-slate-100">
-            Dossiers à Traiter (Trésorerie)
+            Dossiers à traiter (trésorerie)
           </h1>
           <p className="text-slate-500 mt-1 dark:text-slate-400">
             Gérez vos dossiers, paiements par virement et préparation de chèques.
@@ -148,7 +142,7 @@ export default function DossiersListTresorerie() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Rechercher par N° Dossier, Fournisseur..."
+              placeholder="Rechercher par n° de dossier ou fournisseur…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all dark:text-slate-200"
@@ -168,7 +162,7 @@ export default function DossiersListTresorerie() {
               onClick={handleExportExcel}
               className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <Download className="w-4 h-4" /> Exporter Excel
+              <Download className="w-4 h-4" /> Exporter au format Excel
             </button>
           </div>
         </div>
@@ -183,15 +177,15 @@ export default function DossiersListTresorerie() {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="ALL">Tous les statuts</option>
-                <option value="100">En transit vers Trésorerie</option>
-                <option value="110">Chez Trésorerie (À Préparer)</option>
-                <option value="120">En Attente Remise Finale</option>
-                <option value="150">Payé / Clôturé</option>
-                <option value="BLOQUE">Dossiers Bloqués</option>
+                <option value="100">En transit vers la trésorerie</option>
+                <option value="110">Chez la trésorerie (à préparer)</option>
+                <option value="120">En attente de remise finale</option>
+                <option value="150">Payé / clôturé</option>
+                <option value="BLOQUE">Dossiers bloqués</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mode Paiement</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Mode de paiement</label>
               <select
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 value={filterModePaiement}
@@ -204,22 +198,10 @@ export default function DossiersListTresorerie() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Fournisseur</label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <select
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                  value={filterFournisseur}
-                  onChange={(e) => setFilterFournisseur(e.target.value)}
-                >
-                  <option value="ALL">Tous les fournisseurs</option>
-                  {uniqueFournisseurs.map(f => (
-                    <option key={f} value={f}>{f}</option>
-                  ))}
-                </select>
-              </div>
+              <SupplierFilterInput value={filterFournisseur} onValueChange={setFilterFournisseur} />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Type Document</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Type de document</label>
               <select
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 value={filterType}
@@ -354,7 +336,7 @@ export default function DossiersListTresorerie() {
               <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
             </div>
             <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-              Action réussie
+              Confirmation
             </h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm">
               {successMessage}

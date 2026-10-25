@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle, Check } from "lucide-react";
 import type { Dossier } from "@/lib/dataService";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
 
 interface AgenceValiderRemiseModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export default function AgenceValiderRemiseModal({
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
           <h3 className="text-lg font-bold text-[#1F3B73] dark:text-blue-400 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" /> Confirmer la Remise du Chèque
+            <CheckCircle className="w-5 h-5" /> Confirmer la remise du chèque
           </h3>
           <button
             type="button"
@@ -85,10 +86,15 @@ export default function AgenceValiderRemiseModal({
               </div>
             </div>
 
+            <details className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Afficher toutes les informations du dossier</summary>
+              <div className="mt-4"><DossierInformationPanel dossier={dossier} /></div>
+            </details>
+
             {/* Date remise effective */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Date de Remise Effective <span className="text-red-500">*</span>
+                Date de remise effective <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input

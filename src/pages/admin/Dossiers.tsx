@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import { exportToExcel, formatDateSafely, getTypeLabel } from "@/utils/excelExport";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
+import DossierTransmissionHistory from "@/components/DossierTransmissionHistory";
 
 export default function AdminDossiers() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
@@ -161,21 +163,21 @@ export default function AdminDossiers() {
   // Status mapping
   const getStatusLabel = (status: number) => {
     switch(status) {
-      case 10: return "Sauvegarder";
-      case 20: return "Hors Délai";
-      case 30: return "En Transit (Prescr.)";
-      case 40: return "Chez Prescripteur";
-      case 50: return "En Transit (BO)";
+      case 10: return "Chez BO — à traiter";
+      case 20: return "Hors délai";
+      case 30: return "En transit (prescr.)";
+      case 40: return "Chez prescripteur";
+      case 50: return "En transit (BO)";
       case 60: return "Prêt DCF";
-      case 70: return "En Transit (DCF)";
+      case 70: return "En transit (DCF)";
       case 80: return "Chez DCF";
-      case 90: return "Retour Correction";
-      case 100: return "En Transit (Tréso.)";
+      case 90: return "Retour correction";
+      case 100: return "En transit (tréso.)";
       case 110: return "Chez Trésorerie";
       case 120: return "Attente Remise";
       case 130: return "En Transport";
-      case 140: return "Disponible Agence";
-      case 150: return "Payé / Clôturé";
+      case 140: return "Disponible agence";
+      case 150: return "Payé / clôturé";
       default: return `Statut ${status}`;
     }
   };
@@ -216,8 +218,8 @@ export default function AdminDossiers() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Supervision des Dossiers
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Supervision des dossiers
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Console de contrôle globale. Bypassez les règles métiers Dataverse, forcez des étapes ou modifiez l'affectation des tâches.
@@ -227,7 +229,7 @@ export default function AdminDossiers() {
           onClick={handleExportExcel}
           className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
         >
-          <Download className="w-5 h-5" /> Exporter Excel
+          <Download className="w-5 h-5" /> Exporter au format Excel
         </button>
       </div>
 
@@ -269,21 +271,21 @@ export default function AdminDossiers() {
               className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
             >
               <option value="Tous">Tous les statuts</option>
-              <option value="10">Sauvegarde (10)</option>
-              <option value="20">Hors Délai (20)</option>
-              <option value="30">Transit Prescripteur (30)</option>
-              <option value="40">Chez Prescripteur (40)</option>
+                  <option value="10">Chez BO — à traiter (10)</option>
+              <option value="20">Hors délai (20)</option>
+              <option value="30">Transit vers le prescripteur (30)</option>
+              <option value="40">Chez le prescripteur (40)</option>
               <option value="50">Transit BO (50)</option>
               <option value="60">Prêt DCF (60)</option>
               <option value="70">Transit DCF (70)</option>
               <option value="80">Chez DCF (80)</option>
-              <option value="90">Retour Correction (90)</option>
-              <option value="100">Transit Trésorerie (100)</option>
-              <option value="110">Chez Trésorerie (110)</option>
-              <option value="120">Attente Remise (120)</option>
-              <option value="130">En Transport Agence (130)</option>
-              <option value="140">Disponible Agence (140)</option>
-              <option value="150">Payé / Clôturé (150)</option>
+              <option value="90">Retour pour correction (90)</option>
+              <option value="100">Transit vers la trésorerie (100)</option>
+              <option value="110">Chez la trésorerie (110)</option>
+              <option value="120">En attente de remise (120)</option>
+              <option value="130">En transport vers l’agence (130)</option>
+              <option value="140">Disponible en agence (140)</option>
+              <option value="150">Payé / clôturé (150)</option>
             </select>
           </div>
 
@@ -313,13 +315,13 @@ export default function AdminDossiers() {
             <table className="w-full text-left text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/30">
-                  <th className="py-4 px-6">Numéro Dossier</th>
+                  <th className="py-4 px-6">Numéro du dossier</th>
                   <th className="py-4 px-6">Fournisseur / Facture</th>
-                  <th className="py-4 px-6">Type Document</th>
+                  <th className="py-4 px-6">Type de document</th>
                   <th className="py-4 px-6">Statut Dataverse</th>
                   <th className="py-4 px-6">Blocage</th>
-                  <th className="py-4 px-6">Collecteurs Actuels</th>
-                  <th className="py-4 px-6 text-right">Actions Administration</th>
+                  <th className="py-4 px-6">Collecteurs actuels</th>
+                  <th className="py-4 px-6 text-right">Actions d’administration</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
@@ -443,7 +445,7 @@ export default function AdminDossiers() {
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
               <AlertCircle className="w-6 h-6 text-[#1F3B73]" />
-              Forcer le Statut du Dossier
+              Forcer le statut du dossier
             </h2>
 
             <div className="mb-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-250 p-4 rounded-xl text-xs text-amber-800 dark:text-amber-400 font-medium">
@@ -458,27 +460,27 @@ export default function AdminDossiers() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouveau Statut Cible</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nouveau statut cible</label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(Number(e.target.value))}
                   className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 >
-                  <option value="10">Sauvegarde (10)</option>
-                  <option value="20">Hors Délai (20)</option>
-                  <option value="30">En Transit Prescripteur (30)</option>
-                  <option value="40">Chez Prescripteur (40)</option>
-                  <option value="50">En Transit BO (50)</option>
+                  <option value="10">Chez BO — à traiter (10)</option>
+                  <option value="20">Hors délai (20)</option>
+                  <option value="30">En transit vers le prescripteur (30)</option>
+                  <option value="40">Chez le prescripteur (40)</option>
+              <option value="50">En transit vers le BO (50)</option>
                   <option value="60">Prêt DCF (60)</option>
-                  <option value="70">En Transit DCF (70)</option>
+              <option value="70">En transit vers la DCF (70)</option>
                   <option value="80">Chez DCF (80)</option>
-                  <option value="90">Retour Correction (90)</option>
-                  <option value="100">En Transit Trésorerie (100)</option>
-                  <option value="110">Chez Trésorerie (110)</option>
-                  <option value="120">En Attente Remise (120)</option>
-                  <option value="130">En Transport Agence (130)</option>
-                  <option value="140">Disponible Agence (140)</option>
-                  <option value="150">Payé / Clôturé (150)</option>
+                  <option value="90">Retour pour correction (90)</option>
+                  <option value="100">En transit vers la trésorerie (100)</option>
+                  <option value="110">Chez la trésorerie (110)</option>
+                  <option value="120">En attente de remise (120)</option>
+                  <option value="130">En transport vers l’agence (130)</option>
+                  <option value="140">Disponible en agence (140)</option>
+              <option value="150">Payé / clôturé (150)</option>
                 </select>
               </div>
 
@@ -528,7 +530,7 @@ export default function AdminDossiers() {
 
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
               <User className="w-6 h-6 text-[#1F3B73]" />
-              Réassigner les Acteurs du Dossier
+              Réassigner les acteurs du dossier
             </h2>
 
             <form onSubmit={handleSaveCollector} className="space-y-4">
@@ -612,10 +614,10 @@ export default function AdminDossiers() {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-slate-900 dark:text-white text-lg leading-tight">
-                    Audit Log & Cycle de Vie
+                    Journal d’audit et cycle de vie
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Dossier {selectedDossierForAudit.new_folder_number} • Suivi complet des étapes Dataverse
+                    Dossier {selectedDossierForAudit.new_folder_number} • Événements et étapes Dataverse
                   </p>
                 </div>
               </div>
@@ -651,12 +653,16 @@ export default function AdminDossiers() {
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Statut Actuel</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Statut actuel</span>
                   <span className="text-xs font-semibold text-[#1F3B73] dark:text-blue-400 block">
                     {getStatusLabel(selectedDossierForAudit.new_status)} ({selectedDossierForAudit.new_status})
                   </span>
                 </div>
               </div>
+
+              <DossierInformationPanel dossier={selectedDossierForAudit} />
+
+              <DossierTransmissionHistory folderId={selectedDossierForAudit.new_folderid} />
 
               {/* Timeline Container */}
               <div className="space-y-6 ml-2 relative before:absolute before:inset-y-0 before:left-3.5 before:w-0.5 before:bg-slate-100 dark:before:bg-slate-800">
@@ -668,7 +674,7 @@ export default function AdminDossiers() {
                   </div>
                   <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                     <div className="flex justify-between items-start">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Saisie & Réception au BO</h4>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wider">Saisie et réception au BO</h4>
                       <span className="text-[10px] font-semibold text-slate-450">
                         {selectedDossierForAudit.new_reception_date ? new Date(selectedDossierForAudit.new_reception_date).toLocaleString("fr-FR") : "Date inconnue"}
                       </span>
@@ -696,9 +702,9 @@ export default function AdminDossiers() {
                     </div>
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Validation Prescripteur</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wider">Validation du prescripteur</h4>
                         <span className="text-[10px] font-semibold text-slate-450">
-                          {selectedDossierForAudit.new_status >= 50 ? "Service Validé" : "En cours d'examen"}
+                          {selectedDossierForAudit.new_status >= 50 ? "Service validé" : "En cours d'examen"}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-455 mt-1 leading-relaxed">
@@ -707,9 +713,9 @@ export default function AdminDossiers() {
                       
                       {/* Enriched Dates List */}
                       <div className="mt-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1.5 bg-slate-100/50 dark:bg-slate-950/30 p-3 rounded-xl border border-slate-150 dark:border-slate-800">
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_trans_prescripteur ? new Date(selectedDossierForAudit.new_date_trans_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Accusé Réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse_prescripteur ? new Date(selectedDossierForAudit.new_date_accuse_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Validation Métier :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_prescripteur ? new Date(selectedDossierForAudit.new_date_val_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_trans_prescripteur ? new Date(selectedDossierForAudit.new_date_trans_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date d’accusé de réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse_prescripteur ? new Date(selectedDossierForAudit.new_date_accuse_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de validation métier :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_prescripteur ? new Date(selectedDossierForAudit.new_date_val_prescripteur).toLocaleString("fr-FR") : "En attente"}</span></div>
                       </div>
 
                       {selectedDossierForAudit.new_documents_complements && selectedDossierForAudit.new_documents_complements.length > 0 && (
@@ -737,7 +743,7 @@ export default function AdminDossiers() {
                     </div>
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Comptabilisation DCF</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wider">Comptabilisation DCF</h4>
                         <span className="text-[10px] font-semibold text-slate-450">
                           {selectedDossierForAudit.new_status >= 100 ? "Comptabilisé" : "En cours"}
                         </span>
@@ -748,9 +754,9 @@ export default function AdminDossiers() {
 
                       {/* Enriched Dates List */}
                       <div className="mt-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1.5 bg-slate-100/50 dark:bg-slate-950/30 p-3 rounded-xl border border-slate-150 dark:border-slate-800">
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_trans_dcf ? new Date(selectedDossierForAudit.new_date_trans_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Accusé Réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse_dcf ? new Date(selectedDossierForAudit.new_date_accuse_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Saisie Comptable :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_dcf ? new Date(selectedDossierForAudit.new_date_val_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_trans_dcf ? new Date(selectedDossierForAudit.new_date_trans_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date d’accusé de réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse_dcf ? new Date(selectedDossierForAudit.new_date_accuse_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de saisie comptable :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_dcf ? new Date(selectedDossierForAudit.new_date_val_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
                       </div>
                     </div>
                   </div>
@@ -768,9 +774,9 @@ export default function AdminDossiers() {
                     </div>
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Traitement Trésorerie</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wider">Traitement de la trésorerie</h4>
                         <span className="text-[10px] font-semibold text-slate-450">
-                          {selectedDossierForAudit.new_status >= 120 || selectedDossierForAudit.new_status === 150 ? "Règlement Prêt" : "En cours"}
+                          {selectedDossierForAudit.new_status >= 120 || selectedDossierForAudit.new_status === 150 ? "Règlement prêt" : "En cours"}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500 dark:text-slate-455 mt-1 leading-relaxed">
@@ -782,8 +788,8 @@ export default function AdminDossiers() {
 
                       {/* Enriched Dates List */}
                       <div className="mt-3 text-[11px] text-slate-600 dark:text-slate-400 space-y-1.5 bg-slate-100/50 dark:bg-slate-950/30 p-3 rounded-xl border border-slate-150 dark:border-slate-800">
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_dcf ? new Date(selectedDossierForAudit.new_date_val_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
-                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Accusé Réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse ? new Date(selectedDossierForAudit.new_date_accuse).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de transmission :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_val_dcf ? new Date(selectedDossierForAudit.new_date_val_dcf).toLocaleString("fr-FR") : "En attente"}</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400 font-medium">Date d’accusé de réception :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_accuse ? new Date(selectedDossierForAudit.new_date_accuse).toLocaleString("fr-FR") : "En attente"}</span></div>
                       </div>
  
                       {/* Payment mode details */}
@@ -794,13 +800,13 @@ export default function AdminDossiers() {
                           </p>
                           {selectedDossierForAudit.new_payment_method === 2 ? (
                             <>
-                              <p className="text-slate-650 dark:text-slate-400">Date Virement : {selectedDossierForAudit.new_date_virement ? new Date(selectedDossierForAudit.new_date_virement).toLocaleDateString("fr-FR") : "-"}</p>
+                              <p className="text-slate-650 dark:text-slate-400">Date du virement : {selectedDossierForAudit.new_date_virement ? new Date(selectedDossierForAudit.new_date_virement).toLocaleDateString("fr-FR") : "-"}</p>
                               <p className="font-mono text-[10px] text-slate-500 mt-1 select-all break-all bg-slate-200 dark:bg-slate-950 p-2 rounded border border-slate-300 dark:border-slate-850">RIB Dest : {selectedDossierForAudit.new_compte_bancaire_dest || "-"}</p>
                             </>
                           ) : (
                             <>
                               <p className="text-slate-650 dark:text-slate-400">N° Chèque : <span className="font-bold text-slate-900 dark:text-white">{selectedDossierForAudit.new_cheque_number || "-"}</span></p>
-                              <p className="text-slate-650 dark:text-slate-400">Banque Émettrice : {selectedDossierForAudit.new_banque_emettrice || "-"}</p>
+                              <p className="text-slate-650 dark:text-slate-400">Banque émettrice : {selectedDossierForAudit.new_banque_emettrice || "-"}</p>
                               <p className="text-slate-650 dark:text-slate-400">Préparé le : {selectedDossierForAudit.new_cheque_preparation_date ? new Date(selectedDossierForAudit.new_cheque_preparation_date).toLocaleDateString("fr-FR") : "-"}</p>
                               <p className="text-slate-650 dark:text-slate-400">Transmis au BO le : {selectedDossierForAudit.new_date_transmission_bo ? new Date(selectedDossierForAudit.new_date_transmission_bo).toLocaleDateString("fr-FR") : "-"}</p>
                             </>
@@ -823,7 +829,7 @@ export default function AdminDossiers() {
                     </div>
                     <div className="flex-1 bg-slate-50/50 dark:bg-slate-900/20 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                       <div className="flex justify-between items-start">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Acheminement & Remise</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white tracking-wider">Acheminement et remise</h4>
                         <span className="text-[10px] font-semibold text-slate-450">
                           {selectedDossierForAudit.new_status === 150 ? "Livré" : "En cours"}
                         </span>
@@ -831,19 +837,19 @@ export default function AdminDossiers() {
                       <div className="text-xs text-slate-500 dark:text-slate-455 mt-2 space-y-2 leading-relaxed">
                         {/* Enriched Dates List */}
                         <div className="my-2 text-[11px] text-slate-600 dark:text-slate-400 space-y-1.5 bg-slate-100/50 dark:bg-slate-950/30 p-3 rounded-xl border border-slate-150 dark:border-slate-800">
-                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Transmission au BO :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_transmission_bo ? new Date(selectedDossierForAudit.new_date_transmission_bo).toLocaleDateString("fr-FR") : "En attente"}</span></div>
-                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Reçu en Agence le :</span> <span className="font-semibold">{selectedDossierForAudit.new_reception_date_agence ? new Date(selectedDossierForAudit.new_reception_date_agence).toLocaleString("fr-FR") : "En transit"}</span></div>
-                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Date Remise Finale :</span> <span className="font-semibold">{selectedDossierForAudit.new_final_delivery_date ? new Date(selectedDossierForAudit.new_final_delivery_date).toLocaleDateString("fr-FR") : "En attente"}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de transmission au BO :</span> <span className="font-semibold">{selectedDossierForAudit.new_date_transmission_bo ? new Date(selectedDossierForAudit.new_date_transmission_bo).toLocaleDateString("fr-FR") : "En attente"}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Reçu en agence le :</span> <span className="font-semibold">{selectedDossierForAudit.new_reception_date_agence ? new Date(selectedDossierForAudit.new_reception_date_agence).toLocaleString("fr-FR") : "En transit"}</span></div>
+                          <div className="flex justify-between"><span className="text-slate-400 font-medium">Date de remise finale :</span> <span className="font-semibold">{selectedDossierForAudit.new_final_delivery_date ? new Date(selectedDossierForAudit.new_final_delivery_date).toLocaleDateString("fr-FR") : "En attente"}</span></div>
                         </div>
                         
-                        <p>• Accusé Chèque BO : <strong className={selectedDossierForAudit.new_cheque_recu_bo ? "text-emerald-500" : "text-slate-400"}>{selectedDossierForAudit.new_cheque_recu_bo ? "Confirmé" : "En attente"}</strong></p>
+                        <p>• Accusé de réception du chèque au BO : <strong className={selectedDossierForAudit.new_cheque_recu_bo ? "text-emerald-500" : "text-slate-400"}>{selectedDossierForAudit.new_cheque_recu_bo ? "Confirmé" : "En attente"}</strong></p>
                         {selectedDossierForAudit.new_commentaire_reception && (
                           <p className="text-[11px] bg-slate-100 dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 italic">BO: "{selectedDossierForAudit.new_commentaire_reception}"</p>
                         )}
                         {selectedDossierForAudit.new_destination_branch_id && (
-                          <p>• Agence Destination : <strong className="text-slate-700 dark:text-slate-300">{selectedDossierForAudit.new_destination_branch_id}</strong></p>
+                          <p>• Agence de destination : <strong className="text-slate-700 dark:text-slate-300">{selectedDossierForAudit.new_destination_branch_id}</strong></p>
                         )}
-                        <p>• Remise Fournisseur : <strong className={selectedDossierForAudit.new_fournisseur_signe ? "text-emerald-500" : "text-slate-400"}>{selectedDossierForAudit.new_fournisseur_signe ? "Confirmée" : "Non signée"}</strong></p>
+                        <p>• Remise au fournisseur : <strong className={selectedDossierForAudit.new_fournisseur_signe ? "text-emerald-500" : "text-slate-400"}>{selectedDossierForAudit.new_fournisseur_signe ? "Confirmée" : "Non signée"}</strong></p>
                       </div>
                     </div>
                   </div>
@@ -853,7 +859,7 @@ export default function AdminDossiers() {
               {/* Technical Description Comments Audit */}
               {selectedDossierForAudit.new_description && (
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Commentaires & Overrides Techniques</h4>
+                  <h4 className="text-xs font-bold text-slate-400 tracking-wider">Commentaires et dérogations techniques</h4>
                   <div className="bg-slate-50 dark:bg-slate-900/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80 text-xs font-medium text-slate-650 dark:text-slate-400 space-y-2 divide-y divide-slate-100 dark:divide-slate-800/50">
                     {selectedDossierForAudit.new_description.split("|").map((segment, idx) => (
                       <div key={idx} className={`${idx > 0 ? "pt-2" : ""} leading-relaxed`}>

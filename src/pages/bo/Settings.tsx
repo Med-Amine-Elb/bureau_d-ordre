@@ -7,10 +7,6 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [activeSection, setActiveSection] = useState("profile");
   const [loading, setLoading] = useState(false);
-  const [userAvatar, setUserAvatar] = useState(
-    localStorage.getItem("userAvatar") || "https://api.dicebear.com/7.x/micah/svg?seed=Felix&backgroundColor=b6e3f4"
-  );
-
   const [notifs, setNotifs] = useState({
     email: true,
     delays: true,
@@ -19,7 +15,6 @@ export default function Settings() {
   });
 
   const handleSave = () => {
-    localStorage.setItem("userAvatar", userAvatar);
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
@@ -34,15 +29,6 @@ export default function Settings() {
     { id: "appearance", label: "Apparence", icon: Moon },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "security", label: "Sécurité & Système", icon: Shield },
-  ];
-
-  const avatarOptions = [
-    "https://api.dicebear.com/7.x/micah/svg?seed=Felix&backgroundColor=b6e3f4",
-    "https://api.dicebear.com/7.x/micah/svg?seed=Lily&backgroundColor=ffdfbf",
-    "https://api.dicebear.com/7.x/micah/svg?seed=Alex&backgroundColor=c0aede",
-    "https://api.dicebear.com/7.x/micah/svg?seed=Jude&backgroundColor=d1d4f9",
-    "https://api.dicebear.com/7.x/micah/svg?seed=Milo&backgroundColor=ffd5dc",
-    "https://api.dicebear.com/7.x/micah/svg?seed=Chloe&backgroundColor=b6e3f4"
   ];
 
   return (
@@ -106,13 +92,7 @@ export default function Settings() {
                {/* Profile Section */}
                {activeSection === "profile" && (
                  <div className="space-y-8">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                       <div className="relative group">
-                          <img src={userAvatar} alt="Profile" className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 soft-shadow bg-slate-100" />
-                          <button className="absolute bottom-0 right-0 p-1.5 bg-white dark:bg-slate-700 rounded-full border border-slate-200 dark:border-slate-600 soft-shadow group-hover:scale-110 transition-transform">
-                             <Monitor className="w-3 h-3 text-slate-600 dark:text-slate-300" />
-                          </button>
-                       </div>
+                    <div className="flex flex-col md:flex-row items-start gap-6">
                        <div>
                           <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Med Amine El Boubakri</h3>
                           <p className="text-slate-500 dark:text-slate-400 text-sm">Responsable Bureau d'Ordre • GBM Casablanca</p>
@@ -124,29 +104,15 @@ export default function Settings() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nom Complet</label>
+                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nom complet</label>
                           <input type="text" defaultValue="Med Amine El Boubakri" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none" />
                        </div>
                        <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Adresse Email</label>
+                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Adresse e-mail</label>
                           <input type="email" defaultValue="amine.elb@gbm.ma" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none" />
                        </div>
                     </div>
 
-                    <div className="pt-2">
-                       <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Choisissez votre Avatar</h4>
-                       <div className="flex gap-4 flex-wrap">
-                         {avatarOptions.map((url, i) => (
-                           <img 
-                             key={i} 
-                             src={url} 
-                             alt={`Avatar ${i}`} 
-                             onClick={() => setUserAvatar(url)}
-                             className={`w-16 h-16 rounded-full cursor-pointer transition-all border-4 bg-slate-100 ${userAvatar === url ? 'border-blue-500 scale-110 shadow-lg' : 'border-transparent hover:border-slate-300'}`}
-                           />
-                         ))}
-                       </div>
-                    </div>
                  </div>
                )}
 
@@ -191,7 +157,7 @@ export default function Settings() {
                     
                     {[
                       { id: "email", label: "Alertes Email", desc: "Recevoir un récapitulatif quotidien des dossiers en cours." },
-                      { id: "delays", label: "Dossiers Hors Délai", desc: "Notification instantanée quand un dossier dépasse 5 jours." },
+                      { id: "delays", label: "Dossiers hors délai", desc: "Notification instantanée quand un dossier dépasse 5 jours." },
                       { id: "rejections", label: "Rejets & Blocages", desc: "Être alerté dès qu'un prescripteur rejette un dossier." },
                       { id: "reminders", label: "Relances Automatiques", desc: "Activer les relances automatiques vers les prescripteurs." }
                     ].map((item) => (
@@ -217,7 +183,7 @@ export default function Settings() {
                     <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                        <Shield className="w-10 h-10 text-slate-300 dark:text-slate-600" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Sécurité & Système</h3>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Sécurité et système</h3>
                     <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">La gestion de la sécurité et les logs avancés sont réservés aux administrateurs système GBM.</p>
                     <div className="pt-6 border-t border-slate-100 dark:border-slate-800 mt-8 flex justify-center gap-4">
                        <button className="text-sm text-red-600 dark:text-red-400 font-semibold flex items-center gap-2 px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors">

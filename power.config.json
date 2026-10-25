@@ -1,9 +1,9 @@
 {
   "version": "1.0",
-  "appId": null,
+  "appId": "4a115159-a597-4643-b4f9-cf35a290ae77",
   "appDisplayName": "Bureau d'ordre",
   "region": "prod",
-  "environmentId": "e526406d-2f1b-e58f-b0d3-f14425bdbd5b",
+  "environmentId": "c3e38cf7-73d8-e320-a581-ac4d5ad39849",
   "description": " ",
   "buildPath": "./dist",
   "buildEntryPoint": "index.html",
@@ -36,6 +36,11 @@
         "departements": {
           "entitySetName": "new_departements",
           "logicalName": "new_departement"
+        },
+        "transmissions": {
+          "entitySetName": "new_transmissions",
+          "logicalName": "new_transmission",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

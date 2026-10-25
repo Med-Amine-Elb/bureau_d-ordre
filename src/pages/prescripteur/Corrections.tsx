@@ -48,7 +48,7 @@ export default function CorrectionsPrescripteur() {
       <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-            <RotateCcw className="w-8 h-8 text-orange-600" /> Vos Retours Correction
+            <RotateCcw className="w-8 h-8 text-orange-600" /> Vos retours pour correction
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 ml-11">
             Suivez les dossiers que vous avez renvoyés au Bureau d'Ordre pour correction.
@@ -78,8 +78,8 @@ export default function CorrectionsPrescripteur() {
             <thead>
               <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Dossier / Fournisseur</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Motif Renseigné</th>
-                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date de Retour</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Motif renseigné</th>
+                <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date de retour</th>
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>

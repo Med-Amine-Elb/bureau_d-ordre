@@ -76,8 +76,8 @@ export default function AdminConfiguration() {
     <div className="space-y-8 animate-in fade-in duration-500 max-w-4xl">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-          Paramètres du Système
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+          Paramètres du système
         </h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
           Ajustez les seuils opérationnels et les règles métiers. Les modifications s'appliquent globalement dans la table Dataverse `new_systemconfiguration`.
@@ -89,7 +89,7 @@ export default function AdminConfiguration() {
         <div className="md:col-span-2 bg-white dark:bg-[#0F172B] rounded-3xl p-6 shadow-sm border border-slate-100 dark:border-slate-800">
           <form onSubmit={handleSave} className="space-y-6">
             <h2 className="text-lg font-bold text-slate-850 dark:text-white flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
-              <Settings className="w-5 h-5 text-[#1F3B73]" /> Configuration des Seuils
+              <Settings className="w-5 h-5 text-[#1F3B73]" /> Configuration des seuils
             </h2>
 
             {/* Threshold 1: 5-Day Rule */}
@@ -119,7 +119,7 @@ export default function AdminConfiguration() {
               <div className="flex justify-between items-center">
                 <label className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                   <BellRing className="w-4 h-4 text-indigo-500" />
-                  Seuil de Relance Automatique
+                  Seuil de relance automatique
                 </label>
                 <span className="text-xs text-primary font-semibold bg-indigo-50 dark:bg-indigo-950/20 px-2 py-0.5 rounded-lg">Valeur active : {relanceJours} jours</span>
               </div>

@@ -19,6 +19,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
 
 export default function DossierDetailTresorerie() {
   const { id } = useParams();
@@ -138,6 +139,7 @@ export default function DossierDetailTresorerie() {
         new_date_accuse: new Date().toISOString(),
         new_commentaire_reception: data.commentaire
       });
+      await dataService.acknowledgeLatestDossierTransmission(dossier.new_folderid, data.commentaire);
       toast.success("Réception accusée", {
         description: `Vous pouvez maintenant procéder au règlement.`,
       });
@@ -271,10 +273,10 @@ export default function DossierDetailTresorerie() {
   };
 
   const renderStatus = () => {
-    if (dossier.new_status === 100) return "En Transit (Tréso)";
-    if (dossier.new_status === 110) return "Chez Trésorerie";
-    if (dossier.new_status === 120) return "En Attente Remise";
-    if (dossier.new_status === 150) return "Payé / Clôturé";
+    if (dossier.new_status === 100) return "En transit (trésorerie)";
+    if (dossier.new_status === 110) return "Chez la trésorerie";
+    if (dossier.new_status === 120) return "En attente de remise";
+    if (dossier.new_status === 150) return "Payé / clôturé";
     return `Statut ${dossier.new_status}`;
   };
 
@@ -317,7 +319,7 @@ export default function DossierDetailTresorerie() {
                 onClick={handleAccuse}
                 className="bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg px-5 py-2.5 text-sm font-semibold soft-shadow transition-colors flex items-center gap-2"
               >
-                <CheckCircle2 className="w-4 h-4" /> Accuser Réception
+                <CheckCircle2 className="w-4 h-4" /> Accuser réception
               </button>
             )}
           </div>
@@ -328,8 +330,9 @@ export default function DossierDetailTresorerie() {
       <div className="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 overflow-x-auto pb-1 scrollbar-hide">
         {[
           { id: "infos", label: "Informations", icon: FileText },
-          { id: "paiement", label: "Préparation Règlement", icon: Wallet },
-          { id: "blocage", label: "Gestion Blocage", icon: Lock },
+          { id: "details", label: "Détails complets", icon: FileText },
+          { id: "paiement", label: "Préparation du règlement", icon: Wallet },
+          { id: "blocage", label: "Gestion du blocage", icon: Lock },
           { id: "documents", label: "Documents", icon: FileText },
         ].map((tab) => (
           <button
@@ -352,7 +355,7 @@ export default function DossierDetailTresorerie() {
             <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-500" />
-                Détails du Dossier
+                Détails du dossier
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
@@ -366,7 +369,7 @@ export default function DossierDetailTresorerie() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Société Destinataire</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Société destinataire</label>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{dossier.new_company_id || "-"}</div>
                     </div>
                     <div>
@@ -391,25 +394,25 @@ export default function DossierDetailTresorerie() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Numéro de Facture</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Numéro de facture</label>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{dossier.new_invoice_number || "-"}</div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Date de Réception</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Date de réception</label>
                       <div className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         {format(parseISO(dossier.new_reception_date), "dd MMM yyyy", { locale: fr })}
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Date de Facture</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">Date de facture</label>
                       <div className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         {dossier.new_invoice_date ? format(parseISO(dossier.new_invoice_date), "dd MMM yyyy", { locale: fr }) : "-"}
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">N° Bon de Commande (BC)</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 block">N° du bon de commande (BC)</label>
                       <div className="font-medium text-slate-900 dark:text-slate-100">{dossier.new_po_number || "-"}</div>
                     </div>
                   </>
@@ -418,11 +421,13 @@ export default function DossierDetailTresorerie() {
             </div>
           )}
 
+          {activeTab === "details" && <DossierInformationPanel dossier={dossier} />}
+
           {activeTab === "paiement" && (
             <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <Wallet className="w-5 h-5 text-blue-500" />
-                Préparation du Règlement
+                Préparation du règlement
               </h3>
 
               {dossier.new_status === 100 ? (
@@ -438,7 +443,7 @@ export default function DossierDetailTresorerie() {
                   <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl flex items-start gap-4">
                     <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-emerald-800 dark:text-emerald-400">Règlement déjà préparé</h4>
+                <h4 className="font-bold text-emerald-800 dark:text-emerald-400">Règlement déjà préparé</h4>
                       <p className="text-sm text-emerald-600 dark:text-emerald-300 mt-1">
                         Les informations de paiement ont été saisies et le dossier a été transmis au Bureau d'Ordre pour remise finale.
                       </p>
@@ -456,30 +461,30 @@ export default function DossierDetailTresorerie() {
                     {dossier.new_payment_method === 1 ? (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Numéro Chèque</label>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Numéro du chèque</label>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{dossier.new_cheque_number || "-"}</span>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date de Préparation</label>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date de préparation</label>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {dossier.new_cheque_preparation_date ? format(parseISO(dossier.new_cheque_preparation_date), "dd MMMM yyyy", { locale: fr }) : "-"}
                           </span>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Banque Émettrice</label>
+                            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Banque émettrice</label>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{dossier.new_banque_emettrice || "-"}</span>
                         </div>
                       </>
                     ) : (
                       <>
                         <div>
-                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date du Virement</label>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date du virement</label>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">
                             {dossier.new_date_virement ? format(parseISO(dossier.new_date_virement), "dd MMMM yyyy", { locale: fr }) : "-"}
                           </span>
                         </div>
                         <div>
-                          <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">RIB du Bénéficiaire</label>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">RIB du bénéficiaire</label>
                           <span className="font-semibold text-slate-800 dark:text-slate-200">{dossier.new_compte_bancaire_dest || "-"}</span>
                         </div>
                       </>
@@ -487,7 +492,7 @@ export default function DossierDetailTresorerie() {
 
                     {dossier.new_payment_method === 1 && (
                       <div className="md:col-span-2 border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
-                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date Transmission BO</label>
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Date de transmission au BO</label>
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
                           {dossier.new_date_transmission_bo ? format(parseISO(dossier.new_date_transmission_bo), "dd MMMM yyyy", { locale: fr }) : "-"}
                         </span>
@@ -495,7 +500,7 @@ export default function DossierDetailTresorerie() {
                     )}
 
                     <div className="md:col-span-2 mt-2">
-                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Commentaire de la Trésorerie</label>
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Commentaire de la trésorerie</label>
                       <p className="text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-[#0F172B] p-3 rounded-lg border border-slate-100 dark:border-slate-800">
                         {dossier.new_commentaire_treso || "Aucun commentaire."}
                       </p>
@@ -505,7 +510,7 @@ export default function DossierDetailTresorerie() {
               ) : (
                 <form onSubmit={handleConfirmerPreparation} className="space-y-6 animate-in fade-in">
                   <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mode de Règlement</span>
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Mode de règlement</span>
                     <div className="flex gap-4">
                       <label className="inline-flex items-center gap-2 cursor-pointer">
                         <input
@@ -533,7 +538,7 @@ export default function DossierDetailTresorerie() {
                   {modePaiement === 1 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/20 p-5 rounded-xl border border-slate-100 dark:border-slate-800 animate-in fade-in">
                       <div className="md:col-span-2 space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Agence de Destination du Chèque</label>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Agence de destination du chèque</label>
                         <select
                           required
                           className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
@@ -545,7 +550,7 @@ export default function DossierDetailTresorerie() {
                             setSelectedAgenceName(foundAg ? foundAg.new_name : "");
                           }}
                         >
-                          <option value="">-- Choisir l'agence de destination --</option>
+                          <option value="" disabled>-- Choisir l'agence de destination --</option>
                           {agences.map((ag) => (
                             <option key={ag.new_branchid} value={ag.new_branchid}>
                               {ag.new_name} ({ag.new_city})
@@ -557,7 +562,7 @@ export default function DossierDetailTresorerie() {
                       {selectedAgenceGuid ? (
                         <>
                           <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Numéro de Chèque</label>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Numéro du chèque</label>
                             <input
                               type="text"
                               required
@@ -567,7 +572,7 @@ export default function DossierDetailTresorerie() {
                             />
                           </div>
                           <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de Préparation</label>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date de préparation</label>
                             <input
                               type="date"
                               required
@@ -577,7 +582,7 @@ export default function DossierDetailTresorerie() {
                             />
                           </div>
                           <div className="md:col-span-2 space-y-2 animate-in slide-in-from-top-2 duration-300">
-                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Banque Émettrice</label>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Banque émettrice</label>
                             <input
                               type="text"
                               required
@@ -597,7 +602,7 @@ export default function DossierDetailTresorerie() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50/50 dark:bg-slate-900/20 p-5 rounded-xl border border-slate-100 dark:border-slate-800">
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date du Virement</label>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Date du virement</label>
                         <input
                           type="date"
                           required
@@ -607,7 +612,7 @@ export default function DossierDetailTresorerie() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RIB du Bénéficiaire (24 chiffres)</label>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">RIB du bénéficiaire (24 chiffres)</label>
                         <input
                           type="text"
                           required
@@ -623,7 +628,7 @@ export default function DossierDetailTresorerie() {
 
                   {modePaiement === 1 && (
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Date Transmission BO (Automatique)</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Date de transmission au BO (automatique)</label>
                       <div className="px-3 py-2 border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-sm font-semibold">
                         {new Date().toLocaleDateString('fr-FR')} (Aujourd'hui)
                       </div>
@@ -659,7 +664,7 @@ export default function DossierDetailTresorerie() {
             <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <ShieldAlert className="w-5 h-5 text-red-500" />
-                Gestion des Blocages
+                Gestion des blocages
               </h3>
 
               {dossier.new_is_blocked ? (
@@ -672,20 +677,20 @@ export default function DossierDetailTresorerie() {
                         Toutes les opérations de règlement sont gelées.
                       </p>
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                        <div>Source du Blocage : <span className="text-slate-800 dark:text-slate-200">{dossier.new_source_blocage || "Non défini"}</span></div>
-                        <div>Date du Blocage : <span className="text-slate-800 dark:text-slate-200">En cours</span></div>
+                        <div>Source du blocage : <span className="text-slate-800 dark:text-slate-200">{dossier.new_source_blocage || "Non défini"}</span></div>
+                        <div>Date du blocage : <span className="text-slate-800 dark:text-slate-200">En cours</span></div>
                       </div>
                       <div className="mt-3 p-3 bg-white dark:bg-[#0F172B] rounded-lg border border-red-100 dark:border-red-950/50">
-                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Motif du Blocage</label>
+                        <label className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Motif du blocage</label>
                         <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{dossier.new_motif_blocage || "Aucun motif spécifié."}</p>
                       </div>
                     </div>
                   </div>
 
                   <form onSubmit={handleLeverBlocage} className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">Lever le Blocage</h4>
+                    <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">Lever le blocage</h4>
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Date de Résolution</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Date de résolution</label>
                       <input
                         type="date"
                         required
@@ -695,7 +700,7 @@ export default function DossierDetailTresorerie() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Détails de la Résolution (Motif du déblocage)</label>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Détails de la résolution (motif du déblocage)</label>
                       <textarea
                         rows={3}
                         required
@@ -718,7 +723,7 @@ export default function DossierDetailTresorerie() {
                   <div className="p-5 bg-emerald-50 dark:bg-emerald-950/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl flex items-start gap-4">
                     <Unlock className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-emerald-800 dark:text-emerald-400 font-bold">Dossier Actif</h4>
+                      <h4 className="font-bold text-emerald-800 dark:text-emerald-400">Dossier actif</h4>
                       <p className="text-sm text-emerald-600 dark:text-emerald-300 mt-1">
                         Aucun blocage n'est signalé sur ce dossier actuellement.
                       </p>
@@ -727,7 +732,7 @@ export default function DossierDetailTresorerie() {
 
                   {dossier.new_resolution_blocage && (
                     <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs text-slate-500">
-                      <span className="font-bold block uppercase mb-1">Dernière Résolution</span>
+                      <span className="font-bold block mb-1">Dernière résolution</span>
                       <p className="italic text-slate-700 dark:text-slate-300">{dossier.new_resolution_blocage}</p>
                     </div>
                   )}
@@ -744,7 +749,7 @@ export default function DossierDetailTresorerie() {
                       <h4 className="font-bold text-red-800 dark:text-red-400 text-sm">Déclarer un blocage</h4>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Source du Blocage</label>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Source du blocage</label>
                         <select
                           className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm dark:text-slate-200 focus:outline-none"
                           value={sourceBlocage}
@@ -758,7 +763,7 @@ export default function DossierDetailTresorerie() {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Motif du Blocage</label>
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Motif du blocage</label>
                         <textarea
                           rows={3}
                           required
@@ -795,7 +800,7 @@ export default function DossierDetailTresorerie() {
             <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-in fade-in">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-blue-500" />
-                Pièces Jointes
+                Pièces jointes
               </h3>
 
               {dossier.new_documents_complements && dossier.new_documents_complements.length > 0 ? (
@@ -825,7 +830,7 @@ export default function DossierDetailTresorerie() {
         {/* Historique Sidebar */}
         <div className="lg:col-span-1">
           <div className="bg-slate-50 dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm sticky top-6">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-2">
+            <h3 className="text-sm font-bold tracking-wider text-slate-500 dark:text-slate-400 mb-6 flex items-center gap-2">
               <Calendar className="w-4 h-4" /> Historique
             </h3>
 
@@ -837,7 +842,7 @@ export default function DossierDetailTresorerie() {
               </div>
               <div className="relative pl-6">
                 <div className="absolute w-3 h-3 bg-white border-2 border-slate-300 rounded-full -left-[7px] top-1.5"></div>
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Validation Prescripteur</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Validation du prescripteur</p>
               </div>
               <div className="relative pl-6">
                 <div className="absolute w-3 h-3 bg-white border-2 border-slate-300 rounded-full -left-[7px] top-1.5"></div>
@@ -845,15 +850,15 @@ export default function DossierDetailTresorerie() {
               </div>
               <div className="relative pl-6">
                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 100 ? 'border-blue-500' : 'border-slate-300'}`}></div>
-                <p className={`text-sm font-bold ${dossier.new_status >= 100 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Transmission Trésorerie</p>
+                <p className={`text-sm font-bold ${dossier.new_status >= 100 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Transmission à la trésorerie</p>
               </div>
               <div className="relative pl-6">
                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 120 ? 'border-blue-500' : dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
-                <p className={`text-sm font-bold ${dossier.new_status >= 120 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Règlement Préparé</p>
+                <p className={`text-sm font-bold ${dossier.new_status >= 120 ? 'text-primary dark:text-blue-400' : 'text-slate-500'}`}>Règlement préparé</p>
               </div>
               <div className="relative pl-6">
                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
-                <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>Remise Chèque (Clôture)</p>
+                <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>Remise du chèque (clôture)</p>
               </div>
             </div>
           </div>

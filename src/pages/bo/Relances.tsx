@@ -32,8 +32,9 @@ export default function Relances() {
     fetchDossiersAndUsers();
   }, []);
 
-  // Fournisseurs: Dossiers en "Brouillon" ou bloqués manuellement (on exclut les rejets 5j de la relance directe)
-  const fournisseursDossiers = dossiers.filter(d => d.new_status === 10 || d.new_is_blocked);
+  // Le statut 10 correspond aux dossiers conservés au BO, pas à une attente fournisseur.
+  // Les relances fournisseurs ne concernent donc que les dossiers bloqués manuellement.
+  const fournisseursDossiers = dossiers.filter(d => d.new_is_blocked);
   
   // Prescripteurs: Dossiers "Chez Prescripteur" (Statut 40)
   const prescripteursDossiers = dossiers.filter(d => d.new_status === 40);
@@ -77,7 +78,7 @@ export default function Relances() {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-          <PhoneCall className="w-8 h-8 text-primary" /> Gestion des Relances
+          <PhoneCall className="w-8 h-8 text-primary" /> Gestion des relances
         </h1>
         <p className="text-slate-500 dark:text-slate-400 mt-1 ml-11">Centralisez les rappels et suivez les dossiers bloqués.</p>
       </div>
@@ -195,7 +196,7 @@ export default function Relances() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Nouvelle Relance</h2>
+              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Nouvelle relance</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
                 <span className="sr-only">Fermer</span>&times;
               </button>
@@ -250,7 +251,7 @@ export default function Relances() {
                   onChange={(e) => setSelectedUserId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-none"
                 >
-                  <option value="">-- Sélectionner un destinataire --</option>
+                  <option value="" disabled>-- Sélectionner un destinataire --</option>
                   {users.map(u => (
                     <option key={u.systemuserid} value={u.systemuserid}>
                       {u.fullname} ({u.new_role})

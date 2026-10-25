@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, CheckCircle, Calendar, Check } from "lucide-react";
 import type { Dossier } from "@/lib/dataService";
+import DossierInformationPanel from "@/components/DossierInformationPanel";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -48,7 +49,7 @@ export default function AgenceAccuseReceptionModal({
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
           <h3 className="text-lg font-bold text-[#1F3B73] dark:text-blue-400 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" /> Accusé de Réception Chèque (Agence)
+            <CheckCircle className="w-5 h-5" /> Accusé de réception du chèque (agence)
           </h3>
           <button
             type="button"
@@ -95,10 +96,15 @@ export default function AgenceAccuseReceptionModal({
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400 font-medium">Agence Destination :</span>
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Agence de destination :</span>
                 <span className="font-semibold text-[#1F3B73] dark:text-blue-400">{dossier.new_destination_branch_id || "-"}</span>
               </div>
             </div>
+
+            <details className="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <summary className="cursor-pointer text-sm font-semibold text-slate-700 dark:text-slate-200">Afficher toutes les informations du dossier</summary>
+              <div className="mt-4"><DossierInformationPanel dossier={dossier} /></div>
+            </details>
 
             {/* Date de réception (Automatic) */}
             <div className="space-y-1.5">

@@ -24,6 +24,7 @@ import KpiCard from "@/components/KpiCard";
 
 
 export default function DashboardDCF() {
+
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [animatedPercentage, setAnimatedPercentage] = useState(0);
@@ -69,10 +70,10 @@ export default function DashboardDCF() {
 
   const barChartData = last6Months.map(monthDate => {
     const monthName = format(monthDate, "MMM", { locale: fr });
-    let traites = dossiers.filter(d => 
+    let traites = dossiers.filter(d =>
       d.new_est_comptabilise && d.new_accounting_date && isSameMonth(new Date(d.new_accounting_date), monthDate)
     ).length;
-    let retours = dossiers.filter(d => 
+    let retours = dossiers.filter(d =>
       d.new_status === 90 && d.new_date_retour_bo && isSameMonth(new Date(d.new_date_retour_bo), monthDate)
     ).length;
 
@@ -349,21 +350,21 @@ export default function DashboardDCF() {
                     </pattern>
                   </defs>
                   <CartesianGrid strokeDasharray="4 4" vertical={false} stroke={isDarkMode ? "#1e293b" : "#e2e8f0"} />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }} 
-                    dy={12} 
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }}
+                    dy={12}
                   />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }} 
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: isDarkMode ? "#64748b" : "#94a3b8", fontWeight: 600 }}
                   />
-                  <RechartsTooltip 
-                    cursor={{ fill: isDarkMode ? "#1e293b" : "#f1f5f9" }} 
-                    contentStyle={{ ...tooltipStyle, borderRadius: '16px' }} 
+                  <RechartsTooltip
+                    cursor={{ fill: isDarkMode ? "#1e293b" : "#f1f5f9" }}
+                    contentStyle={{ ...tooltipStyle, borderRadius: '16px' }}
                   />
                   <Bar dataKey="retours" stackId="a" fill={isDarkMode ? "#334155" : "#1e293b"} radius={[6, 6, 6, 6]} animationDuration={1500} />
                   <Bar dataKey="traites" stackId="a" fill="url(#diagonalHatch)" radius={[6, 6, 6, 6]} animationDuration={1500} />
