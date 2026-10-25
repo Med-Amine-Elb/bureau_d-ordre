@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import {
   FileText,
   Search,
@@ -209,7 +210,7 @@ export default function DossiersListPrescripteur() {
                 <option value="30">À réceptionner (30)</option>
                 <option value="40">Chez moi (40)</option>
                 <option value=">=50">Validés &amp; Transmis ({">="} 50)</option>
-                <option value="90">Retour pour correction (90)</option>
+                <option value="90">{getDossierStatusLabel(90)} (90)</option>
               </select>
             </div>
 
@@ -471,7 +472,7 @@ function getStatutBadge(statut: number) {
   switch (statut) {
     case 30: return <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2.5 py-1 rounded-full text-xs font-bold">À réceptionner</span>;
     case 40: return <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded-full text-xs font-bold">Chez vous</span>;
-    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold">Retour pour correction</span>;
+    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold">{getDossierStatusLabel(90)}</span>;
     default: return <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold">En cours</span>;
   }
 }

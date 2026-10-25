@@ -31,6 +31,7 @@ import {
 import { useNavigate, Link } from "react-router-dom";
 import KpiCard from "@/components/KpiCard";
 import { dataService } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import type { Dossier, SystemUser, DepartmentLookup } from "@/lib/dataService";
 import { PremiumGauge } from "@/components/PremiumGauge";
 import TransmissionModal from "@/components/TransmissionModal";
@@ -318,21 +319,21 @@ export default function DashboardBO() {
 
   const getStatusLabelText = (status: number) => {
     switch (status) {
-      case 10: return "Chez BO — à traiter";
+      case 10: return getDossierStatusLabel(status);
       case 20: return "Hors délai";
       case 30:
+      case 40:
       case 50:
+      case 60:
       case 70:
-      case 100: return "En transit";
-      case 40: return "Chez prescripteur";
-      case 60: return "Prêt DCF";
-      case 80: return "Chez DCF";
-      case 90: return "Retour correction";
-      case 110: return "Trésorerie";
-      case 120: return "En attente de remise";
-      case 130: return "En transport";
-      case 140: return "Disponible en agence";
-      case 150: return "Payé / clôturé";
+      case 80:
+      case 90:
+      case 100:
+      case 110:
+      case 120:
+      case 130:
+      case 140:
+      case 150: return getDossierStatusLabel(status);
       default: return `Statut ${status}`;
     }
   };

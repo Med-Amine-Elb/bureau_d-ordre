@@ -3,6 +3,7 @@ import { saveAs } from "file-saver";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { Dossier } from "../lib/dataService";
+import { getDossierStatusLabel } from "../lib/statusLabels";
 
 /**
  * Format a date string safely
@@ -26,27 +27,7 @@ export const getTypeLabel = (type: number) => {
   }
 };
 
-export const getStatusLabel = (status: number) => {
-  switch (status) {
-    case 10: return "Nouveau";
-    case 20: return "En cours de numérisation";
-    case 30: return "Transmis au prescripteur";
-    case 40: return "Réception physique par prescripteur";
-    case 50: return "En cours de validation";
-    case 60: return "Validé";
-    case 70: return "En transit DCF";
-    case 80: return "Chez DCF";
-    case 90: return "Retour (Correction demandée)";
-    case 100: return "Transmis Trésorerie";
-    case 110: return "Chez Trésorerie (À Préparer)";
-    case 120: return "En Attente Remise Finale";
-    case 130: return "En Transport";
-    case 140: return "Disponible en Agence";
-    case 150: return "Remis / Clôturé";
-    case 160: return "Archivé";
-    default: return `Statut ${status}`;
-  }
-};
+export const getStatusLabel = getDossierStatusLabel;
 
 /**
  * Legacy export for any object array (keeps old pages working until updated)

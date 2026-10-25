@@ -1,4 +1,5 @@
 import type { Dossier } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 
 interface DossierInformationPanelProps {
   dossier: Dossier;
@@ -17,25 +18,7 @@ const formatDate = (value?: string) => value
   ? new Date(value).toLocaleDateString("fr-FR")
   : "—";
 
-const statusLabel = (status: number, isCourrier: boolean) => {
-  if (status === 150) return isCourrier ? "Livré / clôturé" : "Payé / clôturé";
-  return ({
-    10: "Chez BO — à traiter",
-    20: "Hors délai",
-    30: "En transit vers le prescripteur",
-    40: "Chez le prescripteur",
-    50: "En transit vers le BO",
-    60: "Prêt pour la DCF",
-    70: "En transit vers la DCF",
-    80: "Chez la DCF",
-    90: "Retour pour correction",
-    100: "En transit vers la Trésorerie",
-    110: "Chez la Trésorerie",
-    120: "Prêt pour remise",
-    130: "En transport vers l’agence",
-    140: "Disponible en agence",
-  } as Record<number, string>)[status] ?? `Statut ${status}`;
-};
+const statusLabel = (status: number) => getDossierStatusLabel(status);
 
 function Information({ label, value }: { label: string; value?: string | number | boolean }) {
   const displayValue = value === undefined || value === null || value === "" ? "—" : typeof value === "boolean" ? (value ? "Oui" : "Non") : String(value);
@@ -53,7 +36,7 @@ export default function DossierInformationPanel({ dossier }: DossierInformationP
     { label: "N° Dossier", value: dossier.new_folder_number },
     { label: "Type de document", value: documentTypeLabel(dossier.new_document_type) },
     { label: "Date de réception", value: formatDate(dossier.new_reception_date) },
-    { label: "Statut", value: statusLabel(dossier.new_status, dossier.new_document_type === 600) },
+    { label: "Statut", value: statusLabel(dossier.new_status) },
   ];
   const routing = isCourrier
     ? [

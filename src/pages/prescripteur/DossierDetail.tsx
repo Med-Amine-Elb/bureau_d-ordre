@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import { DOCUMENT_UPLOADS_ENABLED } from "@/lib/features";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
 import {
@@ -128,21 +129,21 @@ export default function DossierDetailPrescripteur() {
 
   const getStatusDisplay = (status: number) => {
     switch (status) {
-      case 10: return { label: "Chez BO — à traiter", color: "slate" };
+      case 10: return { label: getDossierStatusLabel(status), color: "slate" };
       case 20: return { label: "Hors délai", color: "red" };
-      case 30: return { label: "En transit (prescr.)", color: "blue" };
-      case 40: return { label: "Chez prescripteur", color: "indigo" };
-      case 50: return { label: "En transit (BO)", color: "blue" };
-      case 60: return { label: "Prêt DCF", color: "emerald" };
-      case 70: return { label: "En transit (DCF)", color: "blue" };
-      case 80: return { label: "Chez DCF", color: "purple" };
-      case 90: return { label: "Retour correction", color: "orange" };
-      case 100: return { label: "En transit (tréso.)", color: "blue" };
-      case 110: return { label: "Chez Trésorerie", color: "indigo" };
-      case 120: return { label: "Attente Remise", color: "emerald" };
-      case 130: return { label: "En Transport", color: "orange" };
-      case 140: return { label: "Disponible agence", color: "emerald" };
-      case 150: return { label: dossier?.new_document_type === 600 ? "Livré (Clôturé)" : "Payé", color: "emerald" };
+      case 30: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 40: return { label: getDossierStatusLabel(status), color: "indigo" };
+      case 50: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 60: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 70: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 80: return { label: getDossierStatusLabel(status), color: "purple" };
+      case 90: return { label: getDossierStatusLabel(status), color: "orange" };
+      case 100: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 110: return { label: getDossierStatusLabel(status), color: "indigo" };
+      case 120: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 130: return { label: getDossierStatusLabel(status), color: "orange" };
+      case 140: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 150: return { label: getDossierStatusLabel(status), color: "emerald" };
       default: return { label: `Statut ${status}`, color: "slate" };
     }
   };
@@ -309,13 +310,13 @@ export default function DossierDetailPrescripteur() {
           <div className="p-8">
             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-4 py-2 space-y-10">
               {[
-                { id: 10, label: "Chez BO — à traiter", desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle.", icon: "edit" },
-                { id: 30, label: "Transit Prescripteur", desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
-                { id: 40, label: "Chez prescripteur", desc: "Vous examinez et validez le service fait.", icon: "user" },
-                { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
-                { id: 60, label: "Complet / Prêt DCF", desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
-                { id: 70, label: "Transit DCF", desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
-                { id: 80, label: "Chez DCF", desc: "Vérification de la conformité comptable et fiscale.", icon: "shield" }
+                { id: 10, label: getDossierStatusLabel(10), desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle.", icon: "edit" },
+                { id: 30, label: getDossierStatusLabel(30), desc: `Envoi du dossier physique/numérique à la direction ${dossier.new_department_id || ''}.`, icon: "send" },
+                { id: 40, label: getDossierStatusLabel(40), desc: "Vous examinez et validez le service fait.", icon: "user" },
+                { id: 50, label: getDossierStatusLabel(50), desc: "Le dossier validé retourne au Bureau d'Ordre.", icon: "undo" },
+                { id: 60, label: getDossierStatusLabel(60), desc: "BO accuse réception et prépare le lot pour la DCF.", icon: "package" },
+                { id: 70, label: getDossierStatusLabel(70), desc: "Envoi du dossier à la Direction Contrôle de Flux (DCF).", icon: "send" },
+                { id: 80, label: getDossierStatusLabel(80), desc: "Vérification de la conformité comptable et fiscale.", icon: "shield" }
               ].map((step, index) => {
                 const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
                 if (step.id === 90 && dossier.new_status !== 90) return null;

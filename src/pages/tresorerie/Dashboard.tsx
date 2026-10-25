@@ -68,7 +68,7 @@ export default function DashboardTresorerie() {
   const chartData = [
     { name: "À accuser", value: aAccuser, color: "#f97316", grad: "url(#grad-orange)", icon: Clock },
     { name: "Règlement", value: aRegler, color: "#3b82f6", grad: "url(#grad-blue)", icon: Wallet },
-    { name: "En attente de remise", value: enAttenteRemise, color: "#8b5cf6", grad: "url(#grad-purple)", icon: FileText },
+    { name: "Prêt à remettre", value: enAttenteRemise, color: "#8b5cf6", grad: "url(#grad-purple)", icon: FileText },
     { name: "Payés", value: payes, color: "#10b981", grad: "url(#grad-teal)", icon: CheckCircle }
   ];
 
@@ -228,7 +228,7 @@ export default function DashboardTresorerie() {
           subtext={<span className="text-xs text-slate-400">En attente de paiement</span>}
         />
         <KpiCard
-          title="En attente de remise"
+          title="Prêt à remettre"
           icon={FileText}
           value={enAttenteRemise.toLocaleString()}
           loading={loading}

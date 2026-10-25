@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { dataService } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import type { Dossier } from "@/lib/dataService";
 import { exportToExcel, formatDateSafely, getTypeLabel } from "@/utils/excelExport";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
@@ -160,27 +161,7 @@ export default function AdminDossiers() {
     }
   };
 
-  // Status mapping
-  const getStatusLabel = (status: number) => {
-    switch(status) {
-      case 10: return "Chez BO — à traiter";
-      case 20: return "Hors délai";
-      case 30: return "En transit (prescr.)";
-      case 40: return "Chez prescripteur";
-      case 50: return "En transit (BO)";
-      case 60: return "Prêt DCF";
-      case 70: return "En transit (DCF)";
-      case 80: return "Chez DCF";
-      case 90: return "Retour correction";
-      case 100: return "En transit (tréso.)";
-      case 110: return "Chez Trésorerie";
-      case 120: return "Attente Remise";
-      case 130: return "En Transport";
-      case 140: return "Disponible agence";
-      case 150: return "Payé / clôturé";
-      default: return `Statut ${status}`;
-    }
-  };
+  const getStatusLabel = getDossierStatusLabel;
 
   const getStatusColor = (status: number) => {
     switch(status) {
@@ -271,21 +252,21 @@ export default function AdminDossiers() {
               className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
             >
               <option value="Tous">Tous les statuts</option>
-                  <option value="10">Chez BO — à traiter (10)</option>
+                  <option value="10">{getDossierStatusLabel(10)} (10)</option>
               <option value="20">Hors délai (20)</option>
-              <option value="30">Transit vers le prescripteur (30)</option>
-              <option value="40">Chez le prescripteur (40)</option>
-              <option value="50">Transit BO (50)</option>
+              <option value="30">{getDossierStatusLabel(30)} (30)</option>
+              <option value="40">{getDossierStatusLabel(40)} (40)</option>
+              <option value="50">{getDossierStatusLabel(50)} (50)</option>
               <option value="60">Prêt DCF (60)</option>
-              <option value="70">Transit DCF (70)</option>
-              <option value="80">Chez DCF (80)</option>
-              <option value="90">Retour pour correction (90)</option>
-              <option value="100">Transit vers la trésorerie (100)</option>
-              <option value="110">Chez la trésorerie (110)</option>
-              <option value="120">En attente de remise (120)</option>
-              <option value="130">En transport vers l’agence (130)</option>
-              <option value="140">Disponible en agence (140)</option>
-              <option value="150">Payé / clôturé (150)</option>
+              <option value="70">{getDossierStatusLabel(70)} (70)</option>
+              <option value="80">{getDossierStatusLabel(80)} (80)</option>
+              <option value="90">{getDossierStatusLabel(90)} (90)</option>
+              <option value="100">{getDossierStatusLabel(100)} (100)</option>
+              <option value="110">{getDossierStatusLabel(110)} (110)</option>
+              <option value="120">{getDossierStatusLabel(120)} (120)</option>
+              <option value="130">{getDossierStatusLabel(130)} (130)</option>
+              <option value="140">{getDossierStatusLabel(140)} (140)</option>
+              <option value="150">{getDossierStatusLabel(150)} (150)</option>
             </select>
           </div>
 
@@ -466,21 +447,21 @@ export default function AdminDossiers() {
                   onChange={(e) => setNewStatus(Number(e.target.value))}
                   className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
                 >
-                  <option value="10">Chez BO — à traiter (10)</option>
+                  <option value="10">{getDossierStatusLabel(10)} (10)</option>
                   <option value="20">Hors délai (20)</option>
-                  <option value="30">En transit vers le prescripteur (30)</option>
-                  <option value="40">Chez le prescripteur (40)</option>
-              <option value="50">En transit vers le BO (50)</option>
-                  <option value="60">Prêt DCF (60)</option>
-              <option value="70">En transit vers la DCF (70)</option>
-                  <option value="80">Chez DCF (80)</option>
-                  <option value="90">Retour pour correction (90)</option>
-                  <option value="100">En transit vers la trésorerie (100)</option>
-                  <option value="110">Chez la trésorerie (110)</option>
-                  <option value="120">En attente de remise (120)</option>
-                  <option value="130">En transport vers l’agence (130)</option>
-                  <option value="140">Disponible en agence (140)</option>
-              <option value="150">Payé / clôturé (150)</option>
+                  <option value="30">{getDossierStatusLabel(30)} (30)</option>
+                  <option value="40">{getDossierStatusLabel(40)} (40)</option>
+              <option value="50">{getDossierStatusLabel(50)} (50)</option>
+                  <option value="60">{getDossierStatusLabel(60)} (60)</option>
+              <option value="70">{getDossierStatusLabel(70)} (70)</option>
+                  <option value="80">{getDossierStatusLabel(80)} (80)</option>
+                  <option value="90">{getDossierStatusLabel(90)} (90)</option>
+                  <option value="100">{getDossierStatusLabel(100)} (100)</option>
+                  <option value="110">{getDossierStatusLabel(110)} (110)</option>
+                  <option value="120">{getDossierStatusLabel(120)} (120)</option>
+                  <option value="130">{getDossierStatusLabel(130)} (130)</option>
+                  <option value="140">{getDossierStatusLabel(140)} (140)</option>
+              <option value="150">{getDossierStatusLabel(150)} (150)</option>
                 </select>
               </div>
 

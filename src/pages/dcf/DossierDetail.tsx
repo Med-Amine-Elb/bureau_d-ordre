@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -138,11 +139,8 @@ export default function DossierDetailDCF() {
   };
 
   const renderStatus = () => {
-    if (dossier.new_status === 70) return "En transit (DCF)";
-    if (dossier.new_status === 80) return dossier.new_est_comptabilise ? "Prêt trésorerie" : "Chez DCF";
-    if (dossier.new_status === 90) return "Retour correction";
-    if (dossier.new_status === 100) return "Transmis trésorerie";
-    return `Statut ${dossier.new_status}`;
+    if (dossier.new_status === 80 && dossier.new_est_comptabilise) return "Prêt pour trésorerie";
+    return getDossierStatusLabel(dossier.new_status);
   };
 
   return (

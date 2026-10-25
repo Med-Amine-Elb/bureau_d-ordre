@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier, AgenceLookup } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -273,11 +274,7 @@ export default function DossierDetailTresorerie() {
   };
 
   const renderStatus = () => {
-    if (dossier.new_status === 100) return "En transit (trésorerie)";
-    if (dossier.new_status === 110) return "Chez la trésorerie";
-    if (dossier.new_status === 120) return "En attente de remise";
-    if (dossier.new_status === 150) return "Payé / clôturé";
-    return `Statut ${dossier.new_status}`;
+    return getDossierStatusLabel(dossier.new_status);
   };
 
   return (

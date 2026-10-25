@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import {
   FileText,
   Search,
@@ -130,9 +131,9 @@ export default function DossiersListAgence() {
   });
 
   const getStatusBadge = (status: number) => {
-    if (status === 130) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><Truck className="w-3.5 h-3.5" />En transport</span>;
-    if (status === 140) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Wallet className="w-3.5 h-3.5" />Disponible en agence</span>;
-    if (status === 150) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />Remis / Payé</span>;
+    if (status === 130) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"><Truck className="w-3.5 h-3.5" />{getDossierStatusLabel(status)}</span>;
+    if (status === 140) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"><Wallet className="w-3.5 h-3.5" />{getDossierStatusLabel(status)}</span>;
+    if (status === 150) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 className="w-3.5 h-3.5" />{getDossierStatusLabel(status)}</span>;
 
     return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">Statut {status}</span>;
   };
@@ -197,8 +198,8 @@ export default function DossiersListAgence() {
               >
                 <option value="ALL">Tous les statuts</option>
                 <option value="130">En transport</option>
-                <option value="140">Disponible en agence</option>
-                <option value="150">Remis / Clôturé</option>
+                <option value="140">{getDossierStatusLabel(140)}</option>
+                <option value="150">{getDossierStatusLabel(150)}</option>
               </select>
             </div>
             <div>

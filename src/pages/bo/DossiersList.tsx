@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import DossierDetailDrawer from "@/components/DossierDetailDrawer";
 import SupplierFilterInput from "@/components/SupplierFilterInput";
 import { matchesSupplierFilter } from "@/lib/supplierFilter";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import { exportDossiersToExcelDetailed } from "@/utils/excelExport";
 
 export default function DossiersList() {
@@ -285,12 +286,12 @@ export default function DossiersList() {
     }
   };
 
-  const getStatusBadge = (status: number, typeDocument?: number) => {
+  const getStatusBadge = (status: number) => {
     switch (status) {
       case 10:
         return (
           <span className="flex items-center gap-1.5 text-slate-600">
-            <div className="w-2 h-2 rounded-full bg-slate-400"></div>Chez BO — à traiter
+            <div className="w-2 h-2 rounded-full bg-slate-400"></div>{getDossierStatusLabel(10)}
           </span>
         );
       case 20:
@@ -302,88 +303,82 @@ export default function DossiersList() {
       case 30:
         return (
           <span className="flex items-center gap-1.5 text-primary">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
-            Prescripteur
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(30)}
           </span>
         );
       case 40:
         return (
           <span className="flex items-center gap-1.5 text-primary">
-            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>Chez
-            Prescripteur
+            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>{getDossierStatusLabel(40)}
           </span>
         );
       case 50:
         return (
           <span className="flex items-center gap-1.5 text-primary">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit BO
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(50)}
           </span>
         );
       case 60:
         return (
           <span className="flex items-center gap-1.5 text-emerald-600">
-            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>Prêt DCF
+            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>{getDossierStatusLabel(60)}
           </span>
         );
       case 70:
         return (
           <span className="flex items-center gap-1.5 text-primary">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit DCF
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(70)}
           </span>
         );
       case 80:
         return (
           <span className="flex items-center gap-1.5 text-purple-600 font-medium">
-            <div className="w-2 h-2 rounded-full bg-purple-500"></div>Chez DCF
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>{getDossierStatusLabel(80)}
           </span>
         );
       case 90:
         return (
           <span className="flex items-center gap-1.5 text-orange-600 font-medium">
-            <div className="w-2 h-2 rounded-full bg-orange-500"></div>Retour
-            Correction
+            <div className="w-2 h-2 rounded-full bg-orange-500"></div>{getDossierStatusLabel(90)}
           </span>
         );
       case 100:
         return (
           <span className="flex items-center gap-1.5 text-primary">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>Transit
-            Trésorerie
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(100)}
           </span>
         );
       case 110:
         return (
           <span className="flex items-center gap-1.5 text-indigo-700 font-medium">
-            <div className="w-2 h-2 rounded-full bg-primary"></div>Chez
-            Trésorerie
+            <div className="w-2 h-2 rounded-full bg-primary"></div>{getDossierStatusLabel(110)}
           </span>
         );
       case 120:
         return (
           <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-            Attente Remise
+            {getDossierStatusLabel(120)}
           </span>
         );
       case 130:
         return (
           <span className="flex items-center gap-1.5 text-orange-600">
-            <div className="w-2 h-2 rounded-full bg-orange-500"></div>En
-            Transport
+            <div className="w-2 h-2 rounded-full bg-orange-500"></div>{getDossierStatusLabel(130)}
           </span>
         );
       case 140:
         return (
           <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            Disponible agence
+            {getDossierStatusLabel(140)}
           </span>
         );
       case 150:
         return (
           <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-            {typeDocument === 600 ? "Livré (Clôturé)" : "Payé"}
+            {getDossierStatusLabel(150)}
           </span>
         );
       case 160:
@@ -586,21 +581,21 @@ export default function DossiersList() {
             >
               <option value="ALL">Tous les statuts</option>
               <option value="EN_COURS">Dossiers en cours</option>
-              <option value="10">Chez BO — à traiter</option>
+              <option value="10">{getDossierStatusLabel(10)}</option>
               <option value="20">Hors délai</option>
-              <option value="30">Transit vers le prescripteur</option>
-              <option value="40">Chez le prescripteur</option>
-              <option value="50">En transit vers le BO</option>
-              <option value="60">Prêt DCF</option>
-              <option value="70">Transit DCF</option>
-              <option value="80">Chez DCF</option>
-              <option value="90">Retour pour correction</option>
-              <option value="100">Transit vers la trésorerie</option>
-              <option value="110">Chez la trésorerie</option>
-              <option value="120">En attente de remise</option>
-              <option value="130">En transport</option>
-              <option value="140">Disponible en agence</option>
-              <option value="150">Payé / clôturé</option>
+              <option value="30">{getDossierStatusLabel(30)}</option>
+              <option value="40">{getDossierStatusLabel(40)}</option>
+              <option value="50">{getDossierStatusLabel(50)}</option>
+              <option value="60">{getDossierStatusLabel(60)}</option>
+              <option value="70">{getDossierStatusLabel(70)}</option>
+              <option value="80">{getDossierStatusLabel(80)}</option>
+              <option value="90">{getDossierStatusLabel(90)}</option>
+              <option value="100">{getDossierStatusLabel(100)}</option>
+              <option value="110">{getDossierStatusLabel(110)}</option>
+              <option value="120">{getDossierStatusLabel(120)}</option>
+              <option value="130">{getDossierStatusLabel(130)}</option>
+              <option value="140">{getDossierStatusLabel(140)}</option>
+              <option value="150">{getDossierStatusLabel(150)}</option>
             </select>
           </div>
 
@@ -849,7 +844,7 @@ export default function DossiersList() {
                   )}
                   {visibleColumns.includes("status") && (
                     <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"} text-sm`}>
-                      {getStatusBadge(dossier.new_status, dossier.new_document_type)}
+                      {getStatusBadge(dossier.new_status)}
                     </td>
                   )}
                   <td className={`${density === "comfortable" ? "px-6 py-4" : "px-4 py-2"} text-right whitespace-nowrap`}>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { dataService } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 import type { Dossier } from "@/lib/dataService";
 import TransmissionModal from "@/components/TransmissionModal";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
@@ -66,21 +67,21 @@ export default function DossierDetailDrawer({
 
   const getStatusDisplay = (status: number) => {
     switch (status) {
-      case 10: return { label: "Chez BO — à traiter", color: "slate" };
+      case 10: return { label: getDossierStatusLabel(status), color: "slate" };
       case 20: return { label: "Hors délai", color: "red" };
-      case 30: return { label: "En transit (prescripteur)", color: "blue" };
-      case 40: return { label: "Chez prescripteur", color: "indigo" };
-      case 50: return { label: "En transit (BO)", color: "blue" };
-      case 60: return { label: "Prêt DCF", color: "emerald" };
-      case 70: return { label: "En transit (DCF)", color: "blue" };
-      case 80: return { label: "Chez DCF", color: "purple" };
-      case 90: return { label: "Retour correction", color: "orange" };
-      case 100: return { label: "En transit (trésorerie)", color: "blue" };
-      case 110: return { label: "Chez trésorerie", color: "indigo" };
-      case 120: return { label: "En attente de remise", color: "emerald" };
-      case 130: return { label: "En transport", color: "orange" };
-      case 140: return { label: "Disponible en agence", color: "emerald" };
-      case 150: return { label: dossier?.new_document_type === 600 ? "Livré (clôturé)" : "Payé", color: "emerald" };
+      case 30: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 40: return { label: getDossierStatusLabel(status), color: "indigo" };
+      case 50: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 60: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 70: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 80: return { label: getDossierStatusLabel(status), color: "purple" };
+      case 90: return { label: getDossierStatusLabel(status), color: "orange" };
+      case 100: return { label: getDossierStatusLabel(status), color: "blue" };
+      case 110: return { label: getDossierStatusLabel(status), color: "indigo" };
+      case 120: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 130: return { label: getDossierStatusLabel(status), color: "orange" };
+      case 140: return { label: getDossierStatusLabel(status), color: "emerald" };
+      case 150: return { label: getDossierStatusLabel(status), color: "emerald" };
       default: return { label: `Statut ${status}`, color: "slate" };
     }
   };
@@ -356,20 +357,20 @@ export default function DossierDetailDrawer({
 
                   <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-3 py-1 space-y-6 text-xs">
                     {[
-                      { id: 10, label: "Chez BO — à traiter", desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle." },
-                      { id: 30, label: "Transit prescripteur", desc: `Envoi du dossier à la direction.` },
-                      { id: 40, label: "Chez prescripteur", desc: "Examen et validation du service fait par le prescripteur." },
-                      { id: 50, label: "Retour BO (Transit)", desc: "Le dossier validé retourne au Bureau d'Ordre." },
-                      { id: 60, label: "Complet / prêt DCF", desc: "Accusé réception par le BO et préparation du lot." },
-                      { id: 70, label: "Transit DCF", desc: "Envoi à la Direction Contrôle de Flux (DCF)." },
-                      { id: 80, label: "Chez DCF", desc: "Vérification de la conformité comptable et fiscale." },
-                      { id: 90, label: "Retour correction", desc: "Dossier retourné pour pièces manquantes ou anomalies." },
-                      { id: 100, label: "Transit trésorerie", desc: "Envoi à la trésorerie pour règlement." },
-                      { id: 110, label: "Chez trésorerie", desc: "Préparation du règlement chèque/virement." },
-                      { id: 120, label: "Prêt pour remise", desc: "Règlement prêt au BO pour remise." },
-                      { id: 130, label: "En transport (agence)", desc: "Chèque expédié en agence." },
-                      { id: 140, label: "Disponible en agence", desc: "Chèque disponible pour retrait." },
-                      { id: 150, label: "Payé / clôturé", desc: "Remise effectuée et dossier clôturé." }
+                      { id: 10, label: getDossierStatusLabel(10), desc: "Dossier enregistré au Bureau d'Ordre, en attente de transmission manuelle." },
+                      { id: 30, label: getDossierStatusLabel(30), desc: `Envoi du dossier à la direction.` },
+                      { id: 40, label: getDossierStatusLabel(40), desc: "Examen et validation du service fait par le prescripteur." },
+                      { id: 50, label: getDossierStatusLabel(50), desc: "Le dossier validé retourne au Bureau d'Ordre." },
+                      { id: 60, label: getDossierStatusLabel(60), desc: "Accusé réception par le BO et préparation du lot." },
+                      { id: 70, label: getDossierStatusLabel(70), desc: "Envoi à la Direction Contrôle de Flux (DCF)." },
+                      { id: 80, label: getDossierStatusLabel(80), desc: "Vérification de la conformité comptable et fiscale." },
+                      { id: 90, label: getDossierStatusLabel(90), desc: "Dossier retourné pour pièces manquantes ou anomalies." },
+                      { id: 100, label: getDossierStatusLabel(100), desc: "Envoi à la trésorerie pour règlement." },
+                      { id: 110, label: getDossierStatusLabel(110), desc: "Préparation du règlement chèque/virement." },
+                      { id: 120, label: getDossierStatusLabel(120), desc: "Règlement prêt au BO pour remise." },
+                      { id: 130, label: getDossierStatusLabel(130), desc: "Chèque expédié en agence." },
+                      { id: 140, label: getDossierStatusLabel(140), desc: "Chèque disponible pour retrait." },
+                      { id: 150, label: getDossierStatusLabel(150), desc: "Remise effectuée et dossier clôturé." }
                     ].map((step) => {
                       const isCompleted = dossier.new_status > step.id || (dossier.new_status === 150 && step.id === 150);
                       const isCurrent = dossier.new_status === step.id;
