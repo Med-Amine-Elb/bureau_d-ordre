@@ -41,6 +41,11 @@
           "entitySetName": "new_transmissions",
           "logicalName": "new_transmission",
           "isHidden": false
+        },
+        "dossierauditevents": {
+          "entitySetName": "new_dossierauditevents",
+          "logicalName": "new_dossierauditevent",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

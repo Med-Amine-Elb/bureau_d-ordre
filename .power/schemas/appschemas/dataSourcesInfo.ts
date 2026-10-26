@@ -26,6 +26,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "new_dossierauditevents": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_dossierauditeventid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "new_folders": {
     "tableId": "",
     "version": "",

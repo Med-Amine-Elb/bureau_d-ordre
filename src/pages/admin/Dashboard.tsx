@@ -272,7 +272,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="w-full space-y-6">
-      
+
       {/* Greeting Section */}
       <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-2">
         <div className="flex justify-between items-center">
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
               onClick={() => navigate("/admin/configuration")}
               className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl py-2 px-4 text-xs font-bold transition-all cursor-pointer"
             >
-               Paramètres
+              Paramètres
             </button>
           </div>
         </div>
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
 
       {/* ═══════════ ROW 1: 4 STAT CARDS ═══════════ */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-        
+
         {/* Card: Volume Total */}
         <div
           style={{ animationDelay: "0ms", animationFillMode: "both" }}
@@ -327,7 +327,7 @@ export default function AdminDashboard() {
           className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer"
         >
           <div className="flex justify-between items-start">
-            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Actifs bloqués</span>
+            <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Bloqués</span>
             <div className="p-2 rounded-xl bg-red-50 dark:bg-red-500/10">
               <ShieldAlert className="w-4 h-4 text-red-500" />
             </div>
@@ -379,10 +379,10 @@ export default function AdminDashboard() {
 
       {/* ═══════════ ROW 2: MAIN CONTENT + SIDEBAR ═══════════ */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        
+
         {/* ── LEFT COLUMN (2/3) ── */}
         <div className="xl:col-span-2 flex flex-col gap-6">
-          
+
           {/* Vue Globale + Area Chart + Sub-stats */}
           <div
             style={{ animationDelay: "220ms", animationFillMode: "both" }}
@@ -433,7 +433,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Répartition par étape</h3>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                 <div className="border-l-2 border-b-4 border-slate-400 pl-3 pb-2 flex flex-col rounded-bl-sm group cursor-pointer hover:-translate-y-1 hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-all duration-300">
                   <span className="font-bold text-lg text-slate-900 dark:text-white leading-none mb-1.5">{dossiersEnTransit}</span>
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* AI Insights replacing standard list */}
+          {/* Insights replacing standard list */}
           <div
             style={{ animationDelay: "280ms", animationFillMode: "both" }}
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-2xl p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex-1 flex flex-col"
@@ -492,12 +492,12 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
-          
+
         </div>
 
         {/* ── RIGHT COLUMN (1/3) ── */}
         <div className="flex flex-col gap-6">
-          
+
           {/* Aging Bar Chart (Shopeers Style) */}
           <div
             style={{ animationDelay: "360ms", animationFillMode: "both" }}
@@ -509,7 +509,7 @@ export default function AdminDashboard() {
                 <MoreHorizontal className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="h-[220px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={agingChartData} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
@@ -537,9 +537,9 @@ export default function AdminDashboard() {
                 <MoreHorizontal className="w-4 h-4" />
               </button>
             </div>
-            
+
             <PremiumGauge rate={complianceRate} count={compliantCount} total={totalDossiers} />
-            
+
             <div className="flex justify-center mt-3">
               <button className="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
                 Voir les détails
@@ -561,7 +561,7 @@ export default function AdminDashboard() {
                 <RefreshCw className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="space-y-2 flex-1 overflow-y-auto pr-1">
               {flowRuns.map((run, idx) => (
                 <div key={idx} className="flex flex-col gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/50 hover:border-[#1F3B73]/30 bg-slate-50/50 dark:bg-slate-900/50 transition-all">
@@ -571,18 +571,18 @@ export default function AdminDashboard() {
                       <h4 className="text-xs font-semibold text-slate-900 dark:text-white">{run.flowName}</h4>
                     </div>
                     {run.status === "Failed" && (
-                      <button 
+                      <button
                         onClick={() => handleRestartFlow(run.runId)}
                         disabled={restartingFlowId === run.runId}
                         className="px-2 py-1 text-[9px] font-bold bg-[#1F3B73] hover:bg-[#16294F] text-white rounded cursor-pointer transition-colors"
                       >
-                         {restartingFlowId === run.runId ? "..." : "Relancer"}
+                        {restartingFlowId === run.runId ? "..." : "Relancer"}
                       </button>
                     )}
                   </div>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-[10px] text-slate-400 font-mono">{resolveDossierLabel(dossiers, run.entityName)}</span>
-                    <span className="text-[9px] text-slate-400">{new Date(run.triggerTime).toLocaleTimeString("fr-FR", { hour: '2-digit', minute:'2-digit' })}</span>
+                    <span className="text-[9px] text-slate-400">{new Date(run.triggerTime).toLocaleTimeString("fr-FR", { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
               ))}

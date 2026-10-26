@@ -8,6 +8,18 @@ import { SystemusersService } from '../generated/services/SystemusersService';
 import { New_companiesService } from '../generated/services/New_companiesService';
 import { New_departementsService } from '../generated/services/New_departementsService';
 import { New_transmissionsService } from '../generated/services/New_transmissionsService';
+import { New_dossierauditeventsService } from '../generated/services/New_dossierauditeventsService';
+import type {
+  New_dossierauditevents,
+  New_dossierauditeventsBase,
+  New_dossierauditeventsnew_actorrole,
+  New_dossierauditeventsnew_channel,
+  New_dossierauditeventsnew_eventtype,
+  New_dossierauditeventsnew_fromrole,
+  New_dossierauditeventsnew_newstatus,
+  New_dossierauditeventsnew_previousstatus,
+  New_dossierauditeventsnew_torole,
+} from '../generated/models/New_dossierauditeventsModel';
 import type {
   New_transmissions,
   New_transmissionsBase,
@@ -18,6 +30,8 @@ import type {
 import { getContext } from '@microsoft/power-apps/app';
 import { companyRecord, departmentRecord, supplierRecord } from './referenceForms';
 import type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
+import { buildDossierAuditDrafts, type DossierAuditDraft, type DossierAuditEventType, type DossierAuditSnapshot } from './auditEvents';
+import { getDossierAuditStepLabel } from './auditStepLabels';
 export type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
 
 const getXrm = (): any => {
@@ -195,6 +209,17 @@ export interface DossierTransmission extends New_transmissions {
   new_torole_label?: string;
 }
 
+export interface DossierAuditEvent extends New_dossierauditevents {
+  eventTypeLabel?: string;
+  actorRoleLabel?: string;
+  fromRoleLabel?: string;
+  toRoleLabel?: string;
+  actorLabel?: string;
+  recipientLabel?: string;
+  previousStatusLabel?: string;
+  newStatusLabel?: string;
+}
+
 const TRANSMISSION_ROLE_CODES: Record<TransmissionRole, number> = {
   BO: 871840000,
   Prescripteur: 871840001,
@@ -204,8 +229,89 @@ const TRANSMISSION_ROLE_CODES: Record<TransmissionRole, number> = {
   Admin: 871840005,
 };
 
+const TRANSMISSION_AUDIT_STEP_LABELS: Record<TransmissionRole, string> = {
+  BO: "En transit vers BO",
+  Prescripteur: "En transit vers prescripteur",
+  DCF: "En transit vers DCF",
+  "Trésorerie": "En transit vers trésorerie",
+  Agence: "En transport vers agence",
+  Admin: "Dossier transmis",
+};
+
+const AUDIT_EVENT_TYPE_CODES: Record<DossierAuditEventType, number> = {
+  DossierCreated: 871840000,
+  DossierUpdated: 871840001,
+  DossierTransmitted: 871840002,
+  ReceiptConfirmed: 871840003,
+  DossierValidated: 871840004,
+  ReturnedforCorrection: 871840005,
+  CorrectionSubmitted: 871840006,
+  AccountingCompleted: 871840007,
+  PaymentRecorded: 871840008,
+  CheckPrepared: 871840009,
+  CheckSenttoOrderOffice: 871840010,
+  CheckReceivedbyOrderOffice: 871840011,
+  HandedtoSupplier: 871840012,
+  DossierClosed: 871840013,
+  BlockRemoved: 871840014,
+  ReminderSent: 871840015,
+  DossierArchived: 871840016,
+  DossierBlocked: 871840017,
+};
+
+const getCurrentAuditRole = (): TransmissionRole | undefined => {
+  if (typeof window === "undefined") return undefined;
+  const storedRole = window.localStorage.getItem("userRole");
+  if (storedRole === "BO" || storedRole === "Prescripteur" || storedRole === "DCF" || storedRole === "Trésorerie" || storedRole === "Agence" || storedRole === "Admin") {
+    return storedRole;
+  }
+  const route = `${window.location.pathname}${window.location.hash}`.toLowerCase();
+  if (route.includes("/prescripteur/")) return "Prescripteur";
+  if (route.includes("/tresorerie/")) return "Trésorerie";
+  if (route.includes("/agence/")) return "Agence";
+  if (route.includes("/dcf/")) return "DCF";
+  if (route.includes("/admin/")) return "Admin";
+  if (route.includes("/bo/")) return "BO";
+  return undefined;
+};
+
+const notifyAuditWriteFailure = (folderNumber: string, error: unknown): void => {
+  console.error("Dossier saved but its audit event could not be written:", error);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("dossier-audit-write-failed", { detail: { folderNumber } }));
+  }
+};
+
 const isGuid = (value: string | undefined): value is string =>
   !!value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
+const inferAuditRoutingContext = (
+  status: number | undefined,
+  dossier: Partial<Dossier>,
+  actorRole: TransmissionRole | undefined,
+  eventType?: DossierAuditEventType,
+): Pick<AuditWriteContext, "fromRole" | "toRole" | "recipientId"> => {
+  if (eventType === "CheckSenttoOrderOffice") return { fromRole: actorRole, toRole: "BO" };
+  if (eventType === "CheckReceivedbyOrderOffice") return { fromRole: "Trésorerie", toRole: "BO" };
+  const targetByStatus: Partial<Record<number, TransmissionRole>> = {
+    30: "Prescripteur",
+    50: "BO",
+    70: "DCF",
+    100: "Trésorerie",
+    130: "Agence",
+  };
+  const toRole = status === 90 || status === 50 ? "BO" : (status === undefined ? undefined : targetByStatus[status]);
+  if (!toRole) return {};
+
+  const recipientId = toRole === "Prescripteur"
+    ? dossier.new_prescriber_guid || dossier.new_prescriber_id
+    : toRole === "DCF"
+      ? dossier.new_dcf_collector_guid || dossier.new_dcf_collector_id
+      : toRole === "Trésorerie"
+        ? dossier.new_collecteur_treso
+        : undefined;
+  return { fromRole: actorRole, toRole, ...(isGuid(recipientId) ? { recipientId } : {}) };
+};
 
 const getCurrentSystemUserId = async (): Promise<string> => {
   const xrm = getXrm();
@@ -262,6 +368,48 @@ const createTransmissionRecord = async (input: {
   const result = await New_transmissionsService.create(record);
   if (result.error) {
     throw new Error(`Création de la transmission refusée par Dataverse : ${getDataverseErrorMessage(result.error)}`);
+  }
+};
+
+interface AuditWriteContext {
+  actorRole?: TransmissionRole;
+  fromRole?: TransmissionRole;
+  toRole?: TransmissionRole;
+  recipientId?: string;
+  suppressAudit?: boolean;
+}
+
+const createDossierAuditEventRecord = async (input: {
+  folderId: string;
+  folderNumber: string;
+  draft: DossierAuditDraft;
+  context?: AuditWriteContext;
+}): Promise<void> => {
+  const actorId = await getCurrentSystemUserId();
+  const actorRole = input.context?.actorRole ?? getCurrentAuditRole();
+  if (!actorRole) throw new Error("Impossible de déterminer le rôle actif pour le journal d’audit.");
+
+  const record = {
+    new_newcolumn: `${input.folderNumber} — ${input.draft.title}`.slice(0, 850),
+    new_eventname: input.draft.description.slice(0, 100),
+    new_eventdate: new Date().toISOString(),
+    new_eventtype: AUDIT_EVENT_TYPE_CODES[input.draft.type] as New_dossierauditeventsnew_eventtype,
+    new_actorrole: TRANSMISSION_ROLE_CODES[actorRole] as New_dossierauditeventsnew_actorrole,
+    new_channel: 871840000 as New_dossierauditeventsnew_channel,
+    "new_Dossier@odata.bind": `/new_folders(${input.folderId})`,
+    "new_Actor@odata.bind": `/systemusers(${actorId})`,
+    ...(input.draft.previousStatus !== undefined ? { new_previousstatus: input.draft.previousStatus as New_dossierauditeventsnew_previousstatus } : {}),
+    ...(input.draft.newStatus !== undefined ? { new_newstatus: input.draft.newStatus as New_dossierauditeventsnew_newstatus } : {}),
+    ...(input.draft.reason ? { new_reason: input.draft.reason.slice(0, 2000) } : {}),
+    ...(input.draft.relatedReference ? { new_relatedreference: input.draft.relatedReference.slice(0, 450) } : {}),
+    ...(input.context?.fromRole ? { new_fromrole: TRANSMISSION_ROLE_CODES[input.context.fromRole] as New_dossierauditeventsnew_fromrole } : {}),
+    ...(input.context?.toRole ? { new_torole: TRANSMISSION_ROLE_CODES[input.context.toRole] as New_dossierauditeventsnew_torole } : {}),
+    ...(isGuid(input.context?.recipientId) ? { "new_Recipient@odata.bind": `/systemusers(${input.context?.recipientId})` } : {}),
+  } as Omit<New_dossierauditeventsBase, "new_dossierauditeventid">;
+
+  const result = await New_dossierauditeventsService.create(record);
+  if (result.error) {
+    throw new Error(`Création de l’événement d’audit refusée par Dataverse : ${getDataverseErrorMessage(result.error)}`);
   }
 };
 
@@ -478,6 +626,36 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 };
 
 export const dataService = {
+  getDossierAuditEvents: async (folderId: string): Promise<DossierAuditEvent[]> => {
+    if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
+    const result = await New_dossierauditeventsService.getAll({
+      filter: `_new_dossier_value eq ${folderId}`,
+      select: [
+        "new_dossierauditeventid", "new_newcolumn", "new_eventname", "new_eventdate", "new_eventtype",
+        "new_actorrole", "new_previousstatus", "new_newstatus", "new_fromrole", "new_torole", "new_reason",
+        "new_relatedreference", "_new_actor_value", "_new_recipient_value", "_new_dossier_value",
+      ],
+      orderBy: ["new_eventdate asc"],
+      top: 1000,
+    });
+    if (result.error) throw new Error("Impossible de charger le journal d’audit Dataverse.");
+    return (result.data ?? []).map((row) => {
+      const raw = row as New_dossierauditevents & Record<string, unknown>;
+      const formatted = (field: string, fallback?: string) => String(raw[field] ?? fallback ?? "");
+      return {
+        ...row,
+        eventTypeLabel: formatted("new_eventtype@OData.Community.Display.V1.FormattedValue", row.new_eventtypename),
+        actorRoleLabel: formatted("new_actorrole@OData.Community.Display.V1.FormattedValue", row.new_actorrolename),
+        fromRoleLabel: formatted("new_fromrole@OData.Community.Display.V1.FormattedValue", row.new_fromrolename),
+        toRoleLabel: formatted("new_torole@OData.Community.Display.V1.FormattedValue", row.new_torolename),
+        actorLabel: formatted("_new_actor_value@OData.Community.Display.V1.FormattedValue", row.new_actorname),
+        recipientLabel: formatted("_new_recipient_value@OData.Community.Display.V1.FormattedValue", row.new_recipientname),
+        previousStatusLabel: formatted("new_previousstatus@OData.Community.Display.V1.FormattedValue"),
+        newStatusLabel: formatted("new_newstatus@OData.Community.Display.V1.FormattedValue"),
+      };
+    });
+  },
+
   getDossierTransmissions: async (folderId: string): Promise<DossierTransmission[]> => {
     if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
     const result = await New_transmissionsService.getAll({
@@ -519,6 +697,22 @@ export const dataService = {
     }
     const senderId = await getCurrentSystemUserId();
     await createTransmissionRecord(input, senderId);
+    const roleLabel = input.fromRole;
+    try {
+      await createDossierAuditEventRecord({
+        folderId: input.folderId,
+        folderNumber: input.folderNumber,
+        context: { actorRole: roleLabel, fromRole: input.fromRole, toRole: input.toRole, recipientId: input.collectorId },
+        draft: {
+          type: "DossierTransmitted",
+          title: TRANSMISSION_AUDIT_STEP_LABELS[input.toRole],
+          description: `Dossier transmis par ${input.fromRole} à ${input.toRole}.`,
+          reason: input.sendingComment,
+        },
+      });
+    } catch (error) {
+      notifyAuditWriteFailure(input.folderNumber, error);
+    }
   },
 
   transmitDossier: async (input: {
@@ -534,7 +728,20 @@ export const dataService = {
       throw new Error("Le dossier et le destinataire doivent avoir des identifiants Dataverse valides.");
     }
     const senderId = await getCurrentSystemUserId();
-    await dataService.updateDossier(input.folderId, input.dossierChanges);
+    let previousStatus: number | undefined;
+    try {
+      const current = await New_foldersService.get(input.folderId, { select: ["new_status"] });
+      if (typeof current.data?.new_status === "number") previousStatus = current.data.new_status;
+    } catch (error) {
+      console.warn("Could not read the pre-transmission status for its audit event:", error);
+    }
+    await dataService.updateDossier(input.folderId, input.dossierChanges, {
+      actorRole: input.fromRole,
+      fromRole: input.fromRole,
+      toRole: input.toRole,
+      recipientId: input.collectorId,
+      suppressAudit: true,
+    });
     await createTransmissionRecord({
       folderId: input.folderId,
       folderNumber: input.folderNumber,
@@ -543,6 +750,30 @@ export const dataService = {
       collectorId: input.collectorId,
       sendingComment: input.sendingComment,
     }, senderId);
+    try {
+      await createDossierAuditEventRecord({
+        folderId: input.folderId,
+        folderNumber: input.folderNumber,
+        context: {
+          actorRole: input.fromRole,
+          fromRole: input.fromRole,
+          toRole: input.toRole,
+          recipientId: input.collectorId,
+        },
+        draft: {
+          type: "DossierTransmitted",
+          title: input.dossierChanges.new_status !== undefined
+            ? getDossierAuditStepLabel(input.dossierChanges.new_status)
+            : TRANSMISSION_AUDIT_STEP_LABELS[input.toRole],
+          description: `Dossier transmis par ${input.fromRole} au destinataire sélectionné dans ${input.toRole}.`,
+          reason: input.sendingComment,
+          previousStatus,
+          newStatus: input.dossierChanges.new_status,
+        },
+      });
+    } catch (error) {
+      notifyAuditWriteFailure(input.folderNumber, error);
+    }
   },
 
   completeCourierDelivery: async (folderId: string): Promise<void> => {
@@ -644,23 +875,86 @@ export const dataService = {
     const crmEntity = mapDossierToCrmEntity(dossier);
     const result = await New_foldersService.create(crmEntity);
     if (result.data) {
-      return result.data.new_folderid;
+      const id = result.data.new_folderid;
+      const number = dossier.new_folder_number || result.data.new_folder_number || id;
+      try {
+        await createDossierAuditEventRecord({
+          folderId: id,
+          folderNumber: number,
+          context: { actorRole: "BO" },
+          draft: {
+            type: "DossierCreated",
+            title: getDossierAuditStepLabel(dossier.new_status ?? 10),
+            description: `Dossier créé à l’étape « ${getDossierAuditStepLabel(dossier.new_status ?? 10)} ».`,
+            newStatus: dossier.new_status ?? 10,
+          },
+        });
+      } catch (error) {
+        notifyAuditWriteFailure(number, error);
+      }
+      return id;
     }
     throw new Error("Failed to create folder: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
 
   updateDossierStatut: async (id: string, status: number): Promise<void> => {
-    const result = await New_foldersService.update(id, { new_status: status as any });
-    if (result.error) {
-      throw new Error("Failed to update folder status: " + JSON.stringify(result.error));
-    }
+    await dataService.updateDossier(id, { new_status: status });
   },
 
-  updateDossier: async (id: string, dossier: Partial<Dossier>): Promise<void> => {
+  updateDossier: async (id: string, dossier: Partial<Dossier>, auditContext?: AuditWriteContext): Promise<void> => {
+    let previous: DossierAuditSnapshot & { folderNumber?: string } = {};
+    try {
+      const current = await New_foldersService.get(id, { select: [
+        "new_status", "new_isblocked", "new_documenttype", "new_folder_number", "new_accountingdate",
+        "new_cheque_received_bo", "new_supplier_signed", "new_chequenumber", "new_chequepreparationdate",
+        "new_wirereference", "new_date_virement",
+      ] });
+      if (current.data) {
+        const raw = current.data as unknown as Record<string, unknown>;
+        previous = {
+          status: Number.isFinite(Number(raw.new_status)) ? Number(raw.new_status) : undefined,
+          isBlocked: Boolean(raw.new_isblocked),
+          documentType: Number(raw.new_documenttype),
+          folderNumber: String(raw.new_folder_number ?? ""),
+          accountingCompleted: Boolean(raw.new_accountingdate),
+          checkReceived: Boolean(raw.new_cheque_received_bo),
+          supplierSigned: Boolean(raw.new_supplier_signed),
+          chequeNumber: String(raw.new_chequenumber ?? ""),
+          chequePreparationDate: String(raw.new_chequepreparationdate ?? ""),
+          wireReference: String(raw.new_wirereference ?? ""),
+          wireDate: String(raw.new_date_virement ?? ""),
+        };
+      }
+    } catch (error) {
+      console.warn("Could not read the pre-update dossier snapshot for its audit event:", error);
+    }
     const crmEntity = mapDossierToCrmEntity(dossier);
     const result = await New_foldersService.update(id, crmEntity);
     if (result.error) {
       throw new Error("Failed to update folder: " + JSON.stringify(result.error));
+    }
+    const folderNumber = dossier.new_folder_number || previous.folderNumber || id;
+    const drafts = auditContext?.suppressAudit ? [] : buildDossierAuditDrafts(dossier, previous);
+    for (const draft of drafts) {
+      try {
+        const actorRole = auditContext?.actorRole ?? getCurrentAuditRole();
+        const inferredRoute = draft.type === "DossierTransmitted"
+          || draft.type === "DossierValidated"
+          || draft.type === "CorrectionSubmitted"
+          || draft.type === "ReturnedforCorrection"
+          || draft.type === "CheckSenttoOrderOffice"
+          || draft.type === "CheckReceivedbyOrderOffice"
+          ? inferAuditRoutingContext(dossier.new_status, dossier, actorRole, draft.type)
+          : {};
+        await createDossierAuditEventRecord({
+          folderId: id,
+          folderNumber,
+          draft,
+          context: { ...inferredRoute, ...auditContext, actorRole },
+        });
+      } catch (error) {
+        notifyAuditWriteFailure(folderNumber, error);
+      }
     }
   },
 
@@ -669,19 +963,11 @@ export const dataService = {
     const context = xrm ? xrm.Utility.getGlobalContext() : null;
     const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
     const nowStr = new Date().toISOString();
-
-    const updateData: any = {
+    await dataService.updateDossier(id, {
       new_status: nextStatus,
-      new_acknowledgment_date: nowStr
-    };
-    if (userId) {
-      updateData["new_acknowledged_by_id@odata.bind"] = `/systemusers(${userId})`;
-    }
-
-    const result = await New_foldersService.update(id, updateData);
-    if (result.error) {
-      throw new Error("Failed to acknowledge receipt: " + JSON.stringify(result.error));
-    }
+      new_date_accuse: nowStr,
+      ...(userId ? { new_accuse_par: userId } : {}),
+    });
     // The dossier receipt is the primary operation. Audit logging is a separate
     // Dataverse request and must not turn a successful receipt into a UI failure.
     try {
