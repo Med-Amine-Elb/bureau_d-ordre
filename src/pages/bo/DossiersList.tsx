@@ -259,25 +259,25 @@ export default function DossiersList() {
     switch (type) {
       case 100:
         return (
-          <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+          <span className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
             FACTURE
           </span>
         );
       case 200:
         return (
-          <span className="bg-orange-50 text-orange-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+          <span className="bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
             AVOIR
           </span>
         );
       case 500:
         return (
-          <span className="bg-rose-50 text-rose-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
+          <span className="bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide">
             ACOMPTE
           </span>
         );
       case 600:
         return (
-          <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide border border-slate-200">
+          <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-md text-[11px] font-bold tracking-wide border border-slate-200 dark:border-slate-700">
             COURRIER
           </span>
         );
@@ -306,7 +306,7 @@ export default function DossiersList() {
         );
       case 30:
         return (
-          <span className="flex items-center gap-1.5 text-primary">
+          <span className="flex items-center gap-1.5 text-primary dark:text-blue-300">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(30)}
           </span>
         );
@@ -336,65 +336,65 @@ export default function DossiersList() {
         );
       case 80:
         return (
-          <span className="flex items-center gap-1.5 text-purple-600 font-medium">
+          <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-300 font-medium">
             <div className="w-2 h-2 rounded-full bg-purple-500"></div>{getDossierStatusLabel(80)}
           </span>
         );
       case 90:
         return (
-          <span className="flex items-center gap-1.5 text-orange-600 font-medium">
+          <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-300 font-medium">
             <div className="w-2 h-2 rounded-full bg-orange-500"></div>{getDossierStatusLabel(90)}
           </span>
         );
       case 100:
         return (
-          <span className="flex items-center gap-1.5 text-primary">
+          <span className="flex items-center gap-1.5 text-primary dark:text-blue-300">
             <div className="w-2 h-2 rounded-full bg-blue-500"></div>{getDossierStatusLabel(100)}
           </span>
         );
       case 110:
         return (
-          <span className="flex items-center gap-1.5 text-indigo-700 font-medium">
+          <span className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-medium">
             <div className="w-2 h-2 rounded-full bg-primary"></div>{getDossierStatusLabel(110)}
           </span>
         );
       case 120:
         return (
-          <span className="flex items-center gap-1.5 text-blue-700 font-bold tracking-tight">
+          <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-300 font-bold tracking-tight">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
             {getDossierStatusLabel(120)}
           </span>
         );
       case 130:
         return (
-          <span className="flex items-center gap-1.5 text-orange-600">
+          <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-300">
             <div className="w-2 h-2 rounded-full bg-orange-500"></div>{getDossierStatusLabel(130)}
           </span>
         );
       case 140:
         return (
-          <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
+          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-300 font-medium">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
             {getDossierStatusLabel(140)}
           </span>
         );
       case 150:
         return (
-          <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+          <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
             {getDossierStatusLabel(150)}
           </span>
         );
       case 160:
         return (
-          <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+          <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold">
             <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
             Payé-Avance
           </span>
         );
       default:
         return (
-          <span className="flex items-center gap-1.5 text-slate-600">
+          <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
             <div className="w-2 h-2 rounded-full bg-slate-400"></div>Statut:{" "}
             {status}
           </span>

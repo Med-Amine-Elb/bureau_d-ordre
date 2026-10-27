@@ -95,33 +95,33 @@
 }
 
 .dark {
-  --background: #0B0F19;
-  --foreground: #F8FAFC;
-  --card: #111827;
-  --card-foreground: #F8FAFC;
-  --popover: #111827;
-  --popover-foreground: #F8FAFC;
+  --background: #0B1220;
+  --foreground: #F1F5F9;
+  --card: #111C2E;
+  --card-foreground: #E2E8F0;
+  --popover: #111C2E;
+  --popover-foreground: #E2E8F0;
   --primary: #3B82F6;
   --primary-hover: #60A5FA;
-  --primary-foreground: #0B0F19;
-  --secondary: #1F2937;
-  --secondary-foreground: #F8FAFC;
-  --muted: #1F2937;
-  --muted-foreground: #94A3B8;
-  --accent: #1E293B;
-  --accent-foreground: #3B82F6;
+  --primary-foreground: #08111F;
+  --secondary: #1A2940;
+  --secondary-foreground: #E2E8F0;
+  --muted: #17253A;
+  --muted-foreground: #A3B2C7;
+  --accent: #1B2D48;
+  --accent-foreground: #93C5FD;
   --destructive: #EF4444;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: #1F2937;
-  --ring: rgba(59, 130, 246, 0.3);
-  --sidebar: #111827;
-  --sidebar-foreground: #F8FAFC;
-  --sidebar-primary: #3B82F6;
-  --sidebar-primary-foreground: #0B0F19;
-  --sidebar-accent: #1F2937;
-  --sidebar-accent-foreground: #F8FAFC;
-  --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: rgba(59, 130, 246, 0.2);
+  --border: #2A3A52;
+  --input: #19283E;
+  --ring: rgba(96, 165, 250, 0.4);
+  --sidebar: #0F1929;
+  --sidebar-foreground: #E2E8F0;
+  --sidebar-primary: #60A5FA;
+  --sidebar-primary-foreground: #08111F;
+  --sidebar-accent: #18263B;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: #24344A;
+  --sidebar-ring: rgba(96, 165, 250, 0.3);
 }
 
 @layer base {
@@ -185,6 +185,69 @@
 }
 
 @layer utilities {
+  /* Normalize neutral Tailwind surfaces so every role shares the same dark palette. */
+  .dark [class~="bg-white"],
+  .dark [class~="dark:bg-[#0F172B]"],
+  .dark [class~="dark:bg-[#111827]"],
+  .dark [class~="dark:bg-slate-900"] {
+    background-color: var(--card) !important;
+  }
+
+  .dark [class~="bg-slate-50"],
+  .dark [class~="dark:bg-slate-950"] {
+    background-color: var(--background) !important;
+  }
+
+  .dark [class~="bg-slate-100"],
+  .dark [class~="dark:bg-slate-800"] {
+    background-color: var(--secondary) !important;
+  }
+
+  .dark [class~="bg-slate-200"] {
+    background-color: #26364D !important;
+  }
+
+  .dark [class~="text-slate-900"] { color: #F1F5F9 !important; }
+  .dark [class~="text-slate-950"] { color: #F8FAFC !important; }
+  .dark [class~="text-slate-800"] { color: #E2E8F0 !important; }
+  .dark [class~="text-slate-700"],
+  .dark [class~="text-slate-600"] { color: #CBD5E1 !important; }
+  .dark [class~="text-slate-500"],
+  .dark [class~="text-slate-400"] { color: #A3B2C7 !important; }
+
+  /* Keep status colors recognizable while toning down their light-mode fills. */
+  .dark [class~="bg-blue-50"],
+  .dark [class~="bg-blue-100"],
+  .dark [class~="bg-indigo-50"],
+  .dark [class~="bg-indigo-100"],
+  .dark [class~="bg-cyan-50"] { background-color: rgb(59 130 246 / 14%) !important; }
+  .dark [class~="bg-emerald-50"],
+  .dark [class~="bg-emerald-100"],
+  .dark [class~="bg-green-50"],
+  .dark [class~="bg-green-100"] { background-color: rgb(16 185 129 / 14%) !important; }
+  .dark [class~="bg-amber-50"],
+  .dark [class~="bg-amber-100"],
+  .dark [class~="bg-yellow-50"],
+  .dark [class~="bg-yellow-100"],
+  .dark [class~="bg-orange-50"],
+  .dark [class~="bg-orange-100"] { background-color: rgb(245 158 11 / 14%) !important; }
+  .dark [class~="bg-red-50"],
+  .dark [class~="bg-red-100"],
+  .dark [class~="bg-rose-50"] { background-color: rgb(239 68 68 / 14%) !important; }
+  .dark [class~="bg-purple-50"],
+  .dark [class~="bg-purple-100"],
+  .dark [class~="bg-violet-50"] { background-color: rgb(139 92 246 / 15%) !important; }
+
+  .dark [class~="border-slate-100"],
+  .dark [class~="border-slate-200"],
+  .dark [class~="dark:border-slate-800"] {
+    border-color: var(--border) !important;
+  }
+
+  .dark [class~="dark:border-slate-700"] {
+    border-color: #354760 !important;
+  }
+
   .soft-shadow {
     box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.03);
   }
@@ -299,4 +362,54 @@
 
 .aurora-blob-2 {
   animation: aurora-2 15s ease-in-out infinite reverse;
+}
+
+/* Keep primary and secondary actions visually consistent in every role. */
+.dark button.bg-primary,
+.dark a.bg-primary,
+.dark button[class~="bg-[#1F3B73]"],
+.dark a[class~="bg-[#1F3B73]"] {
+  background-color: #1d4ed8;
+  border-radius: 0.75rem;
+  color: #fff;
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.dark button.bg-primary:hover,
+.dark a.bg-primary:hover,
+.dark button[class~="bg-[#1F3B73]"]:hover,
+.dark a[class~="bg-[#1F3B73]"]:hover {
+  background-color: #2563eb;
+}
+
+.dark button.bg-primary:focus-visible,
+.dark a.bg-primary:focus-visible,
+.dark button[class~="bg-[#1F3B73]"]:focus-visible,
+.dark a[class~="bg-[#1F3B73]"]:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.dark button[class*="dark:bg-slate-800"] {
+  background-color: #1a2940;
+  border-color: #34455f;
+  border-radius: 0.75rem;
+  color: #e2e8f0;
+}
+
+.dark button[class*="dark:bg-slate-800"]:hover {
+  background-color: #253854;
+}
+
+.dark button[class*="border-slate-"] {
+  border-color: #34455f;
+}
+
+/* Brighten primary/document icons consistently across every role and page. */
+.dark svg.text-primary,
+.dark svg[class~="text-[#1F3B73]"],
+.dark svg[class~="text-blue-500"],
+.dark [class~="text-primary"] > svg,
+.dark [class~="text-[#1F3B73]"] > svg {
+  color: #60a5fa !important;
 }

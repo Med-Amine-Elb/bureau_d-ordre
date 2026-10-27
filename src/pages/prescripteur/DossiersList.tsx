@@ -444,9 +444,9 @@ function getTypeIcon(type: number) {
 
 function getTypeBadge(type: number) {
   switch (type) {
-    case 100: return <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">FACTURE</span>;
-    case 200: return <span className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">AVOIR</span>;
-    case 500: return <span className="bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">ACOMPTE</span>;
+    case 100: return <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">FACTURE</span>;
+    case 200: return <span className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">AVOIR</span>;
+    case 500: return <span className="bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">ACOMPTE</span>;
     case 600: return <span className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide border border-slate-200">COURRIER</span>;
     default: return <span className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wide">AUTRE</span>;
   }
@@ -455,8 +455,8 @@ function getTypeBadge(type: number) {
 function getStatutBadge(statut: number) {
   switch (statut) {
     case 30: return <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-2.5 py-1 rounded-full text-xs font-bold">À réceptionner</span>;
-    case 40: return <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2.5 py-1 rounded-full text-xs font-bold">Chez vous</span>;
-    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-2.5 py-1 rounded-full text-xs font-bold">{getDossierStatusLabel(90)}</span>;
+    case 40: return <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2.5 py-1 rounded-full text-xs font-bold">Chez vous</span>;
+    case 90: return <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 px-2.5 py-1 rounded-full text-xs font-bold">{getDossierStatusLabel(90)}</span>;
     default: return <span className="bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 px-2.5 py-1 rounded-full text-xs font-bold">En cours</span>;
   }
 }

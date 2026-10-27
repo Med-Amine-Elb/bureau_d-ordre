@@ -234,7 +234,7 @@ export default function DashboardLayout() {
               <X className="w-5 h-5" />
             </button>
             <img
-              src="/images/logo_sbm.png"
+              src={darkMode ? "/images/logo_sbm_white.png" : "/images/logo_sbm.png"}
               alt="Groupe SBM"
               className="h-14 object-contain"
             />

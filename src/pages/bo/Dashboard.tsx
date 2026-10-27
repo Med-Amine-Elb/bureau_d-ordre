@@ -431,7 +431,7 @@ export default function DashboardBO() {
           icon={Layers}
           value={enCoursTotal.toLocaleString()}
           loading={loading}
-          iconColorClass="text-[#1F3B73]"
+          iconColorClass="text-[#1F3B73] dark:text-blue-400"
           iconBgClass="bg-blue-50 dark:bg-blue-500/10"
           animationDelay="0ms"
           onClick={() => navigate("/bo/dossiers")}
@@ -448,7 +448,7 @@ export default function DashboardBO() {
           icon={PackageSearch}
           value={chequesAttente.toLocaleString()}
           loading={loading}
-          iconColorClass="text-violet-500"
+          iconColorClass="text-violet-500 dark:text-violet-400"
           iconBgClass="bg-violet-50 dark:bg-violet-500/10"
           animationDelay="60ms"
           onClick={() => navigate("/bo/remises")}
@@ -459,7 +459,7 @@ export default function DashboardBO() {
           icon={Sparkles}
           value={`${complianceRate}%`}
           loading={loading}
-          iconColorClass="text-teal-500"
+          iconColorClass="text-teal-500 dark:text-teal-400"
           iconBgClass="bg-teal-50 dark:bg-teal-500/10"
           animationDelay="120ms"
           subtext={
@@ -477,7 +477,7 @@ export default function DashboardBO() {
           icon={CheckCircle}
           value={payesCount.toLocaleString()}
           loading={loading}
-          iconColorClass="text-amber-500"
+          iconColorClass="text-amber-500 dark:text-amber-400"
           iconBgClass="bg-amber-50 dark:bg-amber-500/10"
           animationDelay="180ms"
           subtext={<span className="text-xs text-slate-400">vs. {totalDossiersCount} total</span>}
@@ -787,7 +787,7 @@ export default function DashboardBO() {
                       const { x, y, payload } = props;
                       const isMax = payload.value === weeklyBarData.reduce((max, d) => d.count > max.count ? d : max, weeklyBarData[0]).day;
                       return (
-                        <text x={x} y={y + 12} textAnchor="middle" fill={isMax ? "#1F3B73" : "#94a3b8"} fontSize={11} fontWeight={isMax ? "bold" : "normal"}>
+                        <text x={x} y={y + 12} textAnchor="middle" fill={isMax ? (isDarkMode ? "#93C5FD" : "#1F3B73") : (isDarkMode ? "#A3B2C7" : "#94a3b8")} fontSize={11} fontWeight={isMax ? "bold" : "normal"}>
                           {payload.value}
                         </text>
                       );
@@ -814,7 +814,7 @@ export default function DashboardBO() {
                       return (
                         <Cell
                           key={`cell-${index}`}
-                          fill={isMax ? "#1F3B73" : (isDarkMode ? "#1e293b" : "#f1f5f9")}
+                          fill={isMax ? (isDarkMode ? "#60A5FA" : "#1F3B73") : (isDarkMode ? "#475569" : "#f1f5f9")}
                         />
                       );
                     })}

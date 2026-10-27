@@ -163,7 +163,7 @@ export default function DashboardDCF() {
           icon={Clock}
           value={aAccuser.toLocaleString()}
           loading={loading}
-          iconColorClass="text-orange-500"
+          iconColorClass="text-orange-500 dark:text-orange-400"
           iconBgClass="bg-orange-50 dark:bg-orange-500/10"
           animationDelay="0ms"
           onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 70 } })}
@@ -180,7 +180,7 @@ export default function DashboardDCF() {
           icon={Wallet}
           value={aComptabiliser.toLocaleString()}
           loading={loading}
-          iconColorClass="text-blue-500"
+          iconColorClass="text-blue-500 dark:text-blue-400"
           iconBgClass="bg-blue-50 dark:bg-blue-500/10"
           animationDelay="60ms"
           onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 80 } })}
@@ -191,7 +191,7 @@ export default function DashboardDCF() {
           icon={RotateCcw}
           value={enCorrection.toLocaleString()}
           loading={loading}
-          iconColorClass="text-red-500"
+          iconColorClass="text-red-500 dark:text-red-400"
           iconBgClass="bg-red-50 dark:bg-red-500/10"
           animationDelay="120ms"
           onClick={() => navigate("/dcf/dossiers", { state: { filterStatus: 90 } })}
@@ -202,7 +202,7 @@ export default function DashboardDCF() {
           icon={CheckCircle}
           value={comptabilises.toLocaleString()}
           loading={loading}
-          iconColorClass="text-emerald-500"
+          iconColorClass="text-emerald-500 dark:text-emerald-400"
           iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
           animationDelay="180ms"
           onClick={() => navigate("/dcf/dossiers")}

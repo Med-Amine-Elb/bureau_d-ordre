@@ -183,7 +183,7 @@ export default function DashboardPrescripteur() {
           icon={FileText}
           value={aValider.toLocaleString()}
           loading={loading}
-          iconColorClass="text-blue-500"
+          iconColorClass="text-blue-500 dark:text-blue-400"
           iconBgClass="bg-blue-50 dark:bg-blue-500/10"
           animationDelay="0ms"
           onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: "30,40" } })}
@@ -194,7 +194,7 @@ export default function DashboardPrescripteur() {
           icon={CheckCircle}
           value={validesCeMois.toLocaleString()}
           loading={loading}
-          iconColorClass="text-emerald-500"
+          iconColorClass="text-emerald-500 dark:text-emerald-400"
           iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
           animationDelay="60ms"
           onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: ">=50" } })}
@@ -210,7 +210,7 @@ export default function DashboardPrescripteur() {
           icon={RotateCcw}
           value={enCorrection.toLocaleString()}
           loading={loading}
-          iconColorClass="text-red-500"
+          iconColorClass="text-red-500 dark:text-red-400"
           iconBgClass="bg-red-50 dark:bg-red-500/10"
           animationDelay="120ms"
           onClick={() => navigate("/prescripteur/corrections")}
@@ -221,7 +221,7 @@ export default function DashboardPrescripteur() {
           icon={Clock}
           value={horsDelai.toLocaleString()}
           loading={loading}
-          iconColorClass="text-amber-500"
+          iconColorClass="text-amber-500 dark:text-amber-400"
           iconBgClass="bg-amber-50 dark:bg-amber-500/10"
           animationDelay="180ms"
           onClick={() => navigate("/prescripteur/dossiers", { state: { filterStatus: 20 } })}
@@ -531,7 +531,7 @@ export default function DashboardPrescripteur() {
                 <div className="absolute top-[55px] flex flex-col items-center">
                   <span className={`${animatedPercentage === 100 ? 'text-[54px] tracking-tight' : 'text-[64px] tracking-tighter'} font-bold text-slate-900 dark:text-white leading-none`}>{animatedPercentage}</span>
                   <span className="text-[13px] font-medium text-slate-400 mt-2">sur 100</span>
-                  <div className="mt-3 bg-blue-500/10 text-blue-600 dark:text-[#3b82f6] px-2.5 py-0.5 rounded text-[12px] font-bold flex items-center gap-1">
+                  <div className="mt-3 bg-blue-500/10 text-blue-600 dark:text-blue-300 px-2.5 py-0.5 rounded text-[12px] font-bold flex items-center gap-1">
                     ↑ {validesCeMois} vs cible
                   </div>
                 </div>

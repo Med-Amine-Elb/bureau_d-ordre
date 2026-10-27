@@ -314,7 +314,7 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-start">
             <span className="text-[13px] font-medium text-slate-500 dark:text-slate-400">Volume total</span>
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/10">
-              <Layers className="w-4 h-4 text-[#1F3B73]" />
+              <Layers className="w-4 h-4 text-[#1F3B73] dark:text-blue-400" />
             </div>
           </div>
           <h3 className="text-[28px] font-extrabold text-slate-900 dark:text-white mt-2 tracking-tight">{loading ? "—" : totalDossiers.toLocaleString()}</h3>
@@ -409,8 +409,8 @@ export default function AdminDashboard() {
                 <AreaChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorAct" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1F3B73" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="#1F3B73" stopOpacity={0} />
+                      <stop offset="5%" stopColor={isDarkMode ? "#60A5FA" : "#1F3B73"} stopOpacity={0.15} />
+                      <stop offset="95%" stopColor={isDarkMode ? "#60A5FA" : "#1F3B73"} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? "#1e293b" : "#f1f5f9"} vertical={false} />
@@ -420,7 +420,7 @@ export default function AdminDashboard() {
                   <Area
                     type="natural"
                     dataKey="Activité"
-                    stroke="#1F3B73"
+                    stroke={isDarkMode ? "#60A5FA" : "#1F3B73"}
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorAct)"
@@ -483,7 +483,7 @@ export default function AdminDashboard() {
                     ) : insight.type === "success" ? (
                       <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500"><CheckCircle className="w-3.5 h-3.5" /></div>
                     ) : (
-                      <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-[#1F3B73]"><Info className="w-3.5 h-3.5" /></div>
+                      <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-[#1F3B73] dark:text-blue-400"><Info className="w-3.5 h-3.5" /></div>
                     )}
                     <h4 className="text-[11px] font-bold text-slate-800 dark:text-slate-200">{insight.title}</h4>
                   </div>

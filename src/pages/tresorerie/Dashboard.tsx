@@ -204,7 +204,7 @@ export default function DashboardTresorerie() {
           icon={Clock}
           value={aAccuser.toLocaleString()}
           loading={loading}
-          iconColorClass="text-orange-500"
+          iconColorClass="text-orange-500 dark:text-orange-400"
           iconBgClass="bg-orange-50 dark:bg-orange-500/10"
           animationDelay="0ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 100 } })}
@@ -221,7 +221,7 @@ export default function DashboardTresorerie() {
           icon={Wallet}
           value={aRegler.toLocaleString()}
           loading={loading}
-          iconColorClass="text-blue-500"
+          iconColorClass="text-blue-500 dark:text-blue-400"
           iconBgClass="bg-blue-50 dark:bg-blue-500/10"
           animationDelay="60ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 110 } })}
@@ -232,7 +232,7 @@ export default function DashboardTresorerie() {
           icon={FileText}
           value={enAttenteRemise.toLocaleString()}
           loading={loading}
-          iconColorClass="text-purple-500"
+          iconColorClass="text-purple-500 dark:text-purple-400"
           iconBgClass="bg-purple-50 dark:bg-purple-500/10"
           animationDelay="120ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 120 } })}
@@ -243,7 +243,7 @@ export default function DashboardTresorerie() {
           icon={CheckCircle}
           value={payes.toLocaleString()}
           loading={loading}
-          iconColorClass="text-emerald-500"
+          iconColorClass="text-emerald-500 dark:text-emerald-400"
           iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
           animationDelay="180ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 150 } })}

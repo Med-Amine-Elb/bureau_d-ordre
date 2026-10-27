@@ -169,11 +169,11 @@ export default function AdminDossiers() {
       case 40:
       case 80:
       case 110: return "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-400 border-indigo-200";
-      case 90: return "bg-orange-100 text-orange-850 dark:bg-orange-950/40 dark:text-orange-400 border-orange-200";
+      case 90: return "bg-orange-100 text-orange-850 dark:bg-orange-950/40 dark:text-orange-300 border-orange-200";
       case 120:
       case 140:
       case 150: return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200";
-      default: return "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200";
+      default: return "bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200";
     }
   };
 
