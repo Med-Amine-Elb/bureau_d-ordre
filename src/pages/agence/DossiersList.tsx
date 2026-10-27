@@ -77,13 +77,11 @@ export default function DossiersListAgence() {
     if (!selectedDossier) return;
     try {
       setIsAccuseModalOpen(false);
-      await dataService.updateDossier(selectedDossier.new_folderid, {
-        new_status: 140, // Disponible Agence
+      await dataService.accuseReception(selectedDossier.new_folderid, 140, "Agence", {
         new_reception_date_agence: new Date().toISOString(),
-        new_accuse_reception_agence_par: "Utilisateur Agence",
         new_commentaire_agence: data.commentaire
       });
-      setSuccessMessage("Réception confirmée.");
+      setSuccessMessage("Réception du chèque confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
     } catch (err) {

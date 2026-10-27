@@ -141,7 +141,6 @@ export interface Dossier {
   new_motif_retour?: string;
   new_commentaire_reception?: string;
   new_date_transmission_bo?: string;
-  new_accuse_reception_agence_par?: string;
 }
 
 export interface SystemUser {
@@ -970,7 +969,12 @@ export const dataService = {
     }
   },
 
-  accuseReception: async (id: string, nextStatus: number, _user: string): Promise<boolean> => {
+  accuseReception: async (
+    id: string,
+    nextStatus: number,
+    _user: string,
+    additionalUpdates: Partial<Dossier> = {},
+  ): Promise<boolean> => {
     const xrm = getXrm();
     const context = xrm ? xrm.Utility.getGlobalContext() : null;
     const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
@@ -985,6 +989,7 @@ export const dataService = {
     }
     const nowStr = new Date().toISOString();
     await dataService.updateDossier(id, {
+      ...additionalUpdates,
       new_status: nextStatus,
       new_date_accuse: nowStr,
       ...(acknowledgingUserId ? { new_accuse_par: acknowledgingUserId } : {}),

@@ -100,6 +100,14 @@ export function buildDossierAuditDrafts(
   }
 
   if (statusChanged && nextStatus !== undefined) {
+    if (nextStatus === 140) {
+      return [{
+        ...base,
+        type: "ReceiptConfirmed",
+        title: "Chèque reçu par l’agence",
+        description: `L’agence ${dossier.new_destination_branch_id || "de destination"} a confirmé la réception physique du chèque.`,
+      }];
+    }
     if (nextStatus === 50 && previous.status === 90) {
       return [{ ...base, type: "CorrectionSubmitted", title: getDossierAuditStepLabel(nextStatus), description: "Le dossier corrigé a été validé et renvoyé au Bureau d’ordre." }];
     }
