@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { New_transmissionsService } from "@/generated/services/New_transmissionsService";
 import { New_foldersService } from "@/generated/services/New_foldersService";
 import { SystemusersService } from "@/generated/services/SystemusersService";
+import { New_dossierauditeventsService } from "@/generated/services/New_dossierauditeventsService";
 import { getContext } from "@microsoft/power-apps/app";
 import { dataService } from "@/lib/dataService";
 
@@ -85,13 +86,24 @@ describe("Dataverse transmission audit", () => {
       success: true,
       data: [{ systemuserid: receiverId, azureactivedirectoryobjectid: receiverEntraId } as never],
     });
+    vi.spyOn(New_foldersService, "get").mockResolvedValue({
+      success: true,
+      data: { new_status: 30, new_folder_number: "DOS-2026-001" } as never,
+    });
     const folderUpdate = vi.spyOn(New_foldersService, "update").mockResolvedValue({ success: true, data: {} as never });
+    const auditCreate = vi.spyOn(New_dossierauditeventsService, "create").mockResolvedValue({ success: true, data: {} as never });
     vi.spyOn(New_transmissionsService, "getAll").mockRejectedValue(new Error("request timed out"));
 
     await expect(dataService.accuseReception(folderId, 40, "Prescripteur")).resolves.toBe(false);
     expect(folderUpdate).toHaveBeenCalledWith(folderId, expect.objectContaining({
       new_status: 40,
       new_acknowledgment_date: expect.any(String),
+    }));
+    expect(auditCreate).toHaveBeenCalledWith(expect.objectContaining({
+      new_eventtype: 871840003,
+      new_actorrole: 871840001,
+      "new_Actor@odata.bind": `/systemusers(${receiverId})`,
+      "new_Recipient@odata.bind": `/systemusers(${receiverId})`,
     }));
   });
 });

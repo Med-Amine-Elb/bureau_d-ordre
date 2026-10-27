@@ -9,6 +9,7 @@ import { New_companiesService } from '../generated/services/New_companiesService
 import { New_departementsService } from '../generated/services/New_departementsService';
 import { New_transmissionsService } from '../generated/services/New_transmissionsService';
 import { New_dossierauditeventsService } from '../generated/services/New_dossierauditeventsService';
+import { New_reminderconfigurationsService } from '../generated/services/New_reminderconfigurationsService';
 import type {
   New_dossierauditevents,
   New_dossierauditeventsBase,
@@ -196,10 +197,11 @@ export interface DepartmentLookup extends ReferenceAudit {
 }
 
 export interface SystemConfig {
-  new_systemconfigid: string;
-  new_regle_5_jours_limite: number;
-  new_relance_seuil_jours: number;
-  new_alerte_blocage_jours: number;
+  new_reminderconfigurationid: string;
+  new_remindersenabled: boolean;
+  new_initialdelaydays: number;
+  new_repeatintervaldays: number;
+  new_invoicereceiptlimitdays: number;
 }
 
 export type TransmissionRole = "BO" | "Prescripteur" | "DCF" | "Trésorerie" | "Agence" | "Admin";
@@ -236,6 +238,14 @@ const TRANSMISSION_AUDIT_STEP_LABELS: Record<TransmissionRole, string> = {
   "Trésorerie": "En transit vers trésorerie",
   Agence: "En transport vers agence",
   Admin: "Dossier transmis",
+};
+
+const RECEIPT_ROLE_BY_STATUS: Partial<Record<number, TransmissionRole>> = {
+  40: "Prescripteur",
+  60: "BO",
+  80: "DCF",
+  110: "Trésorerie",
+  140: "Agence",
 };
 
 const AUDIT_EVENT_TYPE_CODES: Record<DossierAuditEventType, number> = {
@@ -388,6 +398,8 @@ const createDossierAuditEventRecord = async (input: {
   const actorId = await getCurrentSystemUserId();
   const actorRole = input.context?.actorRole ?? getCurrentAuditRole();
   if (!actorRole) throw new Error("Impossible de déterminer le rôle actif pour le journal d’audit.");
+  const recipientId = input.context?.recipientId
+    ?? (input.draft.type === "ReceiptConfirmed" || input.draft.type === "DossierCreated" ? actorId : undefined);
 
   const record = {
     new_newcolumn: `${input.folderNumber} — ${input.draft.title}`.slice(0, 850),
@@ -404,7 +416,7 @@ const createDossierAuditEventRecord = async (input: {
     ...(input.draft.relatedReference ? { new_relatedreference: input.draft.relatedReference.slice(0, 450) } : {}),
     ...(input.context?.fromRole ? { new_fromrole: TRANSMISSION_ROLE_CODES[input.context.fromRole] as New_dossierauditeventsnew_fromrole } : {}),
     ...(input.context?.toRole ? { new_torole: TRANSMISSION_ROLE_CODES[input.context.toRole] as New_dossierauditeventsnew_torole } : {}),
-    ...(isGuid(input.context?.recipientId) ? { "new_Recipient@odata.bind": `/systemusers(${input.context?.recipientId})` } : {}),
+    ...(isGuid(recipientId) ? { "new_Recipient@odata.bind": `/systemusers(${recipientId})` } : {}),
   } as Omit<New_dossierauditeventsBase, "new_dossierauditeventid">;
 
   const result = await New_dossierauditeventsService.create(record);
@@ -962,16 +974,28 @@ export const dataService = {
     const xrm = getXrm();
     const context = xrm ? xrm.Utility.getGlobalContext() : null;
     const userId = context ? context.userSettings.userId.replace(/[{}]/g, "") : "";
+    let acknowledgingUserId = isGuid(userId) ? userId : undefined;
+    if (!acknowledgingUserId) {
+      try {
+        acknowledgingUserId = await getCurrentSystemUserId();
+      } catch {
+        // Preserve receipt processing if user identity cannot be resolved;
+        // the audit writer will still report its own identity error.
+      }
+    }
     const nowStr = new Date().toISOString();
     await dataService.updateDossier(id, {
       new_status: nextStatus,
       new_date_accuse: nowStr,
-      ...(userId ? { new_accuse_par: userId } : {}),
+      ...(acknowledgingUserId ? { new_accuse_par: acknowledgingUserId } : {}),
+    }, {
+      recipientId: acknowledgingUserId,
+      actorRole: RECEIPT_ROLE_BY_STATUS[nextStatus],
     });
     // The dossier receipt is the primary operation. Audit logging is a separate
     // Dataverse request and must not turn a successful receipt into a UI failure.
     try {
-      const actorId = userId || await getCurrentSystemUserId();
+      const actorId = acknowledgingUserId || await getCurrentSystemUserId();
       await dataService.acknowledgeLatestDossierTransmission(id, undefined, actorId);
       return true;
     } catch (error) {
@@ -1132,15 +1156,35 @@ export const dataService = {
 
   // System Config
   getSystemConfig: async (): Promise<SystemConfig> => {
+    const result = await New_reminderconfigurationsService.getAll({ top: 2 });
+    if (!result.success || result.error) throw new Error("Impossible de lire la configuration des relances dans Dataverse.");
+    const rows = result.data ?? [];
+    if (rows.length > 1) throw new Error("La table Reminder Configuration doit contenir une seule ligne de configuration globale.");
+    const row = rows[0];
+    if (!row) return { new_reminderconfigurationid: "", new_remindersenabled: true, new_initialdelaydays: 7, new_repeatintervaldays: 1, new_invoicereceiptlimitdays: 5 };
     return {
-      new_systemconfigid: "cfg-prod",
-      new_regle_5_jours_limite: 5,
-      new_relance_seuil_jours: 15,
-      new_alerte_blocage_jours: 7
+      new_reminderconfigurationid: row.new_reminderconfigurationid,
+      new_remindersenabled: row.new_remindersenabled ?? true,
+      new_initialdelaydays: row.new_initialdelaydays ?? 7,
+      new_repeatintervaldays: row.new_repeatintervaldays ?? 1,
+      new_invoicereceiptlimitdays: row.new_invoicereceiptlimitdays ?? 5,
     };
   },
-  updateSystemConfig: async (_config: Partial<SystemConfig>): Promise<void> => {
-    // No-op for prod configuration
+  updateSystemConfig: async (config: Partial<SystemConfig>): Promise<void> => {
+    const { new_reminderconfigurationid: id, ...fields } = config;
+    if (id) {
+      const result = await New_reminderconfigurationsService.update(id, fields);
+      if (!result.success || result.error) throw new Error("Impossible d'enregistrer la configuration des relances dans Dataverse.");
+      return;
+    }
+    const result = await New_reminderconfigurationsService.create({
+      new_newcolumn: "Configuration globale des relances",
+      new_remindersenabled: config.new_remindersenabled ?? true,
+      new_initialdelaydays: config.new_initialdelaydays ?? 7,
+      new_repeatintervaldays: config.new_repeatintervaldays ?? 1,
+      new_invoicereceiptlimitdays: config.new_invoicereceiptlimitdays ?? 5,
+    });
+    if (!result.success || result.error) throw new Error("Impossible de créer la configuration des relances dans Dataverse.");
   },
 
   // Admin Overrides

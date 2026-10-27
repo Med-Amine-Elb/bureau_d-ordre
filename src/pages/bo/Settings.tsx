@@ -157,7 +157,7 @@ export default function Settings() {
                     
                     {[
                       { id: "email", label: "Alertes Email", desc: "Recevoir un récapitulatif quotidien des dossiers en cours." },
-                      { id: "delays", label: "Dossiers hors délai", desc: "Notification instantanée quand un dossier dépasse 5 jours." },
+                      { id: "delays", label: "Dossiers hors délai", desc: "Notification instantanée lorsqu’une facture est classée hors délai." },
                       { id: "rejections", label: "Rejets & Blocages", desc: "Être alerté dès qu'un prescripteur rejette un dossier." },
                       { id: "reminders", label: "Relances Automatiques", desc: "Activer les relances automatiques vers les prescripteurs." }
                     ].map((item) => (

@@ -21,6 +21,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 
 export default function DossierDetailTresorerie() {
   const { id } = useParams();
@@ -28,6 +29,8 @@ export default function DossierDetailTresorerie() {
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("infos");
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const [isAccuseModalOpen, setIsAccuseModalOpen] = useState(false);
 
   // Payment form states
@@ -141,9 +144,8 @@ export default function DossierDetailTresorerie() {
         new_commentaire_reception: data.commentaire
       });
       await dataService.acknowledgeLatestDossierTransmission(dossier.new_folderid, data.commentaire);
-      toast.success("Réception accusée", {
-        description: `Vous pouvez maintenant procéder au règlement.`,
-      });
+      setSuccessMessage("Réception confirmée.");
+      setSuccessModalOpen(true);
       fetchDossier();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible d'accuser réception." });
@@ -201,11 +203,8 @@ export default function DossierDetailTresorerie() {
       };
 
       await dataService.updateDossier(dossier.new_folderid, payload);
-      toast.success("Succès", {
-        description: isCheque
-          ? "Le chèque a été préparé et transmis au Bureau d'Ordre."
-          : "Le virement a été enregistré et le dossier est clôturé."
-      });
+      setSuccessMessage(isCheque ? "Chèque préparé et transmis au Bureau d’Ordre." : "Virement enregistré. Dossier payé et clôturé.");
+      setSuccessModalOpen(true);
       fetchDossier();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible d'enregistrer le règlement." });
@@ -229,7 +228,8 @@ export default function DossierDetailTresorerie() {
         new_source_blocage: sourceBlocage,
         new_motif_blocage: motifBlocage
       });
-      toast.success("Succès", { description: "Dossier marqué comme bloqué." });
+      setSuccessMessage("Dossier bloqué.");
+      setSuccessModalOpen(true);
       setIsBlocageFormOpen(false);
       fetchDossier();
     } catch (err) {
@@ -254,7 +254,8 @@ export default function DossierDetailTresorerie() {
         new_date_deblocage: dateDeblocage,
         new_resolution_blocage: resolutionBlocage
       });
-      toast.success("Succès", { description: "Le blocage a été levé." });
+      setSuccessMessage("Blocage levé.");
+      setSuccessModalOpen(true);
       fetchDossier();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible de lever le blocage." });
@@ -862,6 +863,7 @@ export default function DossierDetailTresorerie() {
         </div>
       </div>
       {/* Accusé Réception Modal */}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
       <TresoAccuseReceptionModal
         isOpen={isAccuseModalOpen}
         dossier={dossier}

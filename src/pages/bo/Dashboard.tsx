@@ -1,3 +1,4 @@
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import { useEffect, useState } from "react";
 import {
   PackageSearch,
@@ -35,6 +36,7 @@ import { getDossierStatusLabel } from "@/lib/statusLabels";
 import type { Dossier, SystemUser, DepartmentLookup } from "@/lib/dataService";
 import { PremiumGauge } from "@/components/PremiumGauge";
 import TransmissionModal from "@/components/TransmissionModal";
+import { isInvoiceReceiptOverdue } from "@/lib/invoiceReceiptDeadline";
 
 
 
@@ -42,6 +44,7 @@ export default function DashboardBO() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
+  const [invoiceReceiptLimitDays, setInvoiceReceiptLimitDays] = useState(5);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
@@ -64,14 +67,16 @@ export default function DashboardBO() {
 
   const fetchData = async () => {
     try {
-      const [dossiersResult, usersResult, deptsResult] = await Promise.all([
+      const [dossiersResult, usersResult, deptsResult, systemConfig] = await Promise.all([
         dataService.getDossiers(),
         dataService.getUsers(),
-        dataService.getDepartmentsLookup()
+        dataService.getDepartmentsLookup(),
+        dataService.getSystemConfig().catch(() => null),
       ]);
       setDossiers(dossiersResult);
       setUsers(usersResult);
       setDepartments(deptsResult);
+      if (systemConfig) setInvoiceReceiptLimitDays(systemConfig.new_invoicereceiptlimitdays);
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
     } finally {
@@ -97,13 +102,9 @@ export default function DashboardBO() {
   const dossiersTresorerie = dossiers.filter((d) => d.new_status === 100 || d.new_status === 110).length;
   const dossiersAgence = dossiers.filter((d) => d.new_status >= 120 && d.new_status <= 140).length;
 
-  // SLA Compliance (règle des 5 jours)
+  // Conformité du délai entre la date de facture et la réception au BO.
   const compliantCount = dossiers.filter((d) => {
-    if (!d.new_invoice_date || !d.new_reception_date) return true;
-    const diff = Math.abs(
-      (new Date(d.new_reception_date).getTime() - new Date(d.new_invoice_date).getTime()) / (1000 * 3600 * 24)
-    );
-    return diff <= 5;
+    return !isInvoiceReceiptOverdue(d.new_invoice_date, d.new_reception_date, invoiceReceiptLimitDays);
   }).length;
   const complianceRate = totalDossiersCount > 0 ? Math.round((compliantCount / totalDossiersCount) * 100) : 100;
 
@@ -306,7 +307,8 @@ export default function DashboardBO() {
     setLoading(true);
     try {
       await dataService.completeCourierDelivery(dossier.new_folderid);
-      toast.success(`Le courrier ${dossier.new_folder_number} est marqué livré et clôturé.`);
+      setSuccessMessage(`Courrier ${dossier.new_folder_number} livré. Dossier clôturé.`);
+      setSuccessModalOpen(true);
       await fetchData();
     } catch (error) {
       toast.error("Impossible de clôturer le courrier.", {
@@ -467,7 +469,6 @@ export default function DashboardBO() {
               ) : (
                 <span className="text-xs font-semibold text-amber-500">Amélioration requise</span>
               )}
-              <span className="text-xs text-slate-400">règle 5j</span>
             </>
           }
         />
@@ -883,25 +884,7 @@ export default function DashboardBO() {
       </div>
 
       {/* ═══════════ MODALS ═══════════ */}
-      {successModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="w-10 h-10 text-emerald-500" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Confirmation</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">{successMessage}</p>
-              <button
-                onClick={() => setSuccessModalOpen(false)}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
-              >
-                Continuer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+<SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
 
       <TransmissionModal
         isOpen={showTransmissionModal}

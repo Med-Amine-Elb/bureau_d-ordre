@@ -30,6 +30,7 @@ import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import { differenceInDays, parseISO } from "date-fns";
 import { PremiumGauge } from "@/components/PremiumGauge";
+import { isInvoiceReceiptOverdue } from "@/lib/invoiceReceiptDeadline";
 
 
 
@@ -106,6 +107,7 @@ export default function AdminDashboard() {
   const [flowRuns, setFlowRuns] = useState<FlowRun[]>(INITIAL_FLOW_RUNS);
   const [restartingFlowId, setRestartingFlowId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invoiceReceiptLimitDays, setInvoiceReceiptLimitDays] = useState(5);
   const [isDarkMode, setIsDarkMode] = useState(() => document.documentElement.classList.contains("dark"));
 
   useEffect(() => {
@@ -119,8 +121,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const list = await dataService.getDossiers();
+        const [list, systemConfig] = await Promise.all([
+          dataService.getDossiers(),
+          dataService.getSystemConfig().catch(() => null),
+        ]);
         setDossiers(list);
+        if (systemConfig) setInvoiceReceiptLimitDays(systemConfig.new_invoicereceiptlimitdays);
       } catch (err) {
         toast.error("Erreur lors du chargement des données");
       } finally {
@@ -137,11 +143,7 @@ export default function AdminDashboard() {
   const dossiersHorsDelai = dossiers.filter((d) => d.new_status === 20).length;
 
   const compliantCount = dossiers.filter((d) => {
-    if (!d.new_invoice_date || !d.new_reception_date) return true;
-    const diff = Math.abs(
-      (new Date(d.new_reception_date).getTime() - new Date(d.new_invoice_date).getTime()) / (1000 * 3600 * 24)
-    );
-    return diff <= 5;
+    return !isInvoiceReceiptOverdue(d.new_invoice_date, d.new_reception_date, invoiceReceiptLimitDays);
   }).length;
 
   const complianceRate = totalDossiers > 0 ? Math.round((compliantCount / totalDossiers) * 100) : 100;
@@ -532,7 +534,7 @@ export default function AdminDashboard() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
           >
             <div className="flex justify-between items-center mb-2">
-              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Conformité à la règle des 5 jours</h3>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Conformité au délai de réception ({invoiceReceiptLimitDays} jours)</h3>
               <button className="text-slate-400 hover:text-slate-600 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>

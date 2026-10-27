@@ -18,6 +18,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import TresoAccuseReceptionModal from "@/components/TresoAccuseReceptionModal";
 import { exportDossiersToExcelDetailed } from "../../utils/excelExport";
 import SupplierFilterInput from "@/components/SupplierFilterInput";
@@ -80,7 +81,6 @@ export default function DossiersListTresorerie() {
       setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
-      setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err) {
       toast.error("Erreur", { description: "Impossible d'accuser réception." });
     }
@@ -336,21 +336,7 @@ export default function DossiersListTresorerie() {
         </div>
       </div>
 
-      {successModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-              Confirmation
-            </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
-              {successMessage}
-            </p>
-          </div>
-        </div>
-      )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
 
       {/* Accusé Réception Modal */}
       <TresoAccuseReceptionModal

@@ -1,3 +1,4 @@
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import { useEffect, useState } from "react";
 import {
   Clock,
@@ -90,7 +91,6 @@ export default function DashboardDCF() {
       setSuccessMessage(`Réception physique confirmée pour le dossier ${dossier.new_folder_number}.`);
       setSuccessModalOpen(true);
       fetchDossiers();
-      setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err) {
       toast.error("Erreur", { description: "Impossible d'accuser réception." });
     }
@@ -484,21 +484,7 @@ export default function DashboardDCF() {
       </div>
 
       {/* Success Modal */}
-      {successModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center animate-in zoom-in-95 duration-300 border border-slate-100 dark:border-slate-800">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <h3 className="text-[17px] font-bold text-slate-900 dark:text-slate-100 mb-2 tracking-tight">
-              Action réussie
-            </h3>
-            <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed">
-              {successMessage}
-            </p>
-          </div>
-        </div>
-      )}
+<SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
     </div>
   );
 }

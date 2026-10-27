@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import DossierDetailDrawer from "@/components/DossierDetailDrawer";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import SupplierFilterInput from "@/components/SupplierFilterInput";
 import { matchesSupplierFilter } from "@/lib/supplierFilter";
 import { getDossierStatusLabel } from "@/lib/statusLabels";
@@ -109,7 +110,8 @@ export default function DossiersList() {
           count++;
         }
       }
-      toast.success(`${count} dossiers transmis${couriersClosed ? ` ; ${couriersClosed} courriers marqués livrés et clôturés` : ""}${skipped ? ` ; ${skipped} ignoré(s), destinataire non identifié` : ""}.`);
+      setSuccessMessage(`${count} dossier(s) transmis${couriersClosed ? ` ; ${couriersClosed} courrier(s) clôturé(s)` : ""}${skipped ? ` ; ${skipped} ignoré(s), destinataire non identifié` : ""}.`);
+      setSuccessModalOpen(true);
       setSelectedDossiers([]);
       const result = await dataService.getDossiers();
       setDossiers(result);
@@ -143,7 +145,8 @@ export default function DossiersList() {
           count++;
         }
       }
-      toast.success(`${count} réceptions accusées avec succès.`);
+      setSuccessMessage(`${count} réception(s) confirmée(s).`);
+      setSuccessModalOpen(true);
       setSelectedDossiers([]);
       const result = await dataService.getDossiers();
       setDossiers(result);
@@ -183,7 +186,8 @@ export default function DossiersList() {
     setLoading(true);
     try {
       await dataService.completeCourierDelivery(dossier.new_folderid);
-      toast.success(`Le courrier ${dossier.new_folder_number} est marqué livré et clôturé.`);
+      setSuccessMessage(`Courrier ${dossier.new_folder_number} livré. Dossier clôturé.`);
+      setSuccessModalOpen(true);
       setDossiers(await dataService.getDossiers());
     } catch (error) {
       toast.error("Impossible de clôturer le courrier.", {
@@ -922,29 +926,7 @@ export default function DossiersList() {
           </div>
         </div>
       </div>
-      {successModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
-                <CheckCircle className="w-12 h-12 text-emerald-500" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Confirmation
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                {successMessage}
-              </p>
-              <button
-                onClick={() => setSuccessModalOpen(false)}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-              >
-                Continuer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
 
       <TransmissionModal
         isOpen={showTransmissionModal}

@@ -10,11 +10,14 @@ import {
   UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 
 export default function RemiseCheque() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [activeTab, setActiveTab] = useState("casa");
   const [loading, setLoading] = useState(true);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,7 +74,8 @@ export default function RemiseCheque() {
         new_cheque_recu_bo: true,
         new_commentaire_reception: accuseComment || undefined
       });
-      toast.success("Réception du chèque accusée avec succès.");
+      setSuccessMessage("Réception du chèque confirmée.");
+      setSuccessModalOpen(true);
       fetchDossiers();
       setIsAccuseChequeModalOpen(false);
       setSelectedForAccuse(null);
@@ -84,13 +88,6 @@ export default function RemiseCheque() {
     if (!selectedDossier) return;
 
     const isCasa = activeTab === "casa";
-    const successMsg = isCasa
-      ? "Chèque remis avec succès !"
-      : "Chèque expédié avec succès !";
-    const successDesc = isCasa
-      ? "Le dossier est maintenant clôturé."
-      : "Le dossier est en transit vers l'agence.";
-
     try {
       if (isCasa) {
         await dataService.updateDossier(selectedDossier.new_folderid, {
@@ -112,7 +109,8 @@ export default function RemiseCheque() {
           new_livreur_nom: typeExpedition === "camion" ? nomChauffeur : undefined
         });
       }
-      toast.success(successMsg, { description: successDesc });
+      setSuccessMessage(isCasa ? "Chèque remis. Dossier clôturé." : "Chèque expédié à l’agence.");
+      setSuccessModalOpen(true);
       fetchDossiers();
       setIsModalOpen(false);
     } catch (e) {
@@ -547,6 +545,7 @@ export default function RemiseCheque() {
           </div>
         </div>
       )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
     </div>
   );
 }

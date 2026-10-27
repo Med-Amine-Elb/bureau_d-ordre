@@ -5,6 +5,7 @@ import type { Dossier } from "@/lib/dataService";
 import { getDossierStatusLabel } from "@/lib/statusLabels";
 import TransmissionModal from "@/components/TransmissionModal";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import { ArrowLeft, Clock, FileText, Share2, AlertOctagon, PhoneCall, Link as LinkIcon, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,7 +14,10 @@ export default function DossierDetail() {
   const navigate = useNavigate();
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invoiceReceiptLimitDays, setInvoiceReceiptLimitDays] = useState(5);
   const [activeTab, setActiveTab] = useState("infos");
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // States for Transmission Modal
   const [showTransmissionModal, setShowTransmissionModal] = useState(false);
@@ -23,9 +27,13 @@ export default function DossierDetail() {
   useEffect(() => {
     const fetchDossier = async () => {
       try {
-        const result = await dataService.getDossiers();
+        const [result, systemConfig] = await Promise.all([
+          dataService.getDossiers(),
+          dataService.getSystemConfig().catch(() => null),
+        ]);
         const found = result.find(d => d.new_folderid === id);
         if (found) setDossier(found);
+        if (systemConfig) setInvoiceReceiptLimitDays(systemConfig.new_invoicereceiptlimitdays);
       } catch (err) {
         console.error(err);
       } finally {
@@ -97,7 +105,8 @@ export default function DossierDetail() {
         collectorId: data.collecteur,
         sendingComment: data.commentaire,
       });
-      toast.success("Dossier transmis avec succès.");
+      setSuccessMessage("Dossier transmis.");
+      setSuccessModalOpen(true);
 
       // Update local state
       setDossier({
@@ -117,7 +126,8 @@ export default function DossierDetail() {
       await dataService.completeCourierDelivery(dossier.new_folderid);
       const deliveredAt = new Date().toISOString();
       setDossier({ ...dossier, new_status: 150, new_final_delivery_date: deliveredAt });
-      toast.success("Courrier marqué livré et dossier clôturé.");
+      setSuccessMessage("Courrier livré. Dossier clôturé.");
+      setSuccessModalOpen(true);
     } catch (error) {
       toast.error("Impossible de clôturer le courrier.", {
         description: error instanceof Error ? error.message : undefined,
@@ -173,9 +183,8 @@ export default function DossierDetail() {
                   const userName = context ? context.userSettings.userName : "Agent BO";
 
                   await dataService.accuseReception(dossier.new_folderid, 60, userName);
-                  toast.success("Réception accusée", {
-                    description: `Le dossier est maintenant marqué comme reçu par le Bureau d'Ordre.`
-                  });
+                  setSuccessMessage("Réception confirmée.");
+                  setSuccessModalOpen(true);
                   // Refresh data
                   const updated = await dataService.getDossiers();
                   const found = updated.find(d => d.new_folderid === dossier.new_folderid);
@@ -331,7 +340,7 @@ export default function DossierDetail() {
                 <AlertOctagon className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-sm font-bold text-red-800 dark:text-red-400">Dossier hors délai</h4>
-                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé le délai de 5 jours entre la date de la facture et sa réception. Il est classé hors délai et nécessite une dérogation ou une action d’un administrateur.</p>
+                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">Ce dossier a dépassé le délai de {invoiceReceiptLimitDays} jours entre la date de la facture et sa réception. Il est classé hors délai et nécessite une dérogation ou une action d’un administrateur.</p>
                 </div>
               </div>
             )}
@@ -415,6 +424,7 @@ export default function DossierDetail() {
         )}
       </div>
 
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
       <TransmissionModal
         isOpen={showTransmissionModal}
         onClose={() => setShowTransmissionModal(false)}

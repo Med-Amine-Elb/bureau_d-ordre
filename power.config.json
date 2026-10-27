@@ -46,6 +46,11 @@
           "entitySetName": "new_dossierauditevents",
           "logicalName": "new_dossierauditevent",
           "isHidden": false
+        },
+        "reminderconfigurations": {
+          "entitySetName": "new_reminderconfigurations",
+          "logicalName": "new_reminderconfiguration",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

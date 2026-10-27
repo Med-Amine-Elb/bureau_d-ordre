@@ -17,6 +17,8 @@ import {
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 import { filterDossiers } from "@/lib/normalization";
+import { isInvoiceReceiptOverdue } from "@/lib/invoiceReceiptDeadline";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 
 export default function CreateDossier() {
   const navigate = useNavigate();
@@ -36,8 +38,19 @@ export default function CreateDossier() {
   const [lookupsLoading, setLookupsLoading] = useState(true);
   const [lookupReload, setLookupReload] = useState(0);
   const [allDossiers, setAllDossiers] = useState<Dossier[]>([]);
+  const [invoiceReceiptLimitDays, setInvoiceReceiptLimitDays] = useState(5);
   const [dossierLieInput, setDossierLieInput] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    dataService.getSystemConfig()
+      .then((config) => {
+        if (!cancelled) setInvoiceReceiptLimitDays(config.new_invoicereceiptlimitdays);
+      })
+      .catch((error) => console.warn("Could not load the invoice reception threshold; using 5 days.", error));
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,7 +168,7 @@ export default function CreateDossier() {
     parseISO(formData.date_reception),
     parseISO(formData.date_facture),
   );
-  const isLate = formData.type_document === 100 && daysDiff > 5;
+  const isLate = formData.type_document === 100 && isInvoiceReceiptOverdue(formData.date_facture, formData.date_reception, invoiceReceiptLimitDays);
 
   const requiredDocsPerType: Record<number, string[]> = {
     100: [
@@ -225,7 +238,7 @@ export default function CreateDossier() {
       parseISO(dataToSubmit.date_reception),
       parseISO(dataToSubmit.date_facture)
     );
-    const dossierIsLate = Number(dataToSubmit.type_document) === 100 && diff > 5;
+    const dossierIsLate = Number(dataToSubmit.type_document) === 100 && isInvoiceReceiptOverdue(dataToSubmit.date_facture, dataToSubmit.date_reception, invoiceReceiptLimitDays);
     
     console.log("DEBUG LATE CHECK:", {
       type_doc: dataToSubmit.type_document,
@@ -879,40 +892,14 @@ export default function CreateDossier() {
           </button>
         </div>
       </form>
-      {successModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle ${
-                isLate && formData.type_document === 100 
-                  ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-500' 
-                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-500'
-              }`}>
-                {isLate && formData.type_document === 100 ? (
-                   <AlertCircle className="w-12 h-12" />
-                ) : (
-                   <CheckCircle className="w-12 h-12" />
-                )}
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                {isLate && formData.type_document === 100 ? "Dossier hors délai" : "Confirmation"}
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                {successMessage}
-              </p>
-              <button
-                onClick={() => {
-                  setSuccessModalOpen(false);
-                  navigate("/bo/dossiers");
-                }}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessConfirmationModal
+        open={successModalOpen}
+        message={successMessage}
+        onClose={() => {
+          setSuccessModalOpen(false);
+          navigate("/bo/dossiers");
+        }}
+      />
 
     </div>
   );

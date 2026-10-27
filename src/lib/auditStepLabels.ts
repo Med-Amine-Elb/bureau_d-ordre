@@ -1,7 +1,7 @@
 /** User-facing step names used only inside the dossier audit timeline. */
 export const DOSSIER_AUDIT_STEP_LABELS: Readonly<Record<number, string>> = {
   10: "Brouillon",
-  20: "Rejeté après 5 jours",
+  20: "Hors délai",
   30: "En transit vers prescripteur",
   40: "Chez prescripteur",
   50: "En transit vers BO",

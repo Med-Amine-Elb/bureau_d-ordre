@@ -4,6 +4,7 @@ import { getDossierStatusLabel } from "@/lib/statusLabels";
 import type { Dossier } from "@/lib/dataService";
 import TransmissionModal from "@/components/TransmissionModal";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import {
   X,
   Clock,
@@ -31,6 +32,8 @@ export default function DossierDetailDrawer({
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("infos");
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Transmission modal states
   const [showTransmissionModal, setShowTransmissionModal] = useState(false);
@@ -126,7 +129,8 @@ export default function DossierDetailDrawer({
         collectorId: data.collecteur,
         sendingComment: data.commentaire,
       });
-      toast.success("Dossier transmis avec succès.");
+      setSuccessMessage("Dossier transmis.");
+      setSuccessModalOpen(true);
       fetchData();
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -153,7 +157,8 @@ export default function DossierDetailDrawer({
       const userName = context ? context.userSettings.userName : "Agent BO";
 
       await dataService.accuseReception(dossier.new_folderid, 60, userName);
-      toast.success("Réception accusée avec succès.");
+      setSuccessMessage("Réception confirmée.");
+      setSuccessModalOpen(true);
       fetchData();
       if (onRefresh) onRefresh();
     } catch (e: any) {
@@ -168,7 +173,8 @@ export default function DossierDetailDrawer({
     setLoading(true);
     try {
       await dataService.completeCourierDelivery(dossier.new_folderid);
-      toast.success("Courrier marqué livré et dossier clôturé.");
+      setSuccessMessage("Courrier livré. Dossier clôturé.");
+      setSuccessModalOpen(true);
       await fetchData();
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -435,6 +441,7 @@ export default function DossierDetailDrawer({
 
       </div>
 
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
       <TransmissionModal
         isOpen={showTransmissionModal}
         onClose={() => setShowTransmissionModal(false)}

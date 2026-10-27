@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { dataService } from "@/lib/dataService";
 import type { Dossier } from "@/lib/dataService";
 import { getDossierStatusLabel } from "@/lib/statusLabels";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 import {
   FileText,
   Search,
@@ -81,7 +82,6 @@ export default function DossiersListPrescripteur() {
       setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossiers();
-      setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err) {
       toast.error("Erreur", {
         description: err instanceof Error ? err.message : "Impossible d'enregistrer l'accusé de réception du dossier.",
@@ -427,23 +427,7 @@ export default function DossiersListPrescripteur() {
         )}
       </div>
 
-      {successModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
-                <CheckCircle className="w-12 h-12 text-emerald-500" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Confirmation
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-2 leading-relaxed">
-                {successMessage}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
     </div>
   );
 }

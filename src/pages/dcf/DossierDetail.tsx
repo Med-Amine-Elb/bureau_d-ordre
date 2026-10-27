@@ -20,6 +20,7 @@ import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import TransmissionModal from "@/components/TransmissionModal";
 import DossierInformationPanel from "@/components/DossierInformationPanel";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 
 export default function DossierDetailDCF() {
   const { id } = useParams();
@@ -27,6 +28,8 @@ export default function DossierDetailDCF() {
   const [dossier, setDossier] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("infos");
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Modals state
   const [isTransmitModalOpen, setIsTransmitModalOpen] = useState(false);
@@ -95,9 +98,8 @@ export default function DossierDetailDCF() {
       const userName = context ? context.userSettings.userName : "Utilisateur DCF";
 
       await dataService.accuseReception(dossier.new_folderid, 80, userName);
-      toast.success("Réception accusée", {
-        description: `Vous pouvez maintenant procéder à la comptabilisation.`,
-      });
+      setSuccessMessage("Réception confirmée.");
+      setSuccessModalOpen(true);
       fetchDossier();
     } catch (err: any) {
       console.error("DEBUG ACCUSE ERROR:", err);
@@ -117,9 +119,8 @@ export default function DossierDetailDCF() {
         new_est_comptabilise: checked,
         new_accounting_date: checked ? new Date().toISOString() : undefined,
       });
-      toast.success("Succès", {
-        description: checked ? "Dossier marqué comme comptabilisé." : "Comptabilisation annulée.",
-      });
+      setSuccessMessage(checked ? "Dossier comptabilisé." : "Comptabilisation annulée.");
+      setSuccessModalOpen(true);
       fetchDossier();
     } catch (err) {
       toast.error("Erreur", { description: "Impossible de modifier la comptabilisation." });
@@ -466,7 +467,8 @@ export default function DossierDetailDCF() {
                 collectorId: data.collecteur,
                 sendingComment: data.commentaire,
               });
-              toast.success("Dossier transmis à la trésorerie.");
+              setSuccessMessage("Dossier transmis à la Trésorerie.");
+              setSuccessModalOpen(true);
               fetchDossier();
             } catch (err) {
               toast.error("Erreur de transmission.", { description: err instanceof Error ? err.message : "Le dossier n’a pas pu être transmis." });
@@ -518,7 +520,8 @@ export default function DossierDetailDCF() {
                       new_motif_retour: retourCommentaire,
                       new_date_retour_bo: new Date().toISOString()
                     });
-                    toast.success("Dossier retourné avec succès.");
+                    setSuccessMessage("Dossier retourné.");
+                    setSuccessModalOpen(true);
                     setIsCorrectionModalOpen(false);
                     setRetourCommentaire("");
                     fetchDossier();
@@ -537,6 +540,7 @@ export default function DossierDetailDCF() {
           </div>
         </div>
       )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
     </div>
   );
 }

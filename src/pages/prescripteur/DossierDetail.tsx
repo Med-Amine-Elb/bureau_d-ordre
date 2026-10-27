@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import SuccessConfirmationModal from "@/components/SuccessConfirmationModal";
 
 export default function DossierDetailPrescripteur() {
   const { id } = useParams();
@@ -71,7 +72,6 @@ export default function DossierDetailPrescripteur() {
       setSuccessMessage("Réception confirmée.");
       setSuccessModalOpen(true);
       fetchDossier();
-      setTimeout(() => setSuccessModalOpen(false), 2000);
     } catch (err: any) {
       console.error("DEBUG ACCUSE ERROR:", err);
       toast.error("Erreur d'accusé réception", {
@@ -467,25 +467,7 @@ export default function DossierDetailPrescripteur() {
         </div>
       )}
 
-      {/* Success Modal */}
-      {successModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-8 flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mb-6 animate-bounce-subtle">
-                <CheckCircle className="w-12 h-12 text-emerald-500" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Confirmation
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
-                {successMessage}
-              </p>
-              {/* Le bouton n'est pas nécessaire si on redirige automatiquement, mais utile en cas de blocage */}
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessConfirmationModal open={successModalOpen} message={successMessage} onClose={() => setSuccessModalOpen(false)} />
     </div>
   );
 }
