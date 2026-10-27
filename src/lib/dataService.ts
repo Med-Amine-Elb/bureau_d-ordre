@@ -55,6 +55,7 @@ export const isCrmMode = (): boolean => {
 export interface Dossier {
   new_folderid: string;
   new_folder_number: string;
+  modifiedon?: string;
   new_document_type: number;
   new_status: number;
   new_supplier_id?: string;
@@ -467,6 +468,7 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
   return {
     new_folderid: entity.new_folderid,
     new_folder_number: entity.new_folder_number,
+    modifiedon: entity.modifiedon || undefined,
     new_document_type: mapCrmDocumentTypeToFrontend(entity.new_documenttype || 871840000),
     new_status: entity.new_status || 10,
     new_supplier_id: entity["_new_supplier_id_value@OData.Community.Display.V1.FormattedValue"] || entity._new_supplier_id_value || undefined,
@@ -827,6 +829,7 @@ export const dataService = {
   getDossiers: async (): Promise<Dossier[]> => {
     const selectFields = [
       "new_folder_number",
+      "modifiedon",
       "new_status",
       "new_documenttype",
       "new_receptiondate",
@@ -877,7 +880,34 @@ export const dataService = {
 
     const result = await New_foldersService.getAll({ select: selectFields });
     if (result.data) {
-      return result.data.map(mapCrmEntityToDossier);
+      const dossiers = result.data.map(mapCrmEntityToDossier);
+      const lastActionTimestamp = (dossier: Dossier): number => {
+        const dates = [
+          dossier.modifiedon,
+          dossier.new_final_delivery_date,
+          dossier.new_reception_date_agence,
+          dossier.new_date_livraison,
+          dossier.new_date_accuse_dcf,
+          dossier.new_date_val_dcf,
+          dossier.new_date_trans_dcf,
+          dossier.new_date_retour_bo,
+          dossier.new_date_val_prescripteur,
+          dossier.new_date_accuse_prescripteur,
+          dossier.new_date_trans_prescripteur,
+          dossier.new_date_transmission_bo,
+          dossier.new_cheque_preparation_date,
+          dossier.new_accounting_date,
+          dossier.new_date_virement,
+          dossier.new_date_accuse,
+          dossier.new_reception_date,
+        ];
+        return dates.reduce((latest, value) => {
+          const timestamp = value ? Date.parse(value) : Number.NaN;
+          return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
+        }, 0);
+      };
+
+      return dossiers.sort((a, b) => lastActionTimestamp(b) - lastActionTimestamp(a));
     }
     throw new Error("Failed to fetch folders: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
   },
