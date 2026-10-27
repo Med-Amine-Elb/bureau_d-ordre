@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { createPortal } from "react-dom";
 
 interface SuccessConfirmationModalProps {
   open: boolean;
@@ -10,7 +11,9 @@ export default function SuccessConfirmationModal({ open, message, onClose }: Suc
   if (!open) return null;
   const isDeadlineWarning = /hors délai/i.test(message);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div role="dialog" aria-modal="true" aria-labelledby="success-confirmation-title" className="w-full max-w-sm animate-in zoom-in-95 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl duration-200 dark:border-slate-700 dark:bg-[#0F172B]">
         <div className="flex flex-col items-center p-8 text-center">
@@ -28,6 +31,7 @@ export default function SuccessConfirmationModal({ open, message, onClose }: Suc
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

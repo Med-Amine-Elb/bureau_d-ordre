@@ -66,7 +66,8 @@ export function buildDossierAuditDrafts(
 ): DossierAuditDraft[] {
   const nextStatus = typeof dossier.new_status === "number" ? dossier.new_status : undefined;
   const statusChanged = nextStatus !== undefined && previous.status !== undefined && nextStatus !== previous.status;
-  const reason = dossier.new_motif_retour
+  const reason = dossier.new_return_reason
+    || dossier.new_motif_retour
     || dossier.new_motif_blocage
     || dossier.new_resolution_blocage
     || dossier.new_commentaire_treso
@@ -100,6 +101,15 @@ export function buildDossierAuditDrafts(
   }
 
   if (statusChanged && nextStatus !== undefined) {
+    if (nextStatus === 10 && previous.status === 90) {
+      return [{
+        ...base,
+        reason: undefined,
+        type: "DossierUpdated",
+        title: "Correction traitée — retour au Bureau d’ordre",
+        description: "Le Bureau d’ordre a enregistré les corrections. Le dossier est prêt pour vérification et nouvelle transmission.",
+      }];
+    }
     if (nextStatus === 140) {
       return [{
         ...base,

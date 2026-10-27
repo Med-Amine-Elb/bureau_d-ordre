@@ -222,6 +222,13 @@ export interface DossierAuditEvent extends New_dossierauditevents {
   newStatusLabel?: string;
 }
 
+export interface DossierCorrectionInfo {
+  eventDate?: string;
+  reason?: string;
+  actorRoleLabel?: string;
+  actorLabel?: string;
+}
+
 const TRANSMISSION_ROLE_CODES: Record<TransmissionRole, number> = {
   BO: 871840000,
   Prescripteur: 871840001,
@@ -583,7 +590,8 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
     entity.new_accountingdate = d.new_est_comptabilise ? new Date().toISOString() : null;
   }
   if (d.new_treasury_comment !== undefined) entity.new_treasury_comment = d.new_treasury_comment;
-  if (d.new_return_reason !== undefined) entity.new_return_reason = d.new_return_reason;
+  const returnReason = d.new_return_reason ?? d.new_motif_retour ?? d.new_motif_blocage;
+  if (returnReason !== undefined) entity.new_return_reason = returnReason;
   const recipient = d.new_person_to_deliver ?? d.new_personne_a_livrer;
   if (recipient !== undefined) entity.new_person_to_deliver = recipient;
   if (d.new_sharepoint_url !== undefined) entity.new_sharepointurl = d.new_sharepoint_url;
@@ -639,6 +647,35 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 };
 
 export const dataService = {
+  getLatestCorrectionReturnInfo: async (folderIds: string[]): Promise<Record<string, DossierCorrectionInfo>> => {
+    if (folderIds.length === 0) return {};
+    const result = await New_dossierauditeventsService.getAll({
+      filter: `new_eventtype eq ${AUDIT_EVENT_TYPE_CODES.ReturnedforCorrection}`,
+      select: [
+        "new_dossierauditeventid", "new_eventdate", "new_eventtype", "new_actorrole", "new_eventname",
+        "new_reason", "_new_actor_value", "_new_dossier_value",
+      ],
+      orderBy: ["new_eventdate desc"],
+      top: 5000,
+    });
+    if (result.error) throw new Error("Impossible de charger les informations des retours de correction.");
+
+    const requestedFolders = new Set(folderIds.map((id) => id.toLowerCase()));
+    const infoByFolder: Record<string, DossierCorrectionInfo> = {};
+    for (const row of result.data ?? []) {
+      const raw = row as New_dossierauditevents & Record<string, unknown>;
+      const folderId = String(row._new_dossier_value ?? "").toLowerCase();
+      if (!folderId || !requestedFolders.has(folderId) || infoByFolder[folderId]) continue;
+      infoByFolder[folderId] = {
+        eventDate: row.new_eventdate,
+        reason: row.new_reason || row.new_eventname || undefined,
+        actorRoleLabel: String(raw["new_actorrole@OData.Community.Display.V1.FormattedValue"] ?? row.new_actorrolename ?? "") || undefined,
+        actorLabel: String(raw["_new_actor_value@OData.Community.Display.V1.FormattedValue"] ?? row.new_actorname ?? "") || undefined,
+      };
+    }
+    return infoByFolder;
+  },
+
   getMonthlyReminderCount: async (): Promise<number> => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -25,6 +25,7 @@ export default function CreateDossier() {
   const location = useLocation();
   const editDossier = location.state?.editDossier as Dossier | undefined;
   const isEditing = !!editDossier;
+  const isCorrection = editDossier?.new_status === 90;
 
   const [loading, setLoading] = useState(false);
   const [successModalOpen, setSuccessModalOpen] = useState(false);
@@ -168,7 +169,7 @@ export default function CreateDossier() {
     parseISO(formData.date_reception),
     parseISO(formData.date_facture),
   );
-  const isLate = formData.type_document === 100 && isInvoiceReceiptOverdue(formData.date_facture, formData.date_reception, invoiceReceiptLimitDays);
+  const isLate = !isCorrection && formData.type_document === 100 && isInvoiceReceiptOverdue(formData.date_facture, formData.date_reception, invoiceReceiptLimitDays);
 
   const requiredDocsPerType: Record<number, string[]> = {
     100: [
@@ -238,7 +239,7 @@ export default function CreateDossier() {
       parseISO(dataToSubmit.date_reception),
       parseISO(dataToSubmit.date_facture)
     );
-    const dossierIsLate = Number(dataToSubmit.type_document) === 100 && isInvoiceReceiptOverdue(dataToSubmit.date_facture, dataToSubmit.date_reception, invoiceReceiptLimitDays);
+    const dossierIsLate = !isCorrection && Number(dataToSubmit.type_document) === 100 && isInvoiceReceiptOverdue(dataToSubmit.date_facture, dataToSubmit.date_reception, invoiceReceiptLimitDays);
     
     console.log("DEBUG LATE CHECK:", {
       type_doc: dataToSubmit.type_document,
@@ -283,7 +284,9 @@ export default function CreateDossier() {
       if (isEditing) {
         await dataService.updateDossier(editDossier.new_folderid, payload);
         setSuccessMessage(
-          (isLate && dataToSubmit.type_document === 100)
+          isCorrection
+            ? `La correction du dossier ${dataToSubmit.numero_dossier} est enregistrée. Le dossier est de retour au Bureau d’ordre.`
+            : (dossierIsLate && dataToSubmit.type_document === 100)
             ? `Le dossier ${dataToSubmit.numero_dossier} est hors délai.`
             : "Dossier sauvegardé.",
         );
@@ -319,21 +322,23 @@ export default function CreateDossier() {
   return (
     <div className="w-full max-w-5xl mx-auto pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <button
-        onClick={() => navigate("/bo/dashboard")}
+        onClick={() => navigate(isCorrection ? "/bo/corrections" : "/bo/dashboard")}
         className="flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 mb-6 transition-colors font-medium text-sm"
       >
-        <ArrowLeft className="w-4 h-4" /> Retour au tableau de bord
+        <ArrowLeft className="w-4 h-4" /> {isCorrection ? "Retour aux corrections" : "Retour au tableau de bord"}
       </button>
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
           {isEditing
-            ? `Modifier le dossier ${formData.numero_dossier}`
+            ? `${isCorrection ? "Corriger" : "Modifier"} le dossier ${formData.numero_dossier}`
             : "Créer un nouveau dossier"}
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           {isEditing
-            ? "Modifiez les informations du brouillon."
+            ? isCorrection
+              ? "Appliquez les corrections demandées, puis enregistrez le dossier au Bureau d’ordre."
+              : "Modifiez les informations du brouillon."
             : "Remplissez les informations pour initialiser un nouveau dossier dans le circuit."}
         </p>
       </div>
