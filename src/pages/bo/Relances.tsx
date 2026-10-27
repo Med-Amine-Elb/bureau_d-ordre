@@ -8,7 +8,7 @@ import { toast } from "sonner";
 export default function Relances() {
   const navigate = useNavigate();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
-  const [activeTab, setActiveTab] = useState("fournisseurs");
+  const [remindersThisMonth, setRemindersThisMonth] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // States for Modal
@@ -25,6 +25,11 @@ export default function Relances() {
     const fetchDossiersAndUsers = async () => {
       const data = await dataService.getDossiers();
       setDossiers(data);
+      try {
+        setRemindersThisMonth(await dataService.getMonthlyReminderCount());
+      } catch (error) {
+        console.error("Impossible de charger les relances du mois :", error);
+      }
       const userList = await dataService.getUsers();
       setUsers(userList.filter(u => u.new_status === "Actif"));
       setLoading(false);
@@ -36,10 +41,7 @@ export default function Relances() {
   // Les relances fournisseurs ne concernent donc que les dossiers bloqués manuellement.
   const fournisseursDossiers = dossiers.filter(d => d.new_is_blocked);
   
-  // Prescripteurs: Dossiers "Chez Prescripteur" (Statut 40)
-  const prescripteursDossiers = dossiers.filter(d => d.new_status === 40);
-
-  const currentList = activeTab === "fournisseurs" ? fournisseursDossiers : prescripteursDossiers;
+  const currentList = fournisseursDossiers;
 
   const handleOpenRelance = (dossier: Dossier) => {
     setSelectedDossier(dossier);
@@ -84,45 +86,21 @@ export default function Relances() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow">
           <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Fournisseurs à contacter</h3>
           <div className="text-3xl font-bold text-slate-900 dark:text-white">{fournisseursDossiers.length}</div>
         </div>
         <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow">
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Prescripteurs hors délai</h3>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">{prescripteursDossiers.length}</div>
-        </div>
-        <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow">
           <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Relances effectuées ce mois</h3>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">14</div>
+          <div className="text-3xl font-bold text-slate-900 dark:text-white">{loading ? "—" : remindersThisMonth}</div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow overflow-hidden">
-        {/* Tabs */}
-        <div className="flex items-center border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
-          <button 
-            onClick={() => setActiveTab("fournisseurs")}
-            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
-              activeTab === "fournisseurs" 
-                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]" 
-                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-            }`}
-          >
-            Relances Fournisseurs
-          </button>
-          <button 
-            onClick={() => setActiveTab("prescripteurs")}
-            className={`flex-1 md:flex-none px-6 py-4 text-sm font-semibold transition-colors border-b-2 ${
-              activeTab === "prescripteurs" 
-                ? "border-blue-600 text-primary bg-white dark:bg-[#0F172B]" 
-                : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-            }`}
-          >
-            Relances Prescripteurs
-          </button>
+        <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/30">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Relances fournisseur</h2>
         </div>
 
         {/* Toolbar */}
@@ -167,7 +145,7 @@ export default function Relances() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                        {activeTab === "fournisseurs" ? dossier.new_supplier_id : dossier.new_prescriber_id || "Prescripteur inconnu"}
+                        {dossier.new_supplier_id || "Fournisseur non renseigné"}
                       </div>
                     </td>
                     <td className="px-6 py-4">

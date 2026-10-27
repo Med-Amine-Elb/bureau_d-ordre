@@ -639,6 +639,19 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
 };
 
 export const dataService = {
+  getMonthlyReminderCount: async (): Promise<number> => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const result = await New_dossierauditeventsService.getAll({
+      filter: `new_eventtype eq ${AUDIT_EVENT_TYPE_CODES.ReminderSent} and new_eventdate ge ${monthStart.toISOString()} and new_eventdate lt ${nextMonthStart.toISOString()}`,
+      select: ["new_dossierauditeventid"],
+      top: 5000,
+    });
+    if (result.error) throw new Error("Impossible de charger le nombre de relances du mois.");
+    return result.data?.length ?? 0;
+  },
+
   getDossierAuditEvents: async (folderId: string): Promise<DossierAuditEvent[]> => {
     if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
     const result = await New_dossierauditeventsService.getAll({

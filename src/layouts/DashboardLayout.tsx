@@ -176,6 +176,7 @@ export default function DashboardLayout() {
   ).length;
   const countBoRemises = dossiers.filter(d => d.new_status === 120 && d.new_payment_method === 1).length;
   const countBoCorrections = dossiers.filter(d => d.new_status === 90).length;
+  const countBoRelances = dossiers.filter(d => d.new_is_blocked).length;
 
   const menuItems = isAdmin ? [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
@@ -200,7 +201,7 @@ export default function DashboardLayout() {
     { icon: LayoutDashboard, label: "Dashboard", path: "/bo/dashboard" },
     { icon: FileText, label: "Tous les dossiers", path: "/bo/dossiers" },
     { icon: Package, label: "Chèques à Remettre", path: "/bo/remises", badge: countBoRemises > 0 ? String(countBoRemises) : undefined },
-    { icon: Users, label: "Relances", path: "/bo/relances", badge: "12" },
+    { icon: Users, label: "Relances", path: "/bo/relances", badge: countBoRelances > 0 ? String(countBoRelances) : undefined },
     { icon: RotateCcw, label: "Corrections & Retours", path: "/bo/corrections", badge: countBoCorrections > 0 ? String(countBoCorrections) : undefined }
   ];
 
