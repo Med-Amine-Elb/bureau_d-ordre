@@ -13,7 +13,8 @@ import {
   Layers,
   TrendingUp,
   MoreHorizontal,
-  PhoneCall
+  PhoneCall,
+  CreditCard
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -160,13 +161,18 @@ export default function DashboardBO() {
     Courriers: trendDataMap[key].courrier
   }));
 
-  // Weekly bar chart data (by day of week)
+  // Répartition des dossiers reçus pendant la semaine courante (du lundi à aujourd'hui).
   const dayLabels = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
   const dayCounts: Record<string, number> = {};
   dayLabels.forEach(d => { dayCounts[d] = 0; });
+  const activityNow = new Date();
+  const weekStart = new Date(activityNow.getFullYear(), activityNow.getMonth(), activityNow.getDate());
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
   dossiers.forEach((d) => {
     if (!d.new_reception_date) return;
-    const dayIndex = new Date(d.new_reception_date).getDay();
+    const receptionDate = new Date(d.new_reception_date);
+    if (!Number.isFinite(receptionDate.getTime()) || receptionDate < weekStart || receptionDate > activityNow) return;
+    const dayIndex = receptionDate.getDay();
     const mapped = dayIndex === 0 ? "Dim" : dayLabels[dayIndex - 1];
     if (mapped in dayCounts) dayCounts[mapped] += 1;
   });
@@ -303,6 +309,17 @@ export default function DashboardBO() {
     }
   };
 
+  const handleAccuseCheque = async (dossier: Dossier) => {
+    try {
+      await dataService.updateDossier(dossier.new_folderid, { new_cheque_recu_bo: true });
+      setSuccessMessage(`Réception du chèque ${dossier.new_cheque_number || dossier.new_folder_number} confirmée.`);
+      setSuccessModalOpen(true);
+      fetchData();
+    } catch (err) {
+      toast.error("Erreur", { description: "Impossible de confirmer la réception du chèque." });
+    }
+  };
+
   const handleDeliverCourier = async (dossier: Dossier) => {
     setLoading(true);
     try {
@@ -353,6 +370,9 @@ export default function DashboardBO() {
   };
 
   const dossiersEnAttenteBO = dossiers.filter((d) => d.new_status === 50);
+  const chequesEnAttenteReceptionBO = dossiers.filter(
+    (d) => d.new_status === 120 && d.new_payment_method === 1 && !d.new_cheque_recu_bo,
+  );
 
   // Reusable tooltip style for Recharts
   const tooltipStyle: React.CSSProperties = {
@@ -634,7 +654,7 @@ export default function DashboardBO() {
             </div>
           </div>
 
-          {/* Pending Cheques (if any) */}
+          {/* Dossiers transmis au Bureau d'ordre, en attente d'accusé de réception */}
           {dossiersEnAttenteBO.length > 0 && (
             <div
               style={{ animationDelay: "280ms", animationFillMode: "both" }}
@@ -643,7 +663,7 @@ export default function DashboardBO() {
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Chèques reçus de trésorerie ({dossiersEnAttenteBO.length})
+                  Dossiers à réceptionner ({dossiersEnAttenteBO.length})
                 </h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -665,7 +685,50 @@ export default function DashboardBO() {
                       onClick={() => handleAccuse(d)}
                       className="px-3 py-1.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                     >
-                      Accuser
+                      Accuser réception
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chèques transmis par la Trésorerie, en attente d'accusé de réception physique */}
+          {chequesEnAttenteReceptionBO.length > 0 && (
+            <div
+              style={{ animationDelay: "300ms", animationFillMode: "both" }}
+              className="animate-in fade-in slide-in-from-bottom-3 duration-500 rounded-2xl border border-amber-100 bg-white p-5 shadow-sm dark:border-amber-900/40 dark:bg-[#0F172B]"
+            >
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500"></div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Chèques à réceptionner ({chequesEnAttenteReceptionBO.length})
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {chequesEnAttenteReceptionBO.map((d) => (
+                  <div
+                    key={d.new_folderid}
+                    className="flex items-center justify-between rounded-xl border border-amber-100 bg-amber-50/50 p-3.5 transition-all hover:border-amber-300 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:border-amber-800"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="rounded-lg bg-amber-100 p-2 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                        <CreditCard className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="truncate text-xs font-bold text-slate-900 dark:text-white">
+                          Chèque {d.new_cheque_number || "sans numéro"}
+                        </h4>
+                        <p className="truncate text-[10px] text-slate-500 dark:text-slate-400">
+                          {d.new_folder_number} · {d.new_supplier_id || "Fournisseur non renseigné"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleAccuseCheque(d)}
+                      className="ml-3 shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-[10px] font-bold text-white transition-colors hover:bg-amber-700"
+                    >
+                      Accuser réception
                     </button>
                   </div>
                 ))}
@@ -770,7 +833,10 @@ export default function DashboardBO() {
             className="animate-in fade-in slide-in-from-bottom-3 duration-500 bg-white dark:bg-[#0F172B] rounded-3xl p-6 border border-slate-100/60 dark:border-slate-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Jour le plus actif</h3>
+              <div>
+                <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">Jour le plus actif cette semaine</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Dossiers reçus depuis lundi</p>
+              </div>
               <button className="text-slate-400 hover:text-slate-600 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
