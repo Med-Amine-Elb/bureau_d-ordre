@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import { dataService } from "@/lib/dataService";
-import type { Dossier } from "@/lib/dataService";
+import type { AgenceLookup, Dossier } from "@/lib/dataService";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -29,6 +29,7 @@ import { isDossierPaidInMonth } from "@/lib/monthlyMetrics";
 
 export default function DashboardTresorerie() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [agences, setAgences] = useState<AgenceLookup[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -43,11 +44,18 @@ export default function DashboardTresorerie() {
 
   const fetchDossiers = async () => {
     try {
-      const result = await dataService.getDossiers();
+      const [result, agenceResults] = await Promise.all([
+        dataService.getDossiers(),
+        dataService.getAgencesLookup().catch((error) => {
+          console.error("Impossible de charger les agences de référence :", error);
+          return [];
+        }),
+      ]);
       const visible = result.filter(
         (d) => d.new_status >= 100
       );
       setDossiers(visible);
+      setAgences(agenceResults.filter((agence) => agence.new_is_active));
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -105,33 +113,34 @@ export default function DashboardTresorerie() {
 
   const userName = localStorage.getItem("userName") || "Mohammed El Boubakri";
 
-  // ── Radar Chart: compare Chèques per agence (excluding Casablanca) ──
-  const DEFAULT_AGENCES = ["Rabat", "Tanger", "Marrakech", "Agadir", "Fès"];
-  const agenceMap = new Map<string, { cheque: number; total: number }>();
-  
-  // Initialize map with default agencies so they always appear in the chart
-  DEFAULT_AGENCES.forEach(ag => agenceMap.set(ag, { cheque: 0, total: 0 }));
-
-  dossiers.forEach((d) => {
-    let agence = d.new_destination_branch_id;
-    // Exclude Casablanca or unassigned since virements typically go there
-    if (!agence || agence.toLowerCase() === "casablanca") {
-      return;
-    }
-    if (!agenceMap.has(agence)) {
-      agenceMap.set(agence, { cheque: 0, total: 0 });
-    }
-    const entry = agenceMap.get(agence)!;
-    entry.total++;
-    if (d.new_payment_method === 1) {
-      entry.cheque++;
-    }
+  // ── Radar Chart: chèques affectés aux agences actives de la table de référence ──
+  const agenceMap = new Map<string, { cheque: number }>();
+  const agenceIdByName = new Map<string, string>();
+  agences.forEach((agence) => {
+    const normalizedId = agence.new_branchid.toLowerCase();
+    agenceMap.set(normalizedId, { cheque: 0 });
+    agenceIdByName.set(agence.new_name.trim().toLocaleLowerCase("fr-FR"), normalizedId);
   });
 
-  // Sort by total descending
+  dossiers.forEach((d) => {
+    if (d.new_payment_method !== 1 || !d.new_destination_branch_id) return;
+    const destination = d.new_destination_branch_id.trim();
+    const normalizedDestination = destination.toLowerCase();
+    const agenceId = agenceMap.has(normalizedDestination)
+      ? normalizedDestination
+      : agenceIdByName.get(destination.toLocaleLowerCase("fr-FR"));
+    if (!agenceId) return;
+    agenceMap.get(agenceId)!.cheque++;
+  });
+
+  // Keep all active reference agencies, including those with zero cheques.
   const agenceStats = Array.from(agenceMap.entries())
-    .map(([name, stats]) => ({ name, ...stats }))
-    .sort((a, b) => b.total - a.total);
+    .map(([id, stats]) => ({
+      id,
+      name: agences.find((agence) => agence.new_branchid.toLowerCase() === id)?.new_name || id,
+      ...stats,
+    }))
+    .sort((a, b) => b.cheque - a.cheque || a.name.localeCompare(b.name, "fr"));
 
   const radarData = agenceStats.map((a) => ({
     agence: a.name.length > 12 ? a.name.substring(0, 12) + '…' : a.name,
