@@ -441,9 +441,13 @@ export default function DossierDetailTresorerie() {
                   <div className="p-5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl flex items-start gap-4">
                     <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
                     <div>
-                <h4 className="font-bold text-emerald-800 dark:text-emerald-400">Règlement déjà préparé</h4>
+                      <h4 className="font-bold text-emerald-800 dark:text-emerald-400">
+                        {dossier.new_payment_method === 2 ? "Virement enregistré" : "Règlement déjà préparé"}
+                      </h4>
                       <p className="text-sm text-emerald-600 dark:text-emerald-300 mt-1">
-                        Les informations de paiement ont été saisies et le dossier a été transmis au Bureau d'Ordre pour remise finale.
+                        {dossier.new_payment_method === 2
+                          ? "Le virement est enregistré et le dossier est clôturé."
+                          : "Les informations du chèque ont été saisies et le dossier a été transmis au Bureau d'Ordre pour remise finale."}
                       </p>
                     </div>
                   </div>
@@ -856,7 +860,9 @@ export default function DossierDetailTresorerie() {
               </div>
               <div className="relative pl-6">
                 <div className={`absolute w-3 h-3 rounded-full -left-[7px] top-1.5 border-2 bg-white ${dossier.new_status >= 150 ? 'border-emerald-500' : 'border-slate-300'}`}></div>
-                <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>Remise du chèque (clôture)</p>
+                <p className={`text-sm font-bold ${dossier.new_status >= 150 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                  {dossier.new_payment_method === 2 ? "Virement enregistré (clôture)" : "Remise du chèque (clôture)"}
+                </p>
               </div>
             </div>
           </div>

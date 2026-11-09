@@ -256,7 +256,7 @@ export default function DashboardTresorerie() {
           iconBgClass="bg-emerald-50 dark:bg-emerald-500/10"
           animationDelay="180ms"
           onClick={() => navigate("/tresorerie/dossiers", { state: { filterStatus: 150 } })}
-          subtext={<span className="text-xs text-slate-400">Remise finale effectuée durant ce mois</span>}
+          subtext={<span className="text-xs text-slate-400">Paiements enregistrés durant ce mois</span>}
         />
       </div>
 
