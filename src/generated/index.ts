@@ -13,6 +13,7 @@ export * as New_foldersModel from './models/New_foldersModel';
 export * as New_reminderconfigurationsModel from './models/New_reminderconfigurationsModel';
 export * as New_suppliersModel from './models/New_suppliersModel';
 export * as New_transmissionsModel from './models/New_transmissionsModel';
+export * as New_userprofilesModel from './models/New_userprofilesModel';
 export * as SystemusersModel from './models/SystemusersModel';
 
 // Services
@@ -24,4 +25,5 @@ export * from './services/New_foldersService';
 export * from './services/New_reminderconfigurationsService';
 export * from './services/New_suppliersService';
 export * from './services/New_transmissionsService';
+export * from './services/New_userprofilesService';
 export * from './services/SystemusersService';

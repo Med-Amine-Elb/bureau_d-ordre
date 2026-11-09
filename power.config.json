@@ -51,6 +51,11 @@
           "entitySetName": "new_reminderconfigurations",
           "logicalName": "new_reminderconfiguration",
           "isHidden": false
+        },
+        "userprofiles": {
+          "entitySetName": "new_userprofiles",
+          "logicalName": "new_userprofile",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

@@ -1,317 +1,333 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Users,
-  UserPlus,
-  Edit2,
-  Trash2,
-  Mail,
   Building2,
-  UserCheck,
-  Shield,
+  Edit2,
+  Lock,
+  Mail,
   Search,
+  Shield,
+  UserCheck,
+  UserPlus,
+  Users,
   X,
-  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import { dataService } from "@/lib/dataService";
-import type { SystemUser, AgenceLookup } from "@/lib/dataService";
+import type {
+  AdminUserProfile,
+  DepartmentLookup,
+  AgenceLookup,
+  TransmissionRole,
+  UserProfileCandidate,
+  UserProfileInput,
+} from "@/lib/dataService";
+
+const ROLE_OPTIONS: { value: TransmissionRole; label: string }[] = [
+  { value: "BO", label: "Bureau d’Ordre" },
+  { value: "Prescripteur", label: "Prescripteur" },
+  { value: "DCF", label: "Comptabilité (DCF)" },
+  { value: "Trésorerie", label: "Trésorerie" },
+  { value: "Agence", label: "Agence" },
+  { value: "Admin", label: "Admin" },
+];
+
+const ROLE_BADGE: Record<TransmissionRole, string> = {
+  Admin: "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700",
+  BO: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50",
+  Prescripteur: "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50",
+  DCF: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/50",
+  "Trésorerie": "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50",
+  Agence: "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50",
+};
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : "Une erreur est survenue pendant l’opération.";
 
 export default function AdminUtilisateurs() {
-  const [users, setUsers] = useState<SystemUser[]>([]);
-  const [agences, setAgences] = useState<AgenceLookup[]>([]);
+  const [profiles, setProfiles] = useState<AdminUserProfile[]>([]);
+  const [candidates, setCandidates] = useState<UserProfileCandidate[]>([]);
+  const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
+  const [branches, setBranches] = useState<AgenceLookup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("Tous");
+  const [roleFilter, setRoleFilter] = useState<"Tous" | TransmissionRole>("Tous");
 
-  // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingUserId, setEditingUserId] = useState<string | null>(null);
-
-  // Form states
-  const [fullname, setFullname] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("BO");
-  const [agence, setAgence] = useState("");
-  const [status, setStatus] = useState("Actif");
+  const [editingProfile, setEditingProfile] = useState<AdminUserProfile | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [role, setRole] = useState<TransmissionRole>("BO");
+  const [departmentId, setDepartmentId] = useState("");
+  const [branchId, setBranchId] = useState("");
+  const [active, setActive] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError("");
     try {
-      const [uList, aList] = await Promise.all([
-        dataService.getUsers(),
-        dataService.getAgencesLookup()
+      const [userList, departmentList, branchList] = await Promise.all([
+        dataService.getUserProfileCandidates(),
+        dataService.getDepartmentsLookup(),
+        dataService.getAgencesLookup(),
       ]);
-      setUsers(uList);
-      setAgences(aList.filter(a => a.new_is_active));
-      if (aList.length > 0) {
-        setAgence(aList[0].new_name);
-      }
-    } catch (err) {
-      toast.error("Erreur lors de la récupération des données");
+      const profileList = await dataService.getUserProfiles(userList);
+      setProfiles(profileList);
+      setCandidates(userList);
+      setDepartments(departmentList.filter((item) => item.new_is_active));
+      setBranches(branchList.filter((item) => item.new_is_active));
+    } catch (error) {
+      setLoadError(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
-  const handleOpenAdd = () => {
-    setIsEditing(false);
-    setEditingUserId(null);
-    setFullname("");
-    setEmail("");
-    setRole("BO");
-    if (agences.length > 0) {
-      setAgence(agences[0].new_name);
-    } else {
-      setAgence("");
+  const availableUsers = useMemo(() => {
+    const assignedUserIds = new Set(
+      profiles
+        .filter((profile) => profile.id !== editingProfile?.id)
+        .map((profile) => profile.userId.toLowerCase()),
+    );
+    const available = candidates.filter((candidate) => !assignedUserIds.has(candidate.systemuserid.toLowerCase()));
+
+    // Keep the selected account visible while editing even if it was later disabled in Dataverse.
+    if (editingProfile && !available.some((candidate) => candidate.systemuserid === editingProfile.userId)) {
+      available.unshift({
+        systemuserid: editingProfile.userId,
+        fullname: editingProfile.userName,
+        internalemailaddress: editingProfile.email,
+      });
     }
-    setStatus("Actif");
-    setShowModal(true);
-  };
+    return available;
+  }, [candidates, profiles, editingProfile]);
 
-  const handleOpenEdit = (user: SystemUser) => {
-    setIsEditing(true);
-    setEditingUserId(user.systemuserid);
-    setFullname(user.fullname);
-    setEmail(user.internalemailaddress);
-    setRole(user.new_role);
-    setAgence(user.new_destination_branch_id || "");
-    setStatus(user.new_status);
-    setShowModal(true);
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!fullname.trim() || !email.trim()) {
-      toast.error("Veuillez remplir le nom et l'adresse email.");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      toast.error("L'adresse email n'est pas valide.");
-      return;
-    }
-
-    const payload: Partial<SystemUser> = {
-      fullname,
-      internalemailaddress: email,
-      new_role: role,
-      new_destination_branch_id: role === "Agence" ? agence : undefined,
-      new_status: status
-    };
-
-    try {
-      if (isEditing && editingUserId) {
-        await dataService.updateUser(editingUserId, payload);
-        toast.success("Utilisateur mis à jour.");
-      } else {
-        await dataService.createUser(payload);
-        toast.success("Nouvel utilisateur créé avec succès.");
-      }
-      setShowModal(false);
-      loadData();
-    } catch (err) {
-      toast.error("Erreur lors de l'enregistrement");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("Êtes-vous sûr de vouloir désactiver cet utilisateur ?")) {
-      try {
-        await dataService.updateUser(id, { new_status: "Inactif" });
-        toast.success("L'utilisateur a été marqué comme inactif.");
-        loadData();
-      } catch (err) {
-        toast.error("Erreur lors de la désactivation");
-      }
-    }
-  };
-
-  // Filtered users
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.fullname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.internalemailaddress.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "Tous" || u.new_role === roleFilter;
-    return matchesSearch && matchesRole;
+  const filteredProfiles = profiles.filter((profile) => {
+    const query = searchTerm.trim().toLocaleLowerCase("fr");
+    const matchesSearch = !query ||
+      profile.userName.toLocaleLowerCase("fr").includes(query) ||
+      profile.email.toLocaleLowerCase("fr").includes(query) ||
+      (profile.departmentName ?? "").toLocaleLowerCase("fr").includes(query) ||
+      (profile.branchName ?? "").toLocaleLowerCase("fr").includes(query);
+    return matchesSearch && (roleFilter === "Tous" || profile.role === roleFilter);
   });
 
-  const getRoleBadge = (userRole: string) => {
-    switch (userRole) {
-      case "Admin":
-        return "bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-850 dark:text-slate-200 dark:border-slate-800";
-      case "BO":
-        return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/30";
-      case "Prescripteur":
-        return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/30";
-      case "DCF":
-        return "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/30";
-      case "Tresorerie":
-        return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/30";
-      case "Agence":
-        return "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/30";
-      default:
-        return "bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400";
+  const resetForm = () => {
+    setEditingProfile(null);
+    setSelectedUserId("");
+    setRole("BO");
+    setDepartmentId("");
+    setBranchId("");
+    setActive(true);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEdit = (profile: AdminUserProfile) => {
+    setEditingProfile(profile);
+    setSelectedUserId(profile.userId);
+    setRole(profile.role);
+    setDepartmentId(profile.departmentId ?? "");
+    setBranchId(profile.branchId ?? "");
+    setActive(profile.active);
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    if (saving) return;
+    setShowModal(false);
+    resetForm();
+  };
+
+  const handleSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const account = availableUsers.find((candidate) => candidate.systemuserid === selectedUserId);
+    if (!account) {
+      toast.error("Sélectionnez un utilisateur Dataverse.");
+      return;
+    }
+    if (role === "Prescripteur" && !departmentId) {
+      toast.error("Sélectionnez la direction du Prescripteur.");
+      return;
+    }
+    if (role === "Agence" && !branchId) {
+      toast.error("Sélectionnez l’agence de cet utilisateur.");
+      return;
+    }
+
+    const input: UserProfileInput = {
+      userId: selectedUserId,
+      role,
+      active,
+      ...(role === "Prescripteur" ? { departmentId } : {}),
+      ...(role === "Agence" ? { branchId } : {}),
+    };
+
+    setSaving(true);
+    try {
+      if (editingProfile) {
+        await dataService.updateUserProfile(editingProfile.id, input, account.fullname);
+        toast.success("Profil mis à jour.");
+      } else {
+        await dataService.createUserProfile(input, account.fullname);
+        toast.success("Profil créé.");
+      }
+      setShowModal(false);
+      resetForm();
+      await loadData();
+    } catch (error) {
+      toast.error("Enregistrement impossible", { description: getErrorMessage(error) });
+    } finally {
+      setSaving(false);
     }
   };
 
+  const toggleProfile = async (profile: AdminUserProfile) => {
+    const account = candidates.find((candidate) => candidate.systemuserid === profile.userId);
+    const input: UserProfileInput = {
+      userId: profile.userId,
+      role: profile.role,
+      active: !profile.active,
+      ...(profile.departmentId ? { departmentId: profile.departmentId } : {}),
+      ...(profile.branchId ? { branchId: profile.branchId } : {}),
+    };
+    try {
+      await dataService.updateUserProfile(profile.id, input, account?.fullname ?? profile.userName);
+      toast.success(profile.active ? "Accès désactivé." : "Accès activé.");
+      await loadData();
+    } catch (error) {
+      toast.error("Modification impossible", { description: getErrorMessage(error) });
+    }
+  };
+
+  const inputClassName = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#1F3B73] focus:ring-2 focus:ring-[#1F3B73]/15 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100";
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex justify-between items-center">
+    <div className="w-full space-y-7 pb-10 animate-in fade-in duration-300">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-            Gestion des utilisateurs
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Gérez les comptes utilisateurs (`systemuser`) et affectez leurs rôles métiers et agences de destination.
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Profils utilisateur</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Attribuez un rôle et une affectation à un compte Dataverse existant.
           </p>
         </div>
         <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 bg-[#1F3B73] hover:bg-[#16294F] text-white px-5 py-3 rounded-xl font-bold transition-all hover:scale-[1.02] shadow-sm shadow-[#1F3B73]/20"
+          type="button"
+          onClick={openAdd}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1F3B73] px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-[#16294F]"
         >
-          <UserPlus className="w-5 h-5" /> Ajouter un utilisateur
+          <UserPlus className="h-5 w-5" /> Ajouter un profil
         </button>
       </div>
 
-      {/* Filters Card */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-4 items-center justify-between">
-        {/* Search */}
-        <div className="relative w-full md:w-96">
-          <Search className="w-5 h-5 absolute left-4 top-3.5 text-slate-400" />
+      <section className="flex flex-col items-stretch justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#0F172B] lg:flex-row lg:items-center">
+        <div className="relative w-full lg:max-w-md">
+          <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
           <input
-            type="text"
-            placeholder="Rechercher par nom, email..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 transition-all text-slate-950 dark:text-white"
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Rechercher un nom, un e-mail ou une affectation…"
+            className={`${inputClassName} pl-10`}
+            aria-label="Rechercher un profil"
           />
         </div>
-
-        {/* Roles Filters */}
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {["Tous", "Admin", "BO", "Prescripteur", "DCF", "Tresorerie", "Agence"].map((r) => (
+        <div className="flex flex-wrap gap-2">
+          {(["Tous", ...ROLE_OPTIONS.map((item) => item.value)] as ("Tous" | TransmissionRole)[]).map((item) => (
             <button
-              key={r}
-              onClick={() => setRoleFilter(r)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold border transition-all ${
-                roleFilter === r
-                  ? "bg-[#1F3B73] text-white border-[#1F3B73] shadow-sm"
-                  : "bg-white border-slate-200 text-slate-650 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800"
-              }`}
+              type="button"
+              key={item}
+              onClick={() => setRoleFilter(item)}
+              className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${roleFilter === item
+                ? "border-[#1F3B73] bg-[#1F3B73] text-white"
+                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"}`}
             >
-              {r === "Tous" ? "Tous les rôles" : r}
+              {item === "Tous" ? "Tous les rôles" : ROLE_OPTIONS.find((option) => option.value === item)?.label}
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Users Grid */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-3xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#0F172B]">
         {loading ? (
-          <div className="p-12 text-center text-slate-500 animate-pulse">Chargement de la liste...</div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="p-12 text-center text-slate-500">Aucun utilisateur trouvé.</div>
+          <div className="p-12 text-center text-sm text-slate-500">Chargement des profils…</div>
+        ) : loadError ? (
+          <div role="alert" className="m-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+            <p className="font-semibold">Impossible de charger les profils.</p>
+            <p className="mt-1 break-words">{loadError}</p>
+          </div>
+        ) : filteredProfiles.length === 0 ? (
+          <div className="flex flex-col items-center px-6 py-16 text-center">
+            <div className="mb-4 rounded-2xl bg-blue-50 p-3 text-[#1F3B73] dark:bg-blue-950/40 dark:text-blue-300"><Users className="h-6 w-6" /></div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+              {profiles.length === 0 ? "Aucun profil configuré" : "Aucun résultat"}
+            </h2>
+            <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
+              {profiles.length === 0
+                ? "Ajoutez un profil pour rattacher un compte Dataverse à un rôle de l’application."
+                : "Modifiez votre recherche ou le filtre de rôle."}
+            </p>
+            {profiles.length === 0 && (
+              <button type="button" onClick={openAdd} className="mt-5 rounded-xl bg-[#1F3B73] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#16294F]">
+                Ajouter un profil
+              </button>
+            )}
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-400 text-xs font-bold uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/30">
-                  <th className="py-4 px-6">Collaborateur</th>
-                  <th className="py-4 px-6">Email interne</th>
-                  <th className="py-4 px-6">Rôle système</th>
-                  <th className="py-4 px-6">Agence de destination</th>
-                  <th className="py-4 px-6">Statut</th>
-                  <th className="py-4 px-6">Dernière connexion</th>
-                  <th className="py-4 px-6 text-right">Actions</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-400">
+                  <th className="px-5 py-4">Utilisateur</th>
+                  <th className="px-5 py-4">Rôle</th>
+                  <th className="px-5 py-4">Direction</th>
+                  <th className="px-5 py-4">Agence</th>
+                  <th className="px-5 py-4">Accès</th>
+                  <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
-                {filteredUsers.map((u) => (
-                  <tr key={u.systemuserid} className="hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
-                    {/* User profile */}
-                    <td className="py-4 px-6 font-bold text-slate-850 dark:text-slate-100">
-                      <div className="flex items-center gap-3">
-                        {u.fullname}
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredProfiles.map((profile) => (
+                  <tr key={profile.id} className="transition hover:bg-slate-50/70 dark:hover:bg-slate-800/30">
+                    <td className="px-5 py-4">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{profile.userName}</div>
+                      <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                        <Mail className="h-3.5 w-3.5" />{profile.email || "E-mail indisponible"}
                       </div>
                     </td>
-
-                    {/* Email */}
-                    <td className="py-4 px-6 text-slate-500 font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 opacity-60" />
-                        {u.internalemailaddress}
-                      </div>
-                    </td>
-
-                    {/* Role */}
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${getRoleBadge(u.new_role)}`}>
-                        <Shield className="w-3 h-3" />
-                        {u.new_role}
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${ROLE_BADGE[profile.role]}`}>
+                        <Shield className="h-3.5 w-3.5" />
+                        {ROLE_OPTIONS.find((item) => item.value === profile.role)?.label ?? profile.role}
                       </span>
                     </td>
-
-                    {/* Agency Destination */}
-                    <td className="py-4 px-6 font-semibold text-slate-700 dark:text-slate-300">
-                      {u.new_role === "Agence" ? (
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-rose-500" />
-                          {u.new_destination_branch_id || "Non spécifiée"}
-                        </div>
-                      ) : (
-                        <span className="text-slate-350 dark:text-slate-600 font-normal">-</span>
-                      )}
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{profile.departmentName || "—"}</td>
+                    <td className="px-5 py-4 text-slate-600 dark:text-slate-300">{profile.branchName || "—"}</td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${profile.active ? "text-emerald-700 dark:text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>
+                        {profile.active ? <UserCheck className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                        {profile.active ? "Actif" : "Inactif"}
+                      </span>
                     </td>
-
-                    {/* Status */}
-                    <td className="py-4 px-6">
-                      {u.new_status === "Actif" ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400">
-                          <UserCheck className="w-3 h-3" /> Actif
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500">
-                          <Lock className="w-3 h-3" /> Inactif
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Last login */}
-                    <td className="py-4 px-6 text-slate-400 text-xs font-medium">
-                      {u.new_derniere_connexion ? (
-                        new Date(u.new_derniere_connexion).toLocaleString("fr-FR")
-                      ) : (
-                        <span className="italic text-slate-300 dark:text-slate-750">Jamais connecté</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEdit(u)}
-                          className="p-2 text-slate-450 hover:text-[#1F3B73] hover:bg-[#1F3B73]/5 rounded-lg transition-colors"
-                          title="Modifier l'utilisateur"
-                        >
-                          <Edit2 className="w-4 h-4" />
+                    <td className="px-5 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => openEdit(profile)} title="Modifier le profil" className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-[#1F3B73] dark:hover:bg-blue-950/40 dark:hover:text-blue-300">
+                          <Edit2 className="h-4 w-4" />
                         </button>
-                        {u.new_status === "Actif" && (
-                          <button
-                            onClick={() => handleDelete(u.systemuserid)}
-                            className="p-2 text-slate-450 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
-                            title="Désactiver l'utilisateur"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => void toggleProfile(profile)}
+                          title={profile.active ? "Désactiver le profil" : "Activer le profil"}
+                          className={`rounded-lg p-2 transition ${profile.active ? "text-slate-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30" : "text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"}`}
+                        >
+                          {profile.active ? <Lock className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -320,116 +336,83 @@ export default function AdminUtilisateurs() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Add / Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-100 dark:border-slate-800 rounded-3xl w-full max-w-lg shadow-2xl p-6 relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="user-profile-title" className="my-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-[#0F172B]">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 id="user-profile-title" className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
+                  <Users className="h-5 w-5 text-[#1F3B73] dark:text-blue-300" />
+                  {editingProfile ? "Modifier le profil" : "Ajouter un profil"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Le compte Microsoft/Dataverse doit déjà exister.</p>
+              </div>
+              <button type="button" onClick={closeModal} disabled={saving} aria-label="Fermer" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-5 w-5" /></button>
+            </div>
 
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mb-6">
-              <Users className="w-6 h-6 text-[#1F3B73]" />
-              {isEditing ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
-            </h2>
-
-            <form onSubmit={handleSave} className="space-y-5">
-              {/* Fullname */}
+            <form onSubmit={(event) => void handleSave(event)} className="space-y-5">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 tracking-wider">Nom complet</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: Sarah Alaoui"
-                  value={fullname}
-                  onChange={(e) => setFullname(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
-                />
+                <label htmlFor="profile-user" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Utilisateur <span className="text-red-500">*</span></label>
+                <select id="profile-user" required value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className={inputClassName}>
+                  <option value="">Sélectionner un compte actif…</option>
+                  {availableUsers.map((candidate) => (
+                    <option key={candidate.systemuserid} value={candidate.systemuserid}>
+                      {candidate.fullname} — {candidate.internalemailaddress || "E-mail indisponible"}
+                    </option>
+                  ))}
+                </select>
+                {availableUsers.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucun compte d’entreprise actif et disponible n’a été trouvé.</p>}
               </div>
 
-              {/* Email */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">E-mail interne</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="Ex: s.alaoui@gbm.ma"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white"
-                />
-              </div>
-
-              {/* Role & Status Row */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rôle métier</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
-                  >
-                    <option value="BO">Bureau d'Ordre</option>
-                    <option value="Prescripteur">Prescripteur</option>
-                    <option value="DCF">Comptabilité (DCF)</option>
-                    <option value="Tresorerie">Trésorerie</option>
-                    <option value="Agence">Agence régionale</option>
-                    <option value="Admin">Administrateur</option>
+                  <label htmlFor="profile-role" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Rôle <span className="text-red-500">*</span></label>
+                  <select id="profile-role" value={role} onChange={(event) => {
+                    const nextRole = event.target.value as TransmissionRole;
+                    setRole(nextRole);
+                    if (nextRole !== "Prescripteur") setDepartmentId("");
+                    if (nextRole !== "Agence") setBranchId("");
+                  }} className={inputClassName}>
+                    {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut du compte</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
-                  >
-                    <option value="Actif">Actif</option>
-                    <option value="Inactif">Inactif</option>
-                  </select>
-                </div>
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                  <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-4 w-4 accent-[#1F3B73]" />
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Profil actif</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400">Autoriser l’accès à l’application</span>
+                  </span>
+                </label>
               </div>
 
-              {/* Agency dropdown - visible only for Agence role */}
-              {role === "Agence" && (
-                <div className="space-y-1.5 animate-in slide-in-from-top-2 duration-200">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5 text-rose-500" /> Agence d'affectation
-                  </label>
-                  <select
-                    value={agence}
-                    onChange={(e) => setAgence(e.target.value)}
-                    className="w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1F3B73]/20 text-sm text-slate-950 dark:text-white font-semibold"
-                  >
-                    {agences.map((a) => (
-                      <option key={a.new_branchid} value={a.new_name}>
-                        {a.new_name} ({a.new_city})
-                      </option>
-                    ))}
+              {role === "Prescripteur" && (
+                <div className="space-y-1.5">
+                  <label htmlFor="profile-department" className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200"><Building2 className="h-4 w-4" /> Direction <span className="text-red-500">*</span></label>
+                  <select id="profile-department" required value={departmentId} onChange={(event) => setDepartmentId(event.target.value)} className={inputClassName}>
+                    <option value="">Sélectionner une direction…</option>
+                    {departments.map((item) => <option key={item.new_departmentid} value={item.new_departmentid}>{item.new_name}</option>)}
                   </select>
+                  {departments.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucune direction active disponible dans Dataverse.</p>}
                 </div>
               )}
 
-              {/* Submit Buttons */}
-              <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-550 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-sm font-bold transition-all"
-                >
-                  Enregistrer
+              {role === "Agence" && (
+                <div className="space-y-1.5">
+                  <label htmlFor="profile-branch" className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200"><Building2 className="h-4 w-4" /> Agence <span className="text-red-500">*</span></label>
+                  <select id="profile-branch" required value={branchId} onChange={(event) => setBranchId(event.target.value)} className={inputClassName}>
+                    <option value="">Sélectionner une agence…</option>
+                    {branches.map((item) => <option key={item.new_branchid} value={item.new_branchid}>{item.new_name}{item.new_city ? ` — ${item.new_city}` : ""}</option>)}
+                  </select>
+                  {branches.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucune agence active disponible dans Dataverse.</p>}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                <button type="button" onClick={closeModal} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Annuler</button>
+                <button type="submit" disabled={saving || availableUsers.length === 0} className="rounded-xl bg-[#1F3B73] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#16294F] disabled:cursor-not-allowed disabled:opacity-50">
+                  {saving ? "Enregistrement…" : editingProfile ? "Enregistrer" : "Créer le profil"}
                 </button>
               </div>
             </form>
@@ -439,5 +422,3 @@ export default function AdminUtilisateurs() {
     </div>
   );
 }
-
-

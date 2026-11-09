@@ -10,6 +10,7 @@ import { New_departementsService } from '../generated/services/New_departementsS
 import { New_transmissionsService } from '../generated/services/New_transmissionsService';
 import { New_dossierauditeventsService } from '../generated/services/New_dossierauditeventsService';
 import { New_reminderconfigurationsService } from '../generated/services/New_reminderconfigurationsService';
+import { New_userprofilesService } from '../generated/services/New_userprofilesService';
 import type {
   New_dossierauditevents,
   New_dossierauditeventsBase,
@@ -28,6 +29,7 @@ import type {
   New_transmissionsnew_torole,
   New_transmissionsnew_transmissionstatus,
 } from '../generated/models/New_transmissionsModel';
+import type { New_userprofilesnew_role } from '../generated/models/New_userprofilesModel';
 import { getContext } from '@microsoft/power-apps/app';
 import { companyRecord, departmentRecord, supplierRecord } from './referenceForms';
 import type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
@@ -155,6 +157,34 @@ export interface SystemUser {
   new_department_id?: string;
 }
 
+export interface UserProfileCandidate {
+  systemuserid: string;
+  fullname: string;
+  internalemailaddress: string;
+}
+
+export interface AdminUserProfile {
+  id: string;
+  profileName: string;
+  userId: string;
+  userName: string;
+  email: string;
+  role: TransmissionRole;
+  active: boolean;
+  departmentId?: string;
+  departmentName?: string;
+  branchId?: string;
+  branchName?: string;
+}
+
+export interface UserProfileInput {
+  userId: string;
+  role: TransmissionRole;
+  active: boolean;
+  departmentId?: string;
+  branchId?: string;
+}
+
 export interface ReferenceAudit {
   createdon?: string;
   modifiedon?: string;
@@ -237,6 +267,39 @@ const TRANSMISSION_ROLE_CODES: Record<TransmissionRole, number> = {
   Agence: 871840004,
   Admin: 871840005,
 };
+
+const TRANSMISSION_ROLE_BY_CODE: Record<number, TransmissionRole> = Object.fromEntries(
+  Object.entries(TRANSMISSION_ROLE_CODES).map(([role, code]) => [code, role]),
+) as Record<number, TransmissionRole>;
+
+const COMPANY_USER_EMAIL_DOMAIN = "@castel-afrique.com";
+
+const validateUserProfileInput = (input: UserProfileInput): void => {
+  if (!isGuid(input.userId)) throw new Error("Sélectionnez un compte Dataverse valide.");
+  if (input.role === "Prescripteur" && !isGuid(input.departmentId)) {
+    throw new Error("Une direction est obligatoire pour un Prescripteur.");
+  }
+  if (input.role === "Agence" && !isGuid(input.branchId)) {
+    throw new Error("Une agence est obligatoire pour un profil Agence.");
+  }
+};
+
+const toUserProfileRecord = (
+  input: UserProfileInput,
+  userName: string,
+  clearMissingRelationships: boolean,
+) => ({
+  new_profilename: `${userName} — ${input.role}`,
+  new_role: TRANSMISSION_ROLE_CODES[input.role] as New_userprofilesnew_role,
+  new_active: input.active,
+  "new_User@odata.bind": `/systemusers(${input.userId})`,
+  ...(input.departmentId
+    ? { "new_Department@odata.bind": `/new_departements(${input.departmentId})` }
+    : clearMissingRelationships ? { "new_Department@odata.bind": null } : {}),
+  ...(input.branchId
+    ? { "new_Branch@odata.bind": `/new_branchs(${input.branchId})` }
+    : clearMissingRelationships ? { "new_Branch@odata.bind": null } : {}),
+});
 
 const TRANSMISSION_AUDIT_STEP_LABELS: Record<TransmissionRole, string> = {
   BO: "En transit vers BO",
@@ -1114,6 +1177,127 @@ export const dataService = {
     const result = await SystemusersService.create(user as any);
     if (result.error) {
       throw new Error("Failed to create user: " + JSON.stringify(result.error));
+    }
+  },
+
+  // User Profiles (business access assignments; systemuser accounts are provisioned separately)
+  getUserProfileCandidates: async (): Promise<UserProfileCandidate[]> => {
+    const result = await SystemusersService.getAll({
+      filter: "isdisabled eq false and internalemailaddress ne null and systemmanagedusertype eq 0",
+      select: ["systemuserid", "fullname", "internalemailaddress", "isdisabled", "systemmanagedusertype"],
+      orderBy: ["fullname asc"],
+      top: 5000,
+    });
+    if (!result.success || result.error) {
+      throw new Error(`Impossible de charger les comptes Dataverse disponibles. ${JSON.stringify(result.error ?? {})}`);
+    }
+
+    return (result.data ?? [])
+      .filter((user) => {
+        const email = user.internalemailaddress?.trim().toLowerCase();
+        return !!user.systemuserid && !!user.fullname?.trim() && !!email?.endsWith(COMPANY_USER_EMAIL_DOMAIN);
+      })
+      .map((user) => ({
+        systemuserid: user.systemuserid,
+        fullname: user.fullname!.trim(),
+        internalemailaddress: user.internalemailaddress!.trim(),
+      }));
+  },
+  getUserProfiles: async (candidates: UserProfileCandidate[]): Promise<AdminUserProfile[]> => {
+    const profilesResult = await New_userprofilesService.getAll({
+      select: [
+        "new_userprofileid", "new_profilename", "new_role", "new_active",
+        "_new_user_value", "_new_department_value", "_new_branch_value",
+      ],
+      orderBy: ["new_profilename asc"],
+      top: 5000,
+    });
+    if (!profilesResult.success || profilesResult.error) {
+      throw new Error(`Impossible de charger les profils utilisateur Dataverse. ${JSON.stringify(profilesResult.error ?? {})}`);
+    }
+
+    const candidateById = new Map(candidates.map((user) => [user.systemuserid.toLowerCase(), user]));
+    return (profilesResult.data ?? []).map((profile) => {
+      const userId = profile._new_user_value ?? "";
+      const account = candidateById.get(userId.toLowerCase());
+      const role = TRANSMISSION_ROLE_BY_CODE[Number(profile.new_role)] ?? "BO";
+      return {
+        id: profile.new_userprofileid,
+        profileName: profile.new_profilename ?? account?.fullname ?? profile.new_username ?? "Profil sans nom",
+        userId,
+        userName: account?.fullname ?? profile.new_username ?? "Compte indisponible",
+        email: account?.internalemailaddress ?? "",
+        role,
+        active: profile.new_active ?? false,
+        departmentId: profile._new_department_value,
+        departmentName: profile.new_departmentname,
+        branchId: profile._new_branch_value,
+        branchName: profile.new_branchname,
+      };
+    });
+  },
+  getActiveProfileUsers: async (
+    role: TransmissionRole,
+    departmentId?: string,
+  ): Promise<SystemUser[]> => {
+    if (role === "Prescripteur" && !isGuid(departmentId)) return [];
+
+    const candidates = await dataService.getUserProfileCandidates();
+    const profiles = await dataService.getUserProfiles(candidates);
+    const candidateById = new Map(candidates.map((user) => [user.systemuserid.toLowerCase(), user]));
+
+    return profiles
+      .filter((profile) =>
+        profile.active &&
+        profile.role === role &&
+        (role !== "Prescripteur" || profile.departmentId?.toLowerCase() === departmentId!.toLowerCase()),
+      )
+      .map((profile) => {
+        const account = candidateById.get(profile.userId.toLowerCase());
+        if (!account) return null;
+        return {
+          systemuserid: account.systemuserid,
+          fullname: account.fullname,
+          internalemailaddress: account.internalemailaddress,
+          new_role: profile.role,
+          new_status: "Actif",
+          new_department_id: profile.departmentId,
+        };
+      })
+      .filter((user): user is SystemUser => user !== null)
+      .sort((a, b) => a.fullname.localeCompare(b.fullname, "fr"));
+  },
+  createUserProfile: async (input: UserProfileInput, userName: string): Promise<void> => {
+    validateUserProfileInput(input);
+    const existingProfiles = await New_userprofilesService.getAll({
+      filter: `_new_user_value eq ${input.userId}`,
+      select: ["new_userprofileid"],
+      top: 1,
+    });
+    if (!existingProfiles.success || existingProfiles.error) {
+      throw new Error("Impossible de vérifier si ce compte possède déjà un profil.");
+    }
+    if ((existingProfiles.data ?? []).length > 0) {
+      throw new Error("Ce compte possède déjà un profil. Modifiez le profil existant.");
+    }
+
+    const record = toUserProfileRecord(input, userName, false);
+    const result = await New_userprofilesService.create(
+      record as Parameters<typeof New_userprofilesService.create>[0],
+    );
+    if (!result.success || result.error) {
+      throw new Error("Impossible de créer le profil utilisateur dans Dataverse.");
+    }
+  },
+  updateUserProfile: async (id: string, input: UserProfileInput, userName: string): Promise<void> => {
+    validateUserProfileInput(input);
+    const record = toUserProfileRecord(input, userName, true);
+    const result = await New_userprofilesService.update(
+      id,
+      record as Parameters<typeof New_userprofilesService.update>[1],
+    );
+    if (!result.success || result.error) {
+      throw new Error("Impossible de modifier le profil utilisateur dans Dataverse.");
     }
   },
 
