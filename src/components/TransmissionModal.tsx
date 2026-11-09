@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Send, X } from "lucide-react";
 import { dataService } from "../lib/dataService";
+import type { SystemUser } from "../lib/dataService";
 
 interface TransmissionModalProps {
   isOpen: boolean;
@@ -23,41 +24,46 @@ export default function TransmissionModal({
 }: TransmissionModalProps) {
   const [collector, setCollector] = useState(initialCollector);
   const [comment, setComment] = useState("");
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
       setCollector(initialCollector);
       setComment("");
+      setUsers([]);
+      setLoadError("");
+      if (targetRole === "Prescripteur" && !directionId) {
+        setCollector("");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
-      
-      dataService.getUsers()
+      dataService.getActiveProfileUsers(
+        targetRole === "DCF" ? "DCF" : targetRole === "Trésorerie" ? "Trésorerie" : "Prescripteur",
+        directionId,
+      )
         .then((res) => {
           setUsers(res);
+          setCollector(res.some((user) => user.systemuserid === initialCollector) ? initialCollector : "");
         })
         .catch((err) => {
           console.error("Failed to load users for transmission modal:", err);
+          setLoadError(err instanceof Error ? err.message : "Impossible de charger les profils actifs.");
+          setCollector("");
         })
         .finally(() => {
           setLoading(false);
         });
     }
-  }, [isOpen, initialCollector]);
+  }, [isOpen, initialCollector, targetRole, directionId]);
 
   if (!isOpen) return null;
 
-  // Filter users based on targetRole and directionId
-  const filteredUsers = users.filter((u) => {
-    if (targetRole === "Prescripteur") {
-      // Filter by direction if directionId is specified
-      return !directionId || u.new_department_id === directionId;
-    }
-    // For DCF and Trésorerie, show all users
-    return true;
-  });
-
-  const canConfirm = collector !== "";
+  const canConfirm = !!collector && users.some((user) => user.systemuserid === collector) && !loading && !loadError;
+  const recipientLabel = targetRole === "DCF" ? "Collecteur DCF" : targetRole === "Trésorerie" ? "Collecteur Trésorerie" : "Prescripteur";
 
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,27 +99,35 @@ export default function TransmissionModal({
             {/* Selector */}
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Choisir le destinataire ({targetRole === "DCF" ? "Collecteur DCF" : targetRole === "Trésorerie" ? "Collecteur Trésorerie" : "Prescripteur"}) <span className="text-red-500">*</span>
+                Choisir le destinataire ({recipientLabel}) <span className="text-red-500">*</span>
               </label>
               <select
                 value={collector}
                 onChange={(e) => setCollector(e.target.value)}
                 required
+                disabled={loading || !!loadError || (targetRole === "Prescripteur" && !directionId) || users.length === 0}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
               >
                 <option value="" disabled>
                   {loading
                     ? "Chargement des destinataires..."
-                    : filteredUsers.length === 0
-                    ? "Aucun destinataire disponible pour cette direction"
+                    : loadError
+                    ? "Profils indisponibles"
+                    : targetRole === "Prescripteur" && !directionId
+                    ? "Direction du dossier manquante"
+                    : users.length === 0
+                    ? "Aucun profil actif correspondant"
                     : "Sélectionner un destinataire..."}
                 </option>
-                {filteredUsers.map((item) => (
+                {users.map((item) => (
                   <option key={item.systemuserid} value={item.systemuserid}>
                     {item.fullname}
                   </option>
                 ))}
               </select>
+              {loadError && <p role="alert" className="text-sm text-red-600 dark:text-red-400">Impossible de charger les destinataires depuis les profils actifs. Réessayez après vérification de la connexion Dataverse.</p>}
+              {!loadError && !loading && targetRole === "Prescripteur" && !directionId && <p role="alert" className="text-sm text-red-600 dark:text-red-400">Ce dossier n’a pas de direction. Ajoutez une direction avant de le transmettre à un Prescripteur.</p>}
+              {!loadError && !loading && directionId && users.length === 0 && <p className="text-sm text-amber-700 dark:text-amber-300">Aucun {recipientLabel} actif n’est configuré{targetRole === "Prescripteur" ? " pour la direction de ce dossier" : ""}.</p>}
             </div>
 
             {/* Comment */}
