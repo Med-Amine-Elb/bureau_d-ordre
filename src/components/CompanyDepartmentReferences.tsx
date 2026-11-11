@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, CheckCircle, Edit2, Plus, RefreshCw, Search } from "lucide-react";
+import { Building2, CheckCircle, Edit2, Plus, RefreshCw, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { dataService } from "@/lib/dataService";
@@ -17,8 +17,8 @@ const primaryClass = referencePrimaryClass;
 
 export default function CompanyDepartmentReferences({ kind }: { kind: ReferenceKind }) {
   const isCompany = kind === "societes";
-  const label = isCompany ? "société GBM" : "direction";
-  const title = isCompany ? "Sociétés GBM" : "Directions";
+  const label = isCompany ? "société" : "direction";
+  const title = isCompany ? "Sociétés" : "Directions";
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -60,7 +60,7 @@ export default function CompanyDepartmentReferences({ kind }: { kind: ReferenceK
     },
     onSuccess: async () => {
       setOpen(false);
-      toast.success(isCompany ? "Société GBM enregistrée." : "Direction enregistrée.");
+      toast.success(isCompany ? "Société enregistrée." : "Direction enregistrée.");
       await queryClient.invalidateQueries({ queryKey: ["admin-references", kind] });
       if (isCompany) await queryClient.invalidateQueries({ queryKey: ["reference-options", "companies"] });
     },
@@ -127,7 +127,17 @@ export default function CompanyDepartmentReferences({ kind }: { kind: ReferenceK
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {rows.map(row => <tr key={row.id}>
                 <td className="p-4 font-semibold">{row.new_name}</td><td className="p-4">{row.new_code}</td>
-                <td className="p-4"><span className={row.new_is_active ? "text-emerald-600" : "text-slate-500"}>{row.new_is_active ? "Active" : "Inactive"}</span></td>
+                <td className="p-4">
+                  {row.new_is_active ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400">
+                      <CheckCircle className="h-3.5 w-3.5" aria-hidden="true" /> Active
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700 dark:bg-red-950/20 dark:text-red-400">
+                      <XCircle className="h-3.5 w-3.5" aria-hidden="true" /> Inactive
+                    </span>
+                  )}
+                </td>
                 <td className="p-4"><div className="flex justify-end gap-3">
                   <button type="button" aria-label={`Modifier ${row.new_name}`} onClick={event => openForm(row, event.currentTarget)} disabled={save.isPending} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50 disabled:opacity-50"><Edit2 className="h-4 w-4" /></button>
                   <button type="button" onClick={() => save.mutate({ id: row.id, values: { new_is_active: !row.new_is_active } })} disabled={save.isPending} className="rounded-lg border border-slate-200 px-3 py-2 font-semibold dark:border-slate-700 disabled:opacity-50">{row.new_is_active ? "Désactiver" : "Activer"}</button>
@@ -140,14 +150,14 @@ export default function CompanyDepartmentReferences({ kind }: { kind: ReferenceK
 
       <Dialog open={open} onOpenChange={value => { if (!save.isPending) setOpen(value); }}>
         <DialogContent onCloseAutoFocus={event => { event.preventDefault(); returnFocus.current?.focus(); }} showCloseButton={!save.isPending} className="max-h-[90dvh] grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-2xl sm:max-w-2xl">
-          <DialogHeader className="pr-5"><DialogTitle>{editingId ? `Modifier la ${label}` : `Ajouter une ${label}`}</DialogTitle><DialogDescription>{isCompany ? "Identification et disponibilité de la société GBM." : "Identification, société de rattachement et disponibilité de la direction."} Les champs marqués * sont obligatoires.</DialogDescription></DialogHeader>
+          <DialogHeader className="pr-5"><DialogTitle>{editingId ? `Modifier la ${label}` : `Ajouter une ${label}`}</DialogTitle><DialogDescription>{isCompany ? "Identification et disponibilité de la société." : "Identification, société de rattachement et disponibilité de la direction."} Les champs marqués * sont obligatoires.</DialogDescription></DialogHeader>
           <form onSubmit={submit} className="flex min-h-0 flex-col" aria-busy={save.isPending}>
             <fieldset disabled={save.isPending} className="min-h-0 min-w-0 space-y-4 overflow-y-auto px-1 pb-2">
               <ReferenceSection title="Identification" description={isCompany ? "Le nom et le code permettent d'identifier la société dans les dossiers." : "Utilisez un nom explicite et le code de référence de votre direction."}>
                 <div className="space-y-2"><label htmlFor={`name-${kind}`} className="text-sm font-semibold">Nom *</label><input id={`name-${kind}`} required maxLength={referenceLimits.name} value={form.new_name} onChange={event => setForm(current => ({ ...current, new_name: event.target.value }))} className={fieldClass} /></div>
                 <div className="space-y-2"><label htmlFor={`code-${kind}`} className="text-sm font-semibold">Code *</label><input id={`code-${kind}`} required maxLength={referenceLimits.code} value={form.new_code} onChange={event => setForm(current => ({ ...current, new_code: event.target.value }))} className={fieldClass} /></div>
               </ReferenceSection>
-              {!isCompany && <ReferenceSection title="Rattachement organisationnel"><ReferenceRelationshipField id="direction-company" label="Société GBM" value={form.new_company_id ?? ""} currentName={initialRow?.new_company_name} options={(companies.data ?? []).map(row => ({ id: row.new_companyid, name: row.new_name, active: row.new_is_active }))} loading={companies.isPending} error={companies.isError} onChange={id => setForm(current => ({ ...current, new_company_id: id }))} onRetry={() => void companies.refetch()} /></ReferenceSection>}
+              {!isCompany && <ReferenceSection title="Rattachement organisationnel"><ReferenceRelationshipField id="direction-company" label="Société" value={form.new_company_id ?? ""} currentName={initialRow?.new_company_name} options={(companies.data ?? []).map(row => ({ id: row.new_companyid, name: row.new_name, active: row.new_is_active }))} loading={companies.isPending} error={companies.isError} onChange={id => setForm(current => ({ ...current, new_company_id: id }))} onRetry={() => void companies.refetch()} /></ReferenceSection>}
               <ReferenceActivity feminine checked={form.new_is_active} onChange={active => setForm(current => ({ ...current, new_is_active: active }))} />
               <ReferenceAuditPanel id={editingId} audit={initialRow} />
               {validationError && <p role="alert" className="text-sm text-red-600">{validationError}</p>}

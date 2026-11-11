@@ -201,7 +201,7 @@ export default function AdminReferences() {
             Tables de référence
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-            Gérez les fournisseurs, sociétés GBM, directions et agences utilisés dans les dossiers.
+            Gérez les fournisseurs, sociétés, directions et agences utilisés dans les dossiers.
           </p>
         </div>
         {activeTab === "fournisseurs" ? (
@@ -258,7 +258,7 @@ export default function AdminReferences() {
         </button>
         {(["societes", "directions"] as const).map(tab => (
           <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => setActiveTab(tab)} className={`flex shrink-0 items-center gap-2 border-b-2 px-6 py-3 text-sm font-bold transition-colors ${activeTab === tab ? "border-[#1F3B73] text-[#1F3B73] dark:border-blue-400 dark:text-blue-400" : "border-transparent text-slate-500 hover:text-slate-900 dark:hover:text-white"}`}>
-            <Building className="h-4 w-4" />{tab === "societes" ? "Sociétés GBM" : "Directions"}
+            <Building className="h-4 w-4" />{tab === "societes" ? "Sociétés" : "Directions"}
           </button>
         ))}
       </div>
