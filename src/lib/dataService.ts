@@ -119,6 +119,7 @@ export interface Dossier {
   new_linked_folder_id?: string;
   new_treasury_comment?: string;
   new_collecteur_treso?: string;
+  new_collecteur_treso_name?: string;
 
   // React Pages Required Fields
   new_destination_branch_id?: string;
@@ -591,6 +592,10 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
     new_accounting_date: entity.new_accountingdate || undefined,
     new_est_comptabilise: !!entity.new_accountingdate,
     new_collecteur_treso: entity._new_treasury_collector_id_value || undefined,
+    new_collecteur_treso_name:
+      entity["_new_treasury_collector_id_value@OData.Community.Display.V1.FormattedValue"] ||
+      entity.new_treasury_collector_idname ||
+      undefined,
     new_treasury_comment: entity.new_treasury_comment || undefined,
     new_return_reason: entity.new_return_reason || undefined,
     new_person_to_deliver: entity.new_person_to_deliver || undefined,

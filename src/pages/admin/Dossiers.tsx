@@ -37,6 +37,7 @@ export default function AdminDossiers() {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showCollectorModal, setShowCollectorModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
+  const [auditTab, setAuditTab] = useState<"details" | "circuit">("circuit");
 
   // Form states
   const [newStatus, setNewStatus] = useState<number>(10);
@@ -83,6 +84,17 @@ export default function AdminDossiers() {
     setNewStatus(dossier.new_status);
     setNewCommentaire("");
     setShowStatusModal(true);
+  };
+
+  const handleOpenAudit = (dossier: Dossier) => {
+    setSelectedDossierForAudit(dossier);
+    setAuditTab("circuit");
+    setShowAuditModal(true);
+  };
+
+  const handleCloseAudit = () => {
+    setShowAuditModal(false);
+    setSelectedDossierForAudit(null);
   };
 
   const handleSaveStatus = async (e: React.FormEvent) => {
@@ -387,10 +399,7 @@ export default function AdminDossiers() {
                           Réassigner
                         </button>
                         <button
-                          onClick={() => {
-                            setSelectedDossierForAudit(d);
-                            setShowAuditModal(true);
-                          }}
+                          onClick={() => handleOpenAudit(d)}
                           className="p-2 text-slate-400 hover:text-[#1F3B73] hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors"
                           title="Historique & Audit Log"
                         >
@@ -585,94 +594,90 @@ export default function AdminDossiers() {
 
       {/* Audit Log Modal */}
       {showAuditModal && selectedDossierForAudit && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/30">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-blue-500/10 text-[#1F3B73] dark:text-blue-400">
-                  <History className="w-5 h-5" />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="flex h-[90vh] max-h-[900px] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-[#0F172B]">
+            <header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-5 dark:border-slate-800 sm:px-7">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="shrink-0 rounded-2xl bg-blue-50 p-3 text-[#1F3B73] dark:bg-blue-950/50 dark:text-blue-300">
+                  <History className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-lg leading-tight">
-                    Journal d’audit et cycle de vie
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Dossier {selectedDossierForAudit.new_folder_number} • Événements et étapes Dataverse
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAuditModal(false);
-                  setSelectedDossierForAudit(null);
-                }}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl transition-all"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Scrollable Timeline */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* General Metadata Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fournisseur</span>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedDossierForAudit.new_supplier_id || "-"}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Société GBM</span>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">{selectedDossierForAudit.new_company_id || "-"}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Type</span>
-                  <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block">
-                    {selectedDossierForAudit.new_document_type === 100 ? "Facture" :
-                     selectedDossierForAudit.new_document_type === 200 ? "Avoir" :
-                     selectedDossierForAudit.new_document_type === 500 ? "Acompte" : "Courrier"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Statut actuel</span>
-                  <span className="text-xs font-semibold text-[#1F3B73] dark:text-blue-400 block">
-                    {getStatusLabel(selectedDossierForAudit.new_status)} ({selectedDossierForAudit.new_status})
-                  </span>
-                </div>
-              </div>
-
-              <DossierInformationPanel dossier={selectedDossierForAudit} />
-
-              <DossierAuditTimeline folderId={selectedDossierForAudit.new_folderid} />
-
-              {/* Technical Description Comments Audit */}
-              {selectedDossierForAudit.new_description && (
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                  <h4 className="text-xs font-bold text-slate-400 tracking-wider">Commentaires et dérogations techniques</h4>
-                  <div className="bg-slate-50 dark:bg-slate-900/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80 text-xs font-medium text-slate-650 dark:text-slate-400 space-y-2 divide-y divide-slate-100 dark:divide-slate-800/50">
-                    {selectedDossierForAudit.new_description.split("|").map((segment, idx) => (
-                      <div key={idx} className={`${idx > 0 ? "pt-2" : ""} leading-relaxed`}>
-                        {segment.trim()}
-                      </div>
-                    ))}
+                <div className="min-w-0">
+                  <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-slate-100">Journal du dossier</h2>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedDossierForAudit.new_folder_number}</span>
+                    <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">{getTypeLabel(selectedDossierForAudit.new_document_type)}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">{getStatusLabel(selectedDossierForAudit.new_status)}</span>
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 text-right">
+              </div>
               <button
                 type="button"
-                onClick={() => {
-                  setShowAuditModal(false);
-                  setSelectedDossierForAudit(null);
-                }}
-                className="px-5 py-2.5 bg-[#1F3B73] hover:bg-[#16294F] text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-[#1F3B73]/20"
+                aria-label="Fermer le journal du dossier"
+                onClick={handleCloseAudit}
+                className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F3B73] dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </header>
+
+            <div className="border-b border-slate-200 px-5 dark:border-slate-800 sm:px-7">
+              <div className="flex gap-1" role="tablist" aria-label="Contenu du journal du dossier">
+                <button
+                  id="audit-details-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected={auditTab === "details"}
+                  aria-controls="audit-details-panel"
+                  onClick={() => setAuditTab("details")}
+                  className={`border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1F3B73] sm:px-4 ${auditTab === "details" ? "border-[#1F3B73] text-[#1F3B73] dark:border-blue-400 dark:text-blue-300" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}
+                >
+                  Détails du dossier
+                </button>
+                <button
+                  id="audit-circuit-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected={auditTab === "circuit"}
+                  aria-controls="audit-circuit-panel"
+                  onClick={() => setAuditTab("circuit")}
+                  className={`border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1F3B73] sm:px-4 ${auditTab === "circuit" ? "border-[#1F3B73] text-[#1F3B73] dark:border-blue-400 dark:text-blue-300" : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}
+                >
+                  Circuit &amp; audit
+                </button>
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4 dark:bg-slate-950/20 sm:p-6">
+              <div id="audit-details-panel" role="tabpanel" aria-labelledby="audit-details-tab" hidden={auditTab !== "details"} className="mx-auto max-w-5xl space-y-5">
+                <DossierInformationPanel dossier={selectedDossierForAudit} />
+                {selectedDossierForAudit.new_description && (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0F172B]">
+                    <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Commentaires et dérogations techniques</h3>
+                    <div className="mt-3 divide-y divide-slate-100 rounded-xl bg-slate-50 px-4 dark:divide-slate-800 dark:bg-slate-900/50">
+                      {selectedDossierForAudit.new_description.split("|").map((segment, idx) => (
+                        <p key={`${idx}-${segment}`} className="py-3 text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+                          {segment.trim()}
+                        </p>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+              <div id="audit-circuit-panel" role="tabpanel" aria-labelledby="audit-circuit-tab" hidden={auditTab !== "circuit"} className="mx-auto max-w-5xl">
+                <DossierAuditTimeline folderId={selectedDossierForAudit.new_folderid} />
+              </div>
+            </div>
+
+            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3.5 dark:border-slate-800 dark:bg-[#0F172B] sm:px-7">
+              <p className="text-xs text-slate-500 dark:text-slate-400">Le circuit présente les événements et transmissions enregistrés dans Dataverse.</p>
+              <button
+                type="button"
+                onClick={handleCloseAudit}
+                className="rounded-xl bg-[#1F3B73] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#16294F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1F3B73] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0F172B]"
               >
                 Fermer
               </button>
-            </div>
+            </footer>
           </div>
         </div>
       )}
