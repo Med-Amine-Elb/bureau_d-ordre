@@ -1,9 +1,9 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom"
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom"
 import {
   LayoutDashboard, Package, Users, FileText,
   Settings, LogOut,
   Sun, Moon, Bell, RotateCcw,
-  Calendar, Trash2, AlertTriangle, Inbox,
+  Calendar, Trash2, AlertTriangle, Inbox, CircleUserRound,
   Menu, X
 } from "lucide-react"
 import { useState, useEffect } from "react"
@@ -14,16 +14,23 @@ import { dataService } from "@/lib/dataService"
 import type { Dossier } from "@/lib/dataService"
 import { generateNotifications } from "@/lib/notificationEngine"
 import type { AppNotification } from "@/lib/notificationEngine"
+import { clearAppSession, resolvePowerAppsSession } from "@/lib/powerAppsSession"
+import logoSbm from "@/assets/images/logo_sbm.png"
+import logoSbmWhite from "@/assets/images/logo_sbm_white.png"
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('theme') === 'dark';
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const role = localStorage.getItem('userRole') || 'BO';
-  const userAgence = localStorage.getItem('userAgence') || '';
+  const [role, setRole] = useState(localStorage.getItem('userRole') || '');
+  const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
+  const [authState, setAuthState] = useState<"loading" | "ready" | "denied">("loading");
+  const [authMessage, setAuthMessage] = useState("");
+  const [userAgence, setUserAgence] = useState(localStorage.getItem('userAgence') || '');
 
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -44,6 +51,37 @@ export default function DashboardLayout() {
   });
   const [prevNotifIds, setPrevNotifIds] = useState<string[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  useEffect(() => {
+    if (import.meta.env.DEV && sessionStorage.getItem("appAuthMode") === "simulation") {
+      setRole(localStorage.getItem("userRole") || "BO");
+      setUserName(localStorage.getItem("userName") || "Session de test");
+      setAuthState("ready");
+      return;
+    }
+
+    let cancelled = false;
+    void resolvePowerAppsSession()
+      .then((session) => {
+        if (cancelled) return;
+        setRole(session.appRole);
+        setUserName(session.profile.userName);
+        setUserAgence(session.profile.branchName || "");
+        setAuthState("ready");
+        const rolePrefix = session.dashboardPath.replace(/\/dashboard$/, "");
+        if (!location.pathname.startsWith(rolePrefix)) {
+          navigate(session.dashboardPath, { replace: true });
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        clearAppSession();
+        setAuthMessage(error instanceof Error ? error.message : "La session Power Apps n’a pas pu être vérifiée.");
+        setAuthState("denied");
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const handleDismissNotification = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -176,7 +214,6 @@ export default function DashboardLayout() {
   ).length;
   const countBoRemises = dossiers.filter(d => d.new_status === 120 && d.new_payment_method === 1).length;
   const countBoCorrections = dossiers.filter(d => d.new_status === 90).length;
-  const countBoRelances = dossiers.filter(d => d.new_is_blocked).length;
 
   const menuItems = isAdmin ? [
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin/dashboard" },
@@ -201,13 +238,33 @@ export default function DashboardLayout() {
     { icon: LayoutDashboard, label: "Dashboard", path: "/bo/dashboard" },
     { icon: FileText, label: "Tous les dossiers", path: "/bo/dossiers" },
     { icon: Package, label: "Chèques à Remettre", path: "/bo/remises", badge: countBoRemises > 0 ? String(countBoRemises) : undefined },
-    { icon: Users, label: "Relances", path: "/bo/relances", badge: countBoRelances > 0 ? String(countBoRelances) : undefined },
+    { icon: Users, label: "Relances", path: "/bo/relances" },
     { icon: RotateCcw, label: "Corrections & Retours", path: "/bo/corrections", badge: countBoCorrections > 0 ? String(countBoCorrections) : undefined }
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('userRole');
+    const wasPowerAppsSession = sessionStorage.getItem("appAuthMode") === "powerapps";
+    clearAppSession();
+    if (wasPowerAppsSession) sessionStorage.setItem("appSignedOut", "true");
     navigate('/');
+  }
+
+  if (authState !== "ready") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 dark:bg-[#080D1A]">
+        <section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-[#0F172B]">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+            {authState === "loading" ? "Vérification de votre accès…" : "Accès non autorisé"}
+          </h1>
+          {authMessage && <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">{authMessage}</p>}
+          {authState === "denied" && (
+            <button type="button" onClick={() => window.location.reload()} className="mt-6 rounded-lg bg-[#1F3B73] px-5 py-2.5 text-sm font-semibold text-white">
+              Réessayer
+            </button>
+          )}
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -235,7 +292,7 @@ export default function DashboardLayout() {
               <X className="w-5 h-5" />
             </button>
             <img
-              src={darkMode ? "/images/logo_sbm_white.png" : "/images/logo_sbm.png"}
+              src={darkMode ? logoSbmWhite : logoSbm}
               alt="Groupe SBM"
               className="h-14 object-contain"
             />
@@ -297,16 +354,20 @@ export default function DashboardLayout() {
           </nav>
 
           {/* User Profile */}
-          <div className="p-3 mx-4 mb-2 rounded-xl transition-colors bg-white border border-slate-100 shadow-sm dark:bg-slate-800 dark:border-slate-700">
-            <div>
-              <div>
-                <p className="text-sm font-bold text-slate-900 dark:text-white">
-                  {role === 'Prescripteur' ? 'Prescripteur' : role === 'DCF' ? 'Comptabilité' : role === 'Tresorerie' ? 'Trésorerie' : role === 'Agence' ? 'Agence Régionale' : role === 'Admin' ? 'Administrateur' : 'Bureau d\'Ordre'}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                  {role === 'Prescripteur' ? 'Direction Métier' : role === 'DCF' ? 'Finances' : role === 'Tresorerie' ? 'Règlements' : role === 'Agence' ? 'Régional' : role === 'Admin' ? 'Admin Système' : 'Agent BO'}
-                </p>
-              </div>
+          <div className="mx-4 mb-2 flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-3 shadow-sm transition-colors dark:border-slate-700 dark:bg-slate-900/80">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-hidden="true">
+              <CircleUserRound className="h-5 w-5" strokeWidth={1.8} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className="truncate text-[13px] font-semibold leading-5 text-slate-900 dark:text-slate-100"
+                title={userName || undefined}
+              >
+                {userName || "Utilisateur"}
+              </p>
+              <p className="truncate text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                {role === 'Prescripteur' ? 'Prescripteur · Direction métier' : role === 'DCF' ? 'Comptabilité · Finances' : role === 'Tresorerie' ? 'Trésorerie · Règlements' : role === 'Agence' ? 'Agence régionale' : role === 'Admin' ? 'Administrateur · Système' : 'Bureau d’ordre · Agent'}
+              </p>
             </div>
           </div>
         </div>

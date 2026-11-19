@@ -178,6 +178,15 @@ export interface AdminUserProfile {
   branchName?: string;
 }
 
+export interface CurrentUserProfile {
+  systemUserId: string;
+  userName: string;
+  role: TransmissionRole;
+  departmentId?: string;
+  branchId?: string;
+  branchName?: string;
+}
+
 export interface UserProfileInput {
   userId: string;
   role: TransmissionRole;
@@ -251,6 +260,15 @@ export interface DossierAuditEvent extends New_dossierauditevents {
   recipientLabel?: string;
   previousStatusLabel?: string;
   newStatusLabel?: string;
+}
+
+export interface DueInternalReminder {
+  dossier: Dossier;
+  recipientId: string;
+  recipientName: string;
+  recipientRole: string;
+  dueAt: string;
+  lastReminderAt?: string;
 }
 
 export interface DossierCorrectionInfo {
@@ -757,6 +775,108 @@ export const dataService = {
     return result.data?.length ?? 0;
   },
 
+  getDueInternalReminders: async (now: Date = new Date()): Promise<DueInternalReminder[]> => {
+    const [dossiers, config, receiptsResult, remindersResult] = await Promise.all([
+      dataService.getDossiers(),
+      dataService.getSystemConfig(),
+      New_dossierauditeventsService.getAll({
+        filter: `new_eventtype eq ${AUDIT_EVENT_TYPE_CODES.ReceiptConfirmed}`,
+        select: [
+          "new_dossierauditeventid", "new_eventdate", "new_eventtype", "new_newstatus", "new_actorrole",
+          "_new_dossier_value", "_new_recipient_value",
+        ],
+        orderBy: ["new_eventdate desc"],
+        top: 5000,
+      }),
+      New_dossierauditeventsService.getAll({
+        filter: `new_eventtype eq ${AUDIT_EVENT_TYPE_CODES.ReminderSent}`,
+        select: ["new_eventdate", "new_eventtype", "new_newstatus", "new_relatedreference", "_new_recipient_value"],
+        orderBy: ["new_eventdate desc"],
+        top: 5000,
+      }),
+    ]);
+
+    if (receiptsResult.error || remindersResult.error) {
+      throw new Error("Impossible de lire les événements nécessaires au calcul des relances.");
+    }
+    if (!config.new_remindersenabled) return [];
+
+    const dossierById = new Map(dossiers.map((dossier) => [dossier.new_folderid.toLowerCase(), dossier]));
+    const reminderRows = remindersResult.data ?? [];
+    const latestReceiptByFolder = new Map<string, New_dossierauditevents>();
+
+    for (const receipt of receiptsResult.data ?? []) {
+      const folderId = String(receipt._new_dossier_value ?? "").toLowerCase();
+      const current = folderId ? dossierById.get(folderId) : undefined;
+      if (!folderId || !current || Number(receipt.new_newstatus) !== Number(current.new_status)) continue;
+      const recipientId = String(receipt._new_recipient_value ?? "");
+      const receiptAt = Date.parse(receipt.new_eventdate ?? "");
+      if (!recipientId || !Number.isFinite(receiptAt)) continue;
+      if (!latestReceiptByFolder.has(folderId)) latestReceiptByFolder.set(folderId, receipt);
+    }
+
+    const recipientNameById = new Map<string, string>();
+    for (const receipt of latestReceiptByFolder.values()) {
+      const raw = receipt as New_dossierauditevents & Record<string, unknown>;
+      const recipientId = String(receipt._new_recipient_value ?? "").toLowerCase();
+      const recipientName = String(raw["_new_recipient_value@OData.Community.Display.V1.FormattedValue"] ?? "").trim();
+      if (recipientId && recipientName) recipientNameById.set(recipientId, recipientName);
+    }
+    const missingRecipientIds = [...new Set(
+      [...latestReceiptByFolder.values()]
+        .map((receipt) => String(receipt._new_recipient_value ?? "").toLowerCase())
+        .filter((id) => isGuid(id) && !recipientNameById.has(id)),
+    )];
+    if (missingRecipientIds.length) {
+      const usersResult = await SystemusersService.getAll({
+        filter: missingRecipientIds.map((id) => `systemuserid eq ${id}`).join(" or "),
+        select: ["systemuserid", "fullname"],
+        top: missingRecipientIds.length,
+      });
+      for (const user of usersResult.data ?? []) {
+        if (user.fullname?.trim()) recipientNameById.set(user.systemuserid.toLowerCase(), user.fullname.trim());
+      }
+    }
+
+    const roleNameByCode = new Map<number, string>(
+      Object.entries(TRANSMISSION_ROLE_CODES).map(([role, code]) => [code, role] as [number, string]),
+    );
+    const pending: DueInternalReminder[] = [];
+    const initialDelayDays = Math.max(1, config.new_initialdelaydays || 7);
+    const repeatIntervalDays = Math.max(1, config.new_repeatintervaldays || 1);
+    const dayMs = 24 * 60 * 60 * 1000;
+
+    for (const [folderId, receipt] of latestReceiptByFolder) {
+      const dossier = dossierById.get(folderId);
+      if (!dossier) continue;
+      const receiptId = String(receipt.new_dossierauditeventid ?? "").toLowerCase();
+      const recipientId = String(receipt._new_recipient_value ?? "");
+      const relatedReminders = reminderRows.filter((reminder) =>
+        String(reminder.new_relatedreference ?? "").toLowerCase() === receiptId &&
+        Number(reminder.new_newstatus) === Number(receipt.new_newstatus) &&
+        (!reminder._new_recipient_value || String(reminder._new_recipient_value).toLowerCase() === recipientId.toLowerCase()) &&
+        Date.parse(reminder.new_eventdate ?? "") >= Date.parse(receipt.new_eventdate ?? ""),
+      );
+      const lastReminder = relatedReminders[0];
+      const dueAtMs = lastReminder
+        ? Date.parse(lastReminder.new_eventdate ?? "") + repeatIntervalDays * dayMs
+        : Date.parse(receipt.new_eventdate ?? "") + initialDelayDays * dayMs;
+      if (!Number.isFinite(dueAtMs) || now.getTime() < dueAtMs) continue;
+
+      const roleCode = Number(receipt.new_actorrole);
+      pending.push({
+        dossier,
+        recipientId,
+        recipientName: recipientNameById.get(recipientId.toLowerCase()) ?? "Nom indisponible dans Dataverse",
+        recipientRole: roleNameByCode.get(roleCode) ?? "Responsable interne",
+        dueAt: new Date(dueAtMs).toISOString(),
+        lastReminderAt: lastReminder?.new_eventdate || undefined,
+      });
+    }
+
+    return pending.sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+  },
+
   getDossierAuditEvents: async (folderId: string): Promise<DossierAuditEvent[]> => {
     if (!isGuid(folderId)) throw new Error("Identifiant de dossier invalide.");
     const result = await New_dossierauditeventsService.getAll({
@@ -1244,6 +1364,47 @@ export const dataService = {
       };
     });
   },
+  getCurrentUserProfile: async (): Promise<CurrentUserProfile> => {
+    const systemUserId = await getCurrentSystemUserId();
+    const [result, userResult] = await Promise.all([
+      New_userprofilesService.getAll({
+      filter: `_new_user_value eq ${systemUserId} and new_active eq true`,
+      select: [
+        "new_userprofileid", "new_role", "new_active",
+        "_new_user_value", "_new_department_value", "_new_branch_value",
+      ],
+      top: 2,
+      }),
+      SystemusersService.get(systemUserId, { select: ["systemuserid", "fullname"] }),
+    ]);
+    if (!result.success || result.error) {
+      throw new Error("Impossible de vérifier votre profil d’accès dans Dataverse.");
+    }
+    if (!userResult.success || userResult.error || !userResult.data?.fullname?.trim()) {
+      throw new Error("Impossible de lire le nom de votre compte Dataverse.");
+    }
+
+    const profiles = result.data ?? [];
+    if (profiles.length === 0) {
+      throw new Error("Aucun profil actif n’est configuré pour votre compte. Contactez l’administrateur.");
+    }
+    if (profiles.length > 1) {
+      throw new Error("Plusieurs profils actifs sont associés à votre compte. Contactez l’administrateur.");
+    }
+
+    const profile = profiles[0];
+    const role = TRANSMISSION_ROLE_BY_CODE[Number(profile.new_role)];
+    if (!role) throw new Error("Le rôle de votre profil Dataverse n’est pas reconnu.");
+
+    return {
+      systemUserId,
+      userName: userResult.data.fullname.trim(),
+      role,
+      departmentId: profile._new_department_value,
+      branchId: profile._new_branch_value,
+      branchName: profile.new_branchname,
+    };
+  },
   getActiveProfileUsers: async (
     role: TransmissionRole,
     departmentId?: string,
@@ -1254,26 +1415,25 @@ export const dataService = {
     const profiles = await dataService.getUserProfiles(candidates);
     const candidateById = new Map(candidates.map((user) => [user.systemuserid.toLowerCase(), user]));
 
-    return profiles
+    const activeUsers = profiles
       .filter((profile) =>
         profile.active &&
         profile.role === role &&
         (role !== "Prescripteur" || profile.departmentId?.toLowerCase() === departmentId!.toLowerCase()),
       )
-      .map((profile) => {
+      .flatMap((profile): SystemUser[] => {
         const account = candidateById.get(profile.userId.toLowerCase());
-        if (!account) return null;
-        return {
+        if (!account) return [];
+        return [{
           systemuserid: account.systemuserid,
           fullname: account.fullname,
           internalemailaddress: account.internalemailaddress,
           new_role: profile.role,
           new_status: "Actif",
           new_department_id: profile.departmentId,
-        };
-      })
-      .filter((user): user is SystemUser => user !== null)
-      .sort((a, b) => a.fullname.localeCompare(b.fullname, "fr"));
+        }];
+      });
+    return activeUsers.sort((a, b) => a.fullname.localeCompare(b.fullname, "fr"));
   },
   createUserProfile: async (input: UserProfileInput, userName: string): Promise<void> => {
     validateUserProfileInput(input);
@@ -1454,13 +1614,16 @@ export const dataService = {
       if (!result.success || result.error) throw new Error("Impossible d'enregistrer la configuration des relances dans Dataverse.");
       return;
     }
-    const result = await New_reminderconfigurationsService.create({
+    const record = {
       new_newcolumn: "Configuration globale des relances",
       new_remindersenabled: config.new_remindersenabled ?? true,
       new_initialdelaydays: config.new_initialdelaydays ?? 7,
       new_repeatintervaldays: config.new_repeatintervaldays ?? 1,
       new_invoicereceiptlimitdays: config.new_invoicereceiptlimitdays ?? 5,
-    });
+    };
+    const result = await New_reminderconfigurationsService.create(
+      record as Parameters<typeof New_reminderconfigurationsService.create>[0],
+    );
     if (!result.success || result.error) throw new Error("Impossible de créer la configuration des relances dans Dataverse.");
   },
 

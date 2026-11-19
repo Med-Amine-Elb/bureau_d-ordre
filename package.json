@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@microsoft/power-apps-cli": "^1.4.2",
     "@microsoft/power-apps-vite": "^1.0.2",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^24.6.0",

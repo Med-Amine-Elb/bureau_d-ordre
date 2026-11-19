@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { dataService } from "@/lib/dataService";
 import type { AgenceLookup } from "@/lib/dataService";
+import { clearAppSession, resolvePowerAppsSession } from "@/lib/powerAppsSession";
 import gsap from "gsap";
+import logoSbm from "@/assets/images/logo_sbm.png";
+import loginIllustration from "@/assets/images/login_illustration.png";
 
 const MOCK_CREDENTIALS: Record<string, { email: string; pass: string }> = {
   BO: { email: "bo.agent@sbm.ma", pass: "SbmBO2026!" },
@@ -24,6 +27,7 @@ const ROLES_METADATA = [
 ];
 
 export default function Login() {
+  const isLocalDevelopment = import.meta.env.DEV;
   const navigate = useNavigate();
   const [email, setEmail] = useState(MOCK_CREDENTIALS.BO.email);
   const [password, setPassword] = useState(MOCK_CREDENTIALS.BO.pass);
@@ -33,6 +37,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [isHovering, setIsHovering] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -108,13 +113,42 @@ export default function Login() {
     }
   };
 
+  const connectWithPowerAppsAccount = async () => {
+    setIsLoggingIn(true);
+    setAuthError("");
+    try {
+      const session = await resolvePowerAppsSession();
+      navigate(session.dashboardPath, { replace: true });
+    } catch (error) {
+      clearAppSession();
+      const message = error instanceof Error ? error.message : "La connexion Power Apps n’a pas pu être vérifiée.";
+      setAuthError(message);
+      sessionStorage.setItem("appAuthError", message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLocalDevelopment) {
+      if (sessionStorage.getItem("appSignedOut") === "true") {
+        setAuthError("Vous êtes déconnecté de l’application. Votre session Microsoft Power Apps reste ouverte dans le navigateur.");
+      } else {
+        void connectWithPowerAppsAccount();
+      }
+    }
+  }, []);
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isLocalDevelopment) return;
     setIsLoggingIn(true);
     const tl = gsap.timeline();
     tl.to(leftPanelRef.current, { opacity: 0, x: -40, duration: 0.7, ease: "power2.inOut" });
     tl.to(formPanelRef.current, { opacity: 0, y: -20, duration: 0.6, ease: "power2.inOut" }, "-=0.5");
     setTimeout(() => {
+      clearAppSession();
+      sessionStorage.setItem("appAuthMode", "simulation");
       localStorage.setItem("userRole", selectedRole);
       if (selectedRole === "Agence") localStorage.setItem("userAgence", selectedAgence);
       navigate(`/${selectedRole.toLowerCase()}/dashboard`);
@@ -202,7 +236,7 @@ export default function Login() {
         >
           {/* The illustration image — Ken Burns plays when not hovering */}
           <img
-            src="/images/login_illustration.png"
+            src={loginIllustration}
             alt="Bureau d'Ordre"
             className={`w-full h-full object-cover select-none pointer-events-none ${isHovering ? "kb-paused" : "kb-animate"}`}
             style={{ transformOrigin: "center center" }}
@@ -216,7 +250,7 @@ export default function Login() {
           >
             <div className="bg-white/70 backdrop-blur-md rounded-xl px-5 py-3 border border-white/80 shadow-lg flex items-center gap-2.5">
               <img
-                src="/images/logo_sbm.png"
+                src={logoSbm}
                 alt="Groupe SBM"
                 className="h-7 object-contain"
               />
@@ -243,7 +277,7 @@ export default function Login() {
 
         {/* Top brand row */}
         <div className="flex justify-between items-center">
-          <img src="/images/logo_sbm.png" alt="SBM" className="h-12 object-contain" />
+          <img src={logoSbm} alt="SBM" className="h-12 object-contain" />
           <span className="text-[11px] font-mono text-slate-400 tracking-widest uppercase">
             Accès Intranet
           </span>
@@ -260,6 +294,18 @@ export default function Login() {
               Plateforme de gestion des dossiers financiers.
             </p>
           </div>
+
+          {isLocalDevelopment ? (
+          <>
+          <button
+            type="button"
+            onClick={() => void connectWithPowerAppsAccount()}
+            disabled={isLoggingIn}
+            className="w-full rounded-[10px] border border-[#1F3B73]/20 bg-[#1F3B73]/5 px-4 py-3 text-sm font-semibold text-[#1F3B73] transition hover:bg-[#1F3B73]/10 disabled:opacity-60"
+          >
+            {isLoggingIn ? "Vérification de votre compte…" : "Tester avec mon compte Power Apps"}
+          </button>
+          {authError && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{authError}</p>}
 
           <form onSubmit={handleLogin} className="space-y-5">
 
@@ -363,6 +409,24 @@ export default function Login() {
               ) : "Se connecter"}
             </button>
           </form>
+          </>
+          ) : (
+            <div className="space-y-4" role={authError ? "alert" : "status"}>
+              <p className="text-sm text-slate-500">
+                {authError || (isLoggingIn ? "Vérification de votre compte Power Apps…" : "Connexion à votre espace professionnel…")}
+              </p>
+              {authError && (
+                <button
+                  type="button"
+                  onClick={() => void connectWithPowerAppsAccount()}
+                  disabled={isLoggingIn}
+                  className="w-full rounded-[10px] bg-[#1F3B73] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  Réessayer
+                </button>
+              )}
+            </div>
+          )}
 
           <p className="text-[13px] text-slate-400">
             Besoin d'un accès ? Contactez votre administrateur.
@@ -370,7 +434,7 @@ export default function Login() {
         </div>
 
         {/* Dev quick-connect panel */}
-        <div className="space-y-1.5 opacity-40 hover:opacity-100 transition-opacity duration-300">
+        {isLocalDevelopment && <div className="space-y-1.5 opacity-40 hover:opacity-100 transition-opacity duration-300">
           <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1F3B73] inline-block" />
             Simulation de session (Test quick-connect) :
@@ -391,7 +455,7 @@ export default function Login() {
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
       </div>
     </div>
