@@ -1,312 +1,202 @@
-import { useState, useEffect } from "react";
-import { dataService } from "@/lib/dataService";
-import type { Dossier, SystemUser } from "@/lib/dataService";
-import { PhoneCall, Mail, Clock, Search, Eye, MessageSquare, Send, FileText, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+import { AlertCircle, BellRing, Clock3, Eye, RefreshCw, Search, Users } from "lucide-react";
+import { format, differenceInCalendarDays } from "date-fns";
+import { fr } from "date-fns/locale";
+import { dataService } from "@/lib/dataService";
+import type { DueInternalReminder } from "@/lib/dataService";
+import { getDossierStatusLabel } from "@/lib/statusLabels";
 
 export default function Relances() {
   const navigate = useNavigate();
-  const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [reminders, setReminders] = useState<DueInternalReminder[]>([]);
   const [remindersThisMonth, setRemindersThisMonth] = useState(0);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // States for Modal
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
-  const [relanceType, setRelanceType] = useState("email");
-  const [relanceMessage, setRelanceMessage] = useState("");
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [relanceSubject, setRelanceSubject] = useState("");
-  const [isSending, setIsSending] = useState(false);
-  const [users, setUsers] = useState<SystemUser[]>([]);
-
-  useEffect(() => {
-    const fetchDossiersAndUsers = async () => {
-      const data = await dataService.getDossiers();
-      setDossiers(data);
-      try {
-        setRemindersThisMonth(await dataService.getMonthlyReminderCount());
-      } catch (error) {
-        console.error("Impossible de charger les relances du mois :", error);
-      }
-      const userList = await dataService.getUsers();
-      setUsers(userList.filter(u => u.new_status === "Actif"));
+  const loadReminders = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [due, monthlyCount] = await Promise.all([
+        dataService.getDueInternalReminders(),
+        dataService.getMonthlyReminderCount(),
+      ]);
+      setReminders(due);
+      setRemindersThisMonth(monthlyCount);
+    } catch (loadError) {
+      console.error("Impossible de charger les relances internes :", loadError);
+      setError(loadError instanceof Error ? loadError.message : "Impossible de charger les relances.");
+    } finally {
       setLoading(false);
-    };
-    fetchDossiersAndUsers();
+    }
   }, []);
 
-  // Le statut 10 correspond aux dossiers conservés au BO, pas à une attente fournisseur.
-  // Les relances fournisseurs ne concernent donc que les dossiers bloqués manuellement.
-  const fournisseursDossiers = dossiers.filter(d => d.new_is_blocked);
-  
-  const currentList = fournisseursDossiers;
+  useEffect(() => {
+    void loadReminders();
+  }, [loadReminders]);
 
-  const handleOpenRelance = (dossier: Dossier) => {
-    setSelectedDossier(dossier);
-    setRelanceType("email");
-    setSelectedUserId("");
-    setRelanceSubject("");
-    setRelanceMessage("");
-    setIsModalOpen(true);
-  };
-
-  const handleSendRelance = () => {
-    if (!selectedUserId) {
-      toast.error("Veuillez sélectionner un utilisateur destinataire.");
-      return;
-    }
-    const selectedUser = users.find(u => u.systemuserid === selectedUserId);
-    setIsSending(true);
-    setTimeout(() => {
-      setIsSending(false);
-      setIsModalOpen(false);
-      if (relanceType === "email") {
-        toast.success("Relance envoyée avec succès !", { 
-          description: `L'email a été envoyé à ${selectedUser?.fullname} (${selectedUser?.internalemailaddress}) via le flux Power Automate.` 
-        });
-      } else {
-        toast.success("Appel enregistré !", { 
-          description: `La relance téléphonique avec ${selectedUser?.fullname} a été enregistrée dans l'historique.` 
-        });
-      }
-    }, 1200);
-  };
+  const visibleReminders = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase("fr");
+    if (!normalizedSearch) return reminders;
+    return reminders.filter(({ dossier, recipientName, recipientRole }) =>
+      [dossier.new_folder_number, recipientName, recipientRole, getDossierStatusLabel(dossier.new_status)]
+        .some((value) => value.toLocaleLowerCase("fr").includes(normalizedSearch)),
+    );
+  }, [reminders, search]);
 
   return (
-    <div className="w-full pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-          <PhoneCall className="w-8 h-8 text-primary" /> Gestion des relances
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1 ml-11">Centralisez les rappels et suivez les dossiers bloqués.</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow">
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Fournisseurs à contacter</h3>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">{fournisseursDossiers.length}</div>
-        </div>
-        <div className="bg-white dark:bg-[#0F172B] p-6 rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow">
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-2">Relances effectuées ce mois</h3>
-          <div className="text-3xl font-bold text-slate-900 dark:text-white">{loading ? "—" : remindersThisMonth}</div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="bg-white dark:bg-[#0F172B] rounded-2xl border border-slate-200 dark:border-slate-700 soft-shadow overflow-hidden">
-        <div className="border-b border-slate-200 bg-slate-50/50 px-6 py-4 dark:border-slate-700 dark:bg-slate-800/30">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Relances fournisseur</h2>
-        </div>
-
-        {/* Toolbar */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-white dark:bg-[#0F172B]">
-          <div className="relative w-[300px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input 
-              type="text" 
-              placeholder="Rechercher..." 
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 bg-slate-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20" 
-            />
+    <main className="w-full space-y-6 pb-12">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+              <BellRing className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Relances internes</h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Dossiers en attente et utilisateurs internes à relancer.
+              </p>
+            </div>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => void loadReminders()}
+          disabled={loading}
+          className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} aria-hidden="true" />
+          Actualiser
+        </button>
+      </header>
 
-        {/* Table */}
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Synthèse des relances">
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Dossiers à relancer</p>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+              <Clock3 className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-slate-950 dark:text-white">
+            {loading ? "—" : reminders.length}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Échéance atteinte, statut inchangé</p>
+        </article>
+        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Relances envoyées ce mois</p>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+              <Users className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </div>
+          <p className="mt-3 text-3xl font-semibold tabular-nums text-slate-950 dark:text-white">
+            {loading ? "—" : remindersThisMonth}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Courriels internes consignés dans l’audit</p>
+        </article>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+          <div>
+            <h2 className="font-semibold text-slate-900 dark:text-white">Dossiers nécessitant une relance</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              La cible est la personne interne de l’étape qui a accusé réception, jamais le fournisseur.
+            </p>
+          </div>
+          <label className="relative block w-full sm:w-72">
+            <span className="sr-only">Rechercher un dossier ou un utilisateur</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Dossier, nom ou rôle…"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:focus:bg-slate-900"
+            />
+          </label>
+        </div>
+
+        {error && (
+          <div role="alert" className="m-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full min-w-[760px] text-left">
             <thead>
-              <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-                <th className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Dossier</th>
-                <th className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cible</th>
-                <th className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Jours en attente</th>
-                <th className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+              <tr className="border-b border-slate-100 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900/60">
+                <th scope="col" className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dossier</th>
+                <th scope="col" className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Responsable interne</th>
+                <th scope="col" className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Statut</th>
+                <th scope="col" className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Échéance</th>
+                <th scope="col" className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dernière relance</th>
+                <th scope="col" className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
-                <tr><td colSpan={4} className="p-8 text-center text-slate-400 animate-pulse">Chargement...</td></tr>
-              ) : currentList.length === 0 ? (
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">Chargement des échéances…</td></tr>
+              ) : !error && visibleReminders.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-12 text-center text-slate-500 dark:text-slate-400">
-                    <Clock className="w-12 h-12 text-slate-200 dark:text-slate-800 mx-auto mb-4" />
-                    Aucun dossier ne nécessite de relance pour le moment.
+                  <td colSpan={6} className="px-5 py-14 text-center">
+                    <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                      <BellRing className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <p className="mt-3 font-medium text-slate-900 dark:text-white">
+                      {search ? "Aucun résultat" : "Aucune relance à effectuer"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {search ? "Essaie un autre nom ou numéro de dossier." : "Les dossiers apparaîtront ici quand leur échéance sera atteinte et que leur statut n’aura pas changé."}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                currentList.map(dossier => (
-                  <tr key={dossier.new_folderid} className="border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 text-sm">{dossier.new_folder_number}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">{dossier.new_document_type === 100 ? 'Facture' : 'Autre'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                        {dossier.new_supplier_id || "Fournisseur non renseigné"}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
-                        <Clock className="w-3 h-3" /> +10 Jours
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button onClick={() => navigate(`/bo/dossiers/${dossier.new_folderid}`)} className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors mr-2">
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleOpenRelance(dossier)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg text-sm font-semibold transition-colors">
-                        <MessageSquare className="w-4 h-4" /> Relancer
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                visibleReminders.map(({ dossier, recipientName, recipientRole, dueAt, lastReminderAt }) => {
+                  const lateDays = Math.max(0, differenceInCalendarDays(new Date(), new Date(dueAt)));
+                  return (
+                    <tr key={`${dossier.new_folderid}-${recipientName}`} className="transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-900/50">
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-900 dark:text-white">{dossier.new_folder_number}</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{dossier.new_document_type === 100 ? "Facture" : "Dossier"}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{recipientName}</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{recipientRole}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-700 dark:text-slate-300">{getDossierStatusLabel(dossier.new_status)}</td>
+                      <td className="px-5 py-4">
+                        <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                          {lateDays === 0 ? "À relancer aujourd’hui" : `${lateDays} j de retard`}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{format(new Date(dueAt), "d MMM yyyy 'à' HH:mm", { locale: fr })}</p>
+                      </td>
+                      <td className="px-5 py-4 text-sm text-slate-600 dark:text-slate-300">
+                        {lastReminderAt ? format(new Date(lastReminderAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) : "Aucune"}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/bo/dossiers/${dossier.new_folderid}`)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                        >
+                          <Eye className="h-4 w-4" aria-hidden="true" /> Voir le dossier
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Modal Relance */}
-      {isModalOpen && selectedDossier && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-[#0F172B] border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Nouvelle relance</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
-                <span className="sr-only">Fermer</span>&times;
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 flex items-center gap-4 border border-slate-100 dark:border-slate-800/50">
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 text-primary dark:text-blue-400 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">Dossier concerné</p>
-                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{selectedDossier.new_folder_number}</p>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-2">Canal de relance</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      checked={relanceType === "email"} 
-                      onChange={() => setRelanceType("email")} 
-                      className="text-primary focus:ring-blue-500" 
-                    />
-                    <span className="text-sm flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                      <Mail className="w-4 h-4 text-slate-400" /> Email
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="radio" 
-                      checked={relanceType === "tel"} 
-                      onChange={() => setRelanceType("tel")} 
-                      className="text-primary focus:ring-blue-500" 
-                    />
-                    <span className="text-sm flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                      <PhoneCall className="w-4 h-4 text-slate-400" /> Téléphone
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Destination user dropdown */}
-              <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  Destinataire (Utilisateur Interne)
-                </label>
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-none"
-                >
-                  <option value="" disabled>-- Sélectionner un destinataire --</option>
-                  {users.map(u => (
-                    <option key={u.systemuserid} value={u.systemuserid}>
-                      {u.fullname} ({u.new_role})
-                    </option>
-                  ))}
-                </select>
-                {selectedUserId && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    {relanceType === "email" 
-                      ? `Email : ${users.find(u => u.systemuserid === selectedUserId)?.internalemailaddress}`
-                      : `Rôle : ${users.find(u => u.systemuserid === selectedUserId)?.new_role}`
-                    }
-                  </p>
-                )}
-              </div>
-
-              {/* Subject (for email only) */}
-              {relanceType === "email" && (
-                <div>
-                  <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                    Objet de l'email
-                  </label>
-                  <input 
-                    type="text" 
-                    value={relanceSubject}
-                    onChange={(e) => setRelanceSubject(e.target.value)}
-                    placeholder="Saisir l'objet de l'email..."
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                  />
-                </div>
-              )}
-
-              {/* Message body */}
-              <div>
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300 block mb-1.5">
-                  {relanceType === "email" ? "Contenu de l'email" : "Notes de l'appel"}
-                </label>
-                <textarea 
-                  rows={5}
-                  value={relanceMessage}
-                  onChange={e => setRelanceMessage(e.target.value)}
-                  placeholder={relanceType === "email" ? "Écrire l'email de relance ici..." : "Résumé de la discussion téléphonique..."}
-                  className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/50 dark:bg-slate-900/50">
-              <button 
-                onClick={() => setIsModalOpen(false)} 
-                disabled={isSending}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50"
-              >
-                Annuler
-              </button>
-              <button 
-                onClick={handleSendRelance} 
-                disabled={isSending || !selectedUserId}
-                className="px-6 py-2 bg-primary hover:bg-primary-hover text-white text-sm font-semibold rounded-lg flex items-center gap-2 shadow-lg shadow-primary/20 transition-all disabled:opacity-50"
-              >
-                {isSending ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" /> Envoi...
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-4 h-4" /> {relanceType === "email" ? "Envoyer le mail" : "Enregistrer"}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </div>
-  )
+      </section>
+    </main>
+  );
 }
-
-
