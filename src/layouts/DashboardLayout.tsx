@@ -492,7 +492,9 @@ export default function DashboardLayout() {
 
         {/* Scrollable Page Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 relative">
-          <Outlet />
+          <div key={location.pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>
