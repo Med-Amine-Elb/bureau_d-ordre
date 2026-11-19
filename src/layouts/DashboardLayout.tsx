@@ -17,13 +17,13 @@ import type { AppNotification } from "@/lib/notificationEngine"
 import { clearAppSession, resolvePowerAppsSession } from "@/lib/powerAppsSession"
 import logoSbm from "@/assets/images/logo_sbm.png"
 import logoSbmWhite from "@/assets/images/logo_sbm_white.png"
+import { useTheme } from "@/hooks/use-theme"
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [darkMode, setDarkMode] = useState(() => {
-    return localStorage.getItem('theme') === 'dark';
-  });
+  const { resolvedTheme, setTheme } = useTheme();
+  const darkMode = resolvedTheme === "dark";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [role, setRole] = useState(localStorage.getItem('userRole') || '');
@@ -173,17 +173,7 @@ export default function DashboardLayout() {
 
   const activeNotifications = notifications.filter(n => !dismissedNotifIds.includes(n.id));
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [darkMode]);
-
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  const toggleDarkMode = () => setTheme(darkMode ? "light" : "dark");
 
   // Dynamic Date Range Calculation
   const [dateRangeText, setDateRangeText] = useState("");

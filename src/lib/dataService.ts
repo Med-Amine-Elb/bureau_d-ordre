@@ -181,6 +181,7 @@ export interface AdminUserProfile {
 export interface CurrentUserProfile {
   systemUserId: string;
   userName: string;
+  email: string;
   role: TransmissionRole;
   departmentId?: string;
   branchId?: string;
@@ -1375,13 +1376,13 @@ export const dataService = {
       ],
       top: 2,
       }),
-      SystemusersService.get(systemUserId, { select: ["systemuserid", "fullname"] }),
+      SystemusersService.get(systemUserId, { select: ["systemuserid", "fullname", "internalemailaddress"] }),
     ]);
     if (!result.success || result.error) {
       throw new Error("Impossible de vérifier votre profil d’accès dans Dataverse.");
     }
     if (!userResult.success || userResult.error || !userResult.data?.fullname?.trim()) {
-      throw new Error("Impossible de lire le nom de votre compte Dataverse.");
+      throw new Error("Impossible de lire les informations de votre compte Dataverse.");
     }
 
     const profiles = result.data ?? [];
@@ -1399,6 +1400,7 @@ export const dataService = {
     return {
       systemUserId,
       userName: userResult.data.fullname.trim(),
+      email: userResult.data.internalemailaddress?.trim() ?? "",
       role,
       departmentId: profile._new_department_value,
       branchId: profile._new_branch_value,

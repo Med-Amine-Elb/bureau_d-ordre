@@ -1,18 +1,37 @@
-import { useState } from "react";
-import { User, Bell, Shield, Moon, Sun, Monitor, Save, LogOut, Check, HelpCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { User, Bell, Shield, Moon, Sun, Monitor, Save, LogOut, Check, HelpCircle, Mail, Info } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
+import { dataService, type CurrentUserProfile } from "@/lib/dataService";
 import { toast } from "sonner";
 
 export default function Settings() {
   const { theme, setTheme } = useTheme();
   const [activeSection, setActiveSection] = useState("profile");
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<CurrentUserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
   const [notifs, setNotifs] = useState({
     email: true,
     delays: true,
     rejections: true,
     reminders: false
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    void dataService.getCurrentUserProfile()
+      .then((currentProfile) => {
+        if (!cancelled) setProfile(currentProfile);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setProfileError(error instanceof Error ? error.message : "Profil indisponible.");
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSave = () => {
     setLoading(true);
@@ -78,41 +97,53 @@ export default function Settings() {
                <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
                   {sections.find(s => s.id === activeSection)?.label}
                </h2>
-               <button 
-                 onClick={handleSave}
-                 disabled={loading}
-                 className="bg-primary hover:bg-primary-hover text-white rounded-lg px-4 py-2 text-sm font-semibold soft-shadow transition-all flex items-center gap-2 disabled:opacity-50"
-               >
-                 {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-                 Enregistrer
-               </button>
+               {activeSection !== "profile" && (
+                 <button
+                   onClick={handleSave}
+                   disabled={loading}
+                   className="bg-primary hover:bg-primary-hover text-white rounded-lg px-4 py-2 text-sm font-semibold soft-shadow transition-all flex items-center gap-2 disabled:opacity-50"
+                 >
+                   {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                   Enregistrer
+                 </button>
+               )}
             </div>
 
             <div className="p-8">
                {/* Profile Section */}
                {activeSection === "profile" && (
-                 <div className="space-y-8">
-                    <div className="flex flex-col md:flex-row items-start gap-6">
-                       <div>
-                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Med Amine El Boubakri</h3>
-                          <p className="text-slate-500 dark:text-slate-400 text-sm">Responsable Bureau d'Ordre • GBM Casablanca</p>
-                          <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
-                             Compte Actif
-                          </span>
-                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                       <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nom complet</label>
-                          <input type="text" defaultValue="Med Amine El Boubakri" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                       </div>
-                       <div className="space-y-2">
-                          <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Adresse e-mail</label>
-                          <input type="email" defaultValue="amine.elb@gbm.ma" className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/20 outline-none" />
-                       </div>
-                    </div>
-
+                 <div className="space-y-6">
+                    {profileLoading ? (
+                      <p className="text-sm text-slate-500 dark:text-slate-400" role="status">Chargement du profil…</p>
+                    ) : profileError ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200" role="alert">
+                        {profileError}
+                      </p>
+                    ) : profile ? (
+                      <>
+                        <div>
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{profile.userName}</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{profile.role}{profile.branchName ? ` · ${profile.branchName}` : ""}</p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-5 pt-2 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <label htmlFor="account-name" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nom complet</label>
+                            <input id="account-name" type="text" value={profile.userName} readOnly className="w-full cursor-default rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100" />
+                          </div>
+                          <div className="space-y-2">
+                            <label htmlFor="account-email" className="text-sm font-semibold text-slate-700 dark:text-slate-300">Adresse e-mail</label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                              <input id="account-email" type="email" value={profile.email || "E-mail non renseigné"} readOnly className="w-full cursor-default rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-slate-800 outline-none dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100" />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+                          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                          <p>Le nom et l’adresse e-mail sont gérés par votre compte professionnel Microsoft. Pour les modifier, contactez votre administrateur Microsoft 365.</p>
+                        </div>
+                      </>
+                    ) : null}
                  </div>
                )}
 
@@ -130,7 +161,7 @@ export default function Settings() {
                          <button
                            key={mode.id}
                            onClick={() => setTheme(mode.id as any)}
-                           className={`flex flex-col items-center p-6 rounded-2xl border-2 transition-all gap-4 text-center ${
+                           className={`relative flex flex-col items-center p-6 rounded-2xl border-2 transition-all gap-4 text-center ${
                              theme === mode.id
                                ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400"
                                : "border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 hover:border-slate-200 dark:hover:border-slate-700"
