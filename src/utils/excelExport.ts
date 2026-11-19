@@ -127,7 +127,7 @@ export const exportDossiersToExcelDetailed = async (dossiers: Dossier[], filenam
     "Date Envoi DCF": formatDateSafely(d.new_date_trans_dcf),
     "Date Accusé DCF": formatDateSafely(d.new_date_accuse_dcf),
     "Date Validation DCF": formatDateSafely(d.new_date_val_dcf),
-    "Agent Trésorerie": d.new_collecteur_treso || "",
+    "Agent Trésorerie": d.new_collecteur_treso_name || "",
     "Mode de Paiement": d.new_payment_method === 1 ? "Virement" : d.new_payment_method === 2 ? "Chèque" : d.new_payment_method === 3 ? "Espèces" : "Non défini",
     "N° Chèque / Virement": d.new_cheque_number || d.new_wire_reference || "",
     "Date Disponibilité": formatDateSafely(d.new_cheque_preparation_date),

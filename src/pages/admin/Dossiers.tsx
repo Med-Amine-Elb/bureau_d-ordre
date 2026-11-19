@@ -57,7 +57,7 @@ export default function AdminDossiers() {
       "Bloqué": d.new_is_blocked ? "Oui" : "Non",
       "Prescripteur": d.new_prescriber_id || "",
       "DCF Collecteur": d.new_dcf_collector_id || "",
-      "Trésorerie Collecteur": d.new_collecteur_treso || "",
+      "Trésorerie Collecteur": d.new_collecteur_treso_name || "",
       "Date Réception": formatDateSafely(d.new_reception_date)
     }));
     exportToExcel(dataToExport, "Admin_Supervision_Dossiers");
@@ -371,7 +371,7 @@ export default function AdminDossiers() {
                         <div><span className="font-semibold text-slate-400">DCF:</span> <span className="font-medium text-slate-600 dark:text-slate-300">{d.new_dcf_collector_id}</span></div>
                       )}
                       {d.new_collecteur_treso && (
-                        <div><span className="font-semibold text-slate-400">Tréso:</span> <span className="font-medium text-slate-600 dark:text-slate-300">{d.new_collecteur_treso}</span></div>
+                        <div><span className="font-semibold text-slate-400">Tréso:</span> <span className="font-medium text-slate-600 dark:text-slate-300">{d.new_collecteur_treso_name || "Nom indisponible"}</span></div>
                       )}
                     </td>
 

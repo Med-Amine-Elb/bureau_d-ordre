@@ -436,7 +436,7 @@ export default function DossierDetailDCF() {
               {dossier.new_collecteur_treso && (
                 <li className="flex justify-between items-center text-sm">
                   <span className="text-slate-500 dark:text-slate-400">Cible de trésorerie</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{dossier.new_collecteur_treso}</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">{dossier.new_collecteur_treso_name || "Nom indisponible"}</span>
                 </li>
               )}
             </ul>
