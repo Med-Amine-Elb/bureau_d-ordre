@@ -21,6 +21,9 @@ export default defineConfig({
     },
   },
   build: {
+    // Power Apps CSP permits same-origin font files, but blocks data: fonts.
+    // Keep WOFF/WOFF2 as deployable files instead of inlining them in CSS.
+    assetsInlineLimit: 0,
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',
