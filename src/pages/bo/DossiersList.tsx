@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   Pencil,
   Send,
-  CheckCircle,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";

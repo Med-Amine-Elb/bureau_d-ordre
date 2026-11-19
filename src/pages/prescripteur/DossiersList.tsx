@@ -12,7 +12,6 @@ import {
   Calendar,
   Building2,
   ArrowDown,
-  CheckCircle,
   Download,
   User
 } from "lucide-react";

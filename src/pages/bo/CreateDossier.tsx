@@ -9,7 +9,6 @@ import {
   Save,
   UploadCloud,
   AlertCircle,
-  CheckCircle,
   CheckCircle2,
   XCircle,
   Search,
@@ -165,10 +164,6 @@ export default function CreateDossier() {
 
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({});
 
-  const daysDiff = differenceInDays(
-    parseISO(formData.date_reception),
-    parseISO(formData.date_facture),
-  );
   const isLate = !isCorrection && formData.type_document === 100 && isInvoiceReceiptOverdue(formData.date_facture, formData.date_reception, invoiceReceiptLimitDays);
 
   const requiredDocsPerType: Record<number, string[]> = {
