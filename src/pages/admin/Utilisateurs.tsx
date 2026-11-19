@@ -105,6 +105,7 @@ export default function AdminUtilisateurs() {
     }
     return available;
   }, [candidates, profiles, editingProfile]);
+  const selectedAccount = availableUsers.find((candidate) => candidate.systemuserid === selectedUserId);
 
   const filteredProfiles = profiles.filter((profile) => {
     const query = searchTerm.trim().toLocaleLowerCase("fr");
@@ -340,7 +341,7 @@ export default function AdminUtilisateurs() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) closeModal(); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="user-profile-title" className="my-auto w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl dark:border-slate-700 dark:bg-[#0F172B]">
+          <div role="dialog" aria-modal="true" aria-labelledby="user-profile-title" className="my-auto max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-[#0F172B] sm:p-7">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <h2 id="user-profile-title" className="flex items-center gap-2 text-xl font-bold text-slate-900 dark:text-white">
@@ -352,40 +353,49 @@ export default function AdminUtilisateurs() {
               <button type="button" onClick={closeModal} disabled={saving} aria-label="Fermer" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="h-5 w-5" /></button>
             </div>
 
-            <form onSubmit={(event) => void handleSave(event)} className="space-y-5">
-              <div className="space-y-1.5">
-                <label htmlFor="profile-user" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Utilisateur <span className="text-red-500">*</span></label>
-                <select id="profile-user" required value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className={inputClassName}>
-                  <option value="">Sélectionner un compte actif…</option>
-                  {availableUsers.map((candidate) => (
-                    <option key={candidate.systemuserid} value={candidate.systemuserid}>
-                      {candidate.fullname} — {candidate.internalemailaddress || "E-mail indisponible"}
-                    </option>
-                  ))}
-                </select>
-                {availableUsers.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucun compte d’entreprise actif et disponible n’a été trouvé.</p>}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={(event) => void handleSave(event)} className="space-y-6">
+              <section aria-label="Compte utilisateur" className="space-y-3">
                 <div className="space-y-1.5">
-                  <label htmlFor="profile-role" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Rôle <span className="text-red-500">*</span></label>
-                  <select id="profile-role" value={role} onChange={(event) => {
-                    const nextRole = event.target.value as TransmissionRole;
-                    setRole(nextRole);
-                    if (nextRole !== "Prescripteur") setDepartmentId("");
-                    if (nextRole !== "Agence") setBranchId("");
-                  }} className={inputClassName}>
-                    {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  <label htmlFor="profile-user" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Utilisateur <span className="text-red-500">*</span></label>
+                  <select id="profile-user" required value={selectedUserId} onChange={(event) => setSelectedUserId(event.target.value)} className={inputClassName}>
+                    <option value="">Sélectionner un compte actif…</option>
+                    {availableUsers.map((candidate) => (
+                      <option key={candidate.systemuserid} value={candidate.systemuserid}>
+                        {candidate.fullname} — {candidate.internalemailaddress || "E-mail indisponible"}
+                      </option>
+                    ))}
                   </select>
+                  {availableUsers.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucun compte d’entreprise actif et disponible n’a été trouvé.</p>}
                 </div>
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-                  <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-4 w-4 accent-[#1F3B73]" />
-                  <span>
-                    <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Profil actif</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400">Autoriser l’accès à l’application</span>
-                  </span>
-                </label>
-              </div>
+
+                {selectedAccount && (
+                  <div className="flex min-w-0 items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/60">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#1F3B73] shadow-sm dark:bg-slate-700 dark:text-blue-300" aria-hidden="true">
+                      <UserCheck className="h-6 w-6" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">Compte sélectionné</p>
+                      <p className="mt-0.5 break-words text-base font-semibold text-slate-900 dark:text-slate-100">{selectedAccount.fullname}</p>
+                      <p className="break-all text-sm text-slate-500 dark:text-slate-400">{selectedAccount.internalemailaddress || "E-mail indisponible"}</p>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section aria-labelledby="profile-access-title" className="space-y-4 border-t border-slate-100 pt-5 dark:border-slate-800">
+                <h3 id="profile-access-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">Paramètres d’accès</h3>
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label htmlFor="profile-role" className="text-sm font-semibold text-slate-700 dark:text-slate-200">Rôle <span className="text-red-500">*</span></label>
+                    <select id="profile-role" value={role} onChange={(event) => {
+                      const nextRole = event.target.value as TransmissionRole;
+                      setRole(nextRole);
+                      if (nextRole !== "Prescripteur") setDepartmentId("");
+                      if (nextRole !== "Agence") setBranchId("");
+                    }} className={inputClassName}>
+                      {ROLE_OPTIONS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </select>
+                  </div>
 
               {role === "Prescripteur" && (
                 <div className="space-y-1.5">
@@ -398,7 +408,7 @@ export default function AdminUtilisateurs() {
                 </div>
               )}
 
-              {role === "Agence" && (
+                  {role === "Agence" && (
                 <div className="space-y-1.5">
                   <label htmlFor="profile-branch" className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200"><Building2 className="h-4 w-4" /> Agence <span className="text-red-500">*</span></label>
                   <select id="profile-branch" required value={branchId} onChange={(event) => setBranchId(event.target.value)} className={inputClassName}>
@@ -408,6 +418,16 @@ export default function AdminUtilisateurs() {
                   {branches.length === 0 && <p className="text-xs text-amber-700 dark:text-amber-300">Aucune agence active disponible dans Dataverse.</p>}
                 </div>
               )}
+
+                  <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60">
+                    <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} className="h-4 w-4 shrink-0 accent-[#1F3B73]" />
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">Profil actif</span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400">Autoriser l’accès à l’application</span>
+                    </span>
+                  </label>
+                </div>
+              </section>
 
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
                 <button type="button" onClick={closeModal} disabled={saving} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Annuler</button>
