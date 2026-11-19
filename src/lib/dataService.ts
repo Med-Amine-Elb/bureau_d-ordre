@@ -267,9 +267,23 @@ export interface DueInternalReminder {
   dossier: Dossier;
   recipientId: string;
   recipientName: string;
+  recipientEmail: string;
   recipientRole: string;
+  receiptEventId: string;
   dueAt: string;
   lastReminderAt?: string;
+}
+
+export interface InternalReminderTrackingEntry {
+  dossier: Dossier;
+  reminderCount: number;
+  recipientId: string;
+  recipientName: string;
+  recipientEmail: string;
+  recipientRole: string;
+  lastReminderAt: string;
+  relatedReference?: string;
+  history: Array<{ date: string; recipientName: string; actorName: string; description: string; origin: "automatic" | "manual" | "other" }>;
 }
 
 export interface DossierCorrectionInfo {
@@ -777,7 +791,7 @@ export const dataService = {
   },
 
   getDueInternalReminders: async (now: Date = new Date()): Promise<DueInternalReminder[]> => {
-    const [dossiers, config, receiptsResult, remindersResult] = await Promise.all([
+    const [dossiers, config, receiptsResult, remindersResult, userCandidates] = await Promise.all([
       dataService.getDossiers(),
       dataService.getSystemConfig(),
       New_dossierauditeventsService.getAll({
@@ -795,6 +809,7 @@ export const dataService = {
         orderBy: ["new_eventdate desc"],
         top: 5000,
       }),
+      dataService.getUserProfileCandidates(),
     ]);
 
     if (receiptsResult.error || remindersResult.error) {
@@ -817,28 +832,17 @@ export const dataService = {
     }
 
     const recipientNameById = new Map<string, string>();
+    const recipientEmailById = new Map<string, string>();
+    for (const user of userCandidates) {
+      recipientNameById.set(user.systemuserid.toLowerCase(), user.fullname);
+      recipientEmailById.set(user.systemuserid.toLowerCase(), user.internalemailaddress);
+    }
     for (const receipt of latestReceiptByFolder.values()) {
       const raw = receipt as New_dossierauditevents & Record<string, unknown>;
       const recipientId = String(receipt._new_recipient_value ?? "").toLowerCase();
       const recipientName = String(raw["_new_recipient_value@OData.Community.Display.V1.FormattedValue"] ?? "").trim();
       if (recipientId && recipientName) recipientNameById.set(recipientId, recipientName);
     }
-    const missingRecipientIds = [...new Set(
-      [...latestReceiptByFolder.values()]
-        .map((receipt) => String(receipt._new_recipient_value ?? "").toLowerCase())
-        .filter((id) => isGuid(id) && !recipientNameById.has(id)),
-    )];
-    if (missingRecipientIds.length) {
-      const usersResult = await SystemusersService.getAll({
-        filter: missingRecipientIds.map((id) => `systemuserid eq ${id}`).join(" or "),
-        select: ["systemuserid", "fullname"],
-        top: missingRecipientIds.length,
-      });
-      for (const user of usersResult.data ?? []) {
-        if (user.fullname?.trim()) recipientNameById.set(user.systemuserid.toLowerCase(), user.fullname.trim());
-      }
-    }
-
     const roleNameByCode = new Map<number, string>(
       Object.entries(TRANSMISSION_ROLE_CODES).map(([role, code]) => [code, role] as [number, string]),
     );
@@ -869,13 +873,127 @@ export const dataService = {
         dossier,
         recipientId,
         recipientName: recipientNameById.get(recipientId.toLowerCase()) ?? "Nom indisponible dans Dataverse",
+        recipientEmail: recipientEmailById.get(recipientId.toLowerCase()) ?? "",
         recipientRole: roleNameByCode.get(roleCode) ?? "Responsable interne",
+        receiptEventId: receiptId,
         dueAt: new Date(dueAtMs).toISOString(),
         lastReminderAt: lastReminder?.new_eventdate || undefined,
       });
     }
 
     return pending.sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+  },
+
+  getInternalReminderTracking: async (): Promise<InternalReminderTrackingEntry[]> => {
+    const [dossiers, remindersResult, userCandidates] = await Promise.all([
+      dataService.getDossiers(),
+      New_dossierauditeventsService.getAll({
+        filter: `new_eventtype eq ${AUDIT_EVENT_TYPE_CODES.ReminderSent}`,
+        select: [
+          "new_dossierauditeventid", "new_eventdate", "new_eventname", "new_newcolumn", "new_actorrole",
+          "new_newstatus", "new_relatedreference", "new_channel",
+          "_new_dossier_value", "_new_recipient_value", "_new_actor_value",
+        ],
+        orderBy: ["new_eventdate desc"],
+        top: 5000,
+      }),
+      dataService.getUserProfileCandidates(),
+    ]);
+    if (remindersResult.error) throw new Error("Impossible de charger l’historique des relances.");
+
+    const dossierById = new Map(dossiers.map((dossier) => [dossier.new_folderid.toLowerCase(), dossier]));
+    const rows = remindersResult.data ?? [];
+    const recipientInfoById = new Map<string, { name: string; email: string }>(
+      userCandidates.map((user) => [user.systemuserid.toLowerCase(), { name: user.fullname, email: user.internalemailaddress }]),
+    );
+    const formattedValue = (row: New_dossierauditevents, key: string, fallback?: string) => {
+      const raw = row as New_dossierauditevents & Record<string, unknown>;
+      return String(raw[key] ?? fallback ?? "").trim();
+    };
+
+    for (const row of rows) {
+      const recipientId = String(row._new_recipient_value ?? "").toLowerCase();
+      if (!isGuid(recipientId)) continue;
+      const name = formattedValue(row, "_new_recipient_value@OData.Community.Display.V1.FormattedValue", row.new_recipientname);
+      const existing = recipientInfoById.get(recipientId);
+      if (name && !existing) recipientInfoById.set(recipientId, { name, email: "" });
+    }
+
+    const roleNameByCode = new Map<number, string>(
+      Object.entries(TRANSMISSION_ROLE_CODES).map(([role, code]) => [code, role] as [number, string]),
+    );
+    const trackingByDossier = new Map<string, InternalReminderTrackingEntry>();
+    for (const row of rows) {
+      const folderId = String(row._new_dossier_value ?? "").toLowerCase();
+      const dossier = dossierById.get(folderId);
+      const date = row.new_eventdate;
+      if (!dossier || !date || !Number.isFinite(Date.parse(date))) continue;
+      const recipientId = String(row._new_recipient_value ?? "");
+      const recipient = recipientInfoById.get(recipientId.toLowerCase());
+      const recipientName = formattedValue(row, "_new_recipient_value@OData.Community.Display.V1.FormattedValue", row.new_recipientname)
+        || recipient?.name
+        || "Destinataire inconnu";
+      const actorName = formattedValue(row, "_new_actor_value@OData.Community.Display.V1.FormattedValue", row.new_actorname)
+        || "";
+      const automatic = Number(row.new_channel) === 871840001 || /automatique|power automate/i.test(row.new_eventname ?? "");
+      const origin: InternalReminderTrackingEntry["history"][number]["origin"] = automatic
+        ? "automatic"
+        : Number(row.new_channel) === 871840000
+          ? "manual"
+          : "other";
+      const historyItem = {
+        date,
+        recipientName,
+        actorName,
+        description: automatic
+          ? "Relance envoyée automatiquement"
+          : origin === "manual"
+            ? "Relance manuelle confirmée"
+            : row.new_eventname || row.new_newcolumn || "Relance envoyée",
+        origin,
+      };
+      const existing = trackingByDossier.get(folderId);
+      if (existing) {
+        existing.reminderCount += 1;
+        existing.history.push(historyItem);
+        continue;
+      }
+      const roleCode = Number(row.new_actorrole);
+      trackingByDossier.set(folderId, {
+        dossier,
+        reminderCount: 1,
+        recipientId,
+        recipientName,
+        recipientEmail: recipient?.email ?? "",
+        recipientRole: roleNameByCode.get(roleCode) ?? "Responsable interne",
+        lastReminderAt: date,
+        relatedReference: row.new_relatedreference || undefined,
+        history: [historyItem],
+      });
+    }
+    return [...trackingByDossier.values()].sort((a, b) => Date.parse(b.lastReminderAt) - Date.parse(a.lastReminderAt));
+  },
+
+  recordManualReminder: async (input: {
+    dossier: Dossier;
+    recipientId: string;
+    relatedReference?: string;
+  }): Promise<void> => {
+    if (!isGuid(input.dossier.new_folderid) || !isGuid(input.recipientId)) {
+      throw new Error("Le dossier ou le destinataire de la relance est invalide.");
+    }
+    await createDossierAuditEventRecord({
+      folderId: input.dossier.new_folderid,
+      folderNumber: input.dossier.new_folder_number,
+      draft: {
+        type: "ReminderSent",
+        title: "Relance manuelle confirmée",
+        description: "Le Bureau d’ordre a confirmé l’envoi manuel d’un courriel de relance.",
+        newStatus: input.dossier.new_status,
+        relatedReference: input.relatedReference,
+      },
+      context: { actorRole: "BO", recipientId: input.recipientId },
+    });
   },
 
   getDossierAuditEvents: async (folderId: string): Promise<DossierAuditEvent[]> => {
