@@ -58,7 +58,7 @@ export const router = createHashRouter([
       { path: "bo/remises", element: <RemiseCheque /> },
       { path: "bo/corrections", element: <Corrections /> },
       { path: "bo/settings", element: <Settings /> },
-      
+
       // Prescripteur Routes
       { path: "prescripteur/dashboard", element: <DashboardPrescripteur /> },
       { path: "prescripteur/dossiers", element: <DossiersListPrescripteur /> },
