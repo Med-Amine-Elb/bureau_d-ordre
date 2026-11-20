@@ -6,7 +6,8 @@ import {
   Calendar, Trash2, AlertTriangle, Inbox, CircleUserRound,
   Menu, X
 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import gsap from "gsap"
 import { format, subDays } from "date-fns"
 import { fr } from "date-fns/locale"
 import { toast } from "sonner"
@@ -36,6 +37,7 @@ export default function DashboardLayout() {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotificationsDropdown, setShowNotificationsDropdown] = useState(false);
+  const notificationPanelRef = useRef<HTMLDivElement>(null);
   const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>(() => {
     try {
       return JSON.parse(localStorage.getItem("dismissedNotifications") || "[]");
@@ -177,6 +179,36 @@ export default function DashboardLayout() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    const panel = notificationPanelRef.current;
+    if (!panel) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      gsap.set(panel, { autoAlpha: showNotificationsDropdown ? 1 : 0, y: 0, scale: 1 });
+      panel.style.pointerEvents = showNotificationsDropdown ? "auto" : "none";
+      return;
+    }
+
+    if (showNotificationsDropdown) {
+      panel.style.pointerEvents = "auto";
+      const tween = gsap.fromTo(
+        panel,
+        { autoAlpha: 0, y: -9, scale: 0.97, transformOrigin: "top right" },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.38, ease: "back.out(1.3)", overwrite: true },
+      );
+      return () => {
+        tween.kill();
+      };
+    }
+
+    panel.style.pointerEvents = "none";
+    const tween = gsap.to(panel, { autoAlpha: 0, y: -6, scale: 0.985, duration: 0.16, ease: "power2.in", overwrite: true });
+    return () => {
+      tween.kill();
+    };
+  }, [showNotificationsDropdown]);
 
   const activeNotifications = notifications.filter(n => !dismissedNotifIds.includes(n.id));
 
@@ -408,8 +440,12 @@ export default function DashboardLayout() {
                 )}
               </button>
 
-              {showNotificationsDropdown && (
-                <div className="absolute right-0 mt-2.5 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div
+                ref={notificationPanelRef}
+                aria-hidden={!showNotificationsDropdown}
+                inert={!showNotificationsDropdown}
+                className="invisible pointer-events-none absolute right-0 top-full z-50 mt-2.5 w-80 origin-top-right overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900/95"
+              >
                   {/* Header */}
                   <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                     <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Notifications ({activeNotifications.length})</span>
@@ -491,8 +527,7 @@ export default function DashboardLayout() {
                       })
                     )}
                   </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </header>
