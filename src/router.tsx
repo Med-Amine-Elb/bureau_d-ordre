@@ -37,6 +37,7 @@ import UtilisateursAdmin from "@/pages/admin/Utilisateurs"
 import DossiersAdmin from "@/pages/admin/Dossiers"
 import ReferencesAdmin from "@/pages/admin/References"
 import ConfigurationAdmin from "@/pages/admin/Configuration"
+import OuvrirDossier from "@/pages/OuvrirDossier"
 
 
 
@@ -50,6 +51,8 @@ export const router = createHashRouter([
     element: <DashboardLayout />,
     errorElement: <ErrorPage />,
     children: [
+      { path: "ouvrir-dossier/:id", element: <OuvrirDossier /> },
+
       { path: "bo/dashboard", element: <DashboardBO /> },
       { path: "bo/dossiers/nouveau", element: <CreateDossier /> },
       { path: "bo/dossiers", element: <DossiersList /> },

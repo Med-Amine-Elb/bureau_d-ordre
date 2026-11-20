@@ -15,6 +15,22 @@ const ROLE_ROUTES: Record<TransmissionRole, { appRole: string; dashboardPath: st
   Admin: { appRole: "Admin", dashboardPath: "/admin/dashboard" },
 };
 
+export function getDossierPathForRole(role: string | null, dossierId: string): string | null {
+  if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(dossierId)) return null;
+  const encodedId = encodeURIComponent(dossierId);
+  const routes: Record<string, string> = {
+    BO: `/bo/dossiers/${encodedId}`,
+    Prescripteur: `/prescripteur/dossiers/${encodedId}`,
+    DCF: `/dcf/dossiers/${encodedId}`,
+    "Trésorerie": `/tresorerie/dossiers/${encodedId}`,
+    Tresorerie: `/tresorerie/dossiers/${encodedId}`,
+    Agence: `/agence/cheques?dossierId=${encodedId}`,
+    Admin: `/admin/dossiers?dossierId=${encodedId}`,
+  };
+
+  return role ? routes[role] ?? null : null;
+}
+
 export async function resolvePowerAppsSession(): Promise<AppSession> {
   const profile = await dataService.getCurrentUserProfile();
   const role = ROLE_ROUTES[profile.role];

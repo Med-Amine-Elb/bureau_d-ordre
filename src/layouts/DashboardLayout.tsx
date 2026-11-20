@@ -14,7 +14,8 @@ import { dataService } from "@/lib/dataService"
 import type { Dossier } from "@/lib/dataService"
 import { generateNotifications } from "@/lib/notificationEngine"
 import type { AppNotification } from "@/lib/notificationEngine"
-import { clearAppSession, resolvePowerAppsSession } from "@/lib/powerAppsSession"
+import { clearAppSession, getDossierPathForRole, resolvePowerAppsSession } from "@/lib/powerAppsSession"
+import { AppRoleContext } from "@/contexts/AppRoleContext"
 import logoSbm from "@/assets/images/logo_sbm.png"
 import logoSbmWhite from "@/assets/images/logo_sbm_white.png"
 import { useTheme } from "@/hooks/use-theme"
@@ -57,6 +58,11 @@ export default function DashboardLayout() {
       setRole(localStorage.getItem("userRole") || "BO");
       setUserName(localStorage.getItem("userName") || "Session de test");
       setAuthState("ready");
+      const deepLinkId = location.pathname.match(/^\/ouvrir-dossier\/([^/]+)$/)?.[1];
+      if (deepLinkId) {
+        const target = getDossierPathForRole(localStorage.getItem("userRole") || "BO", deepLinkId);
+        navigate(target || "/bo/dashboard", { replace: true });
+      }
       return;
     }
 
@@ -69,7 +75,8 @@ export default function DashboardLayout() {
         setUserAgence(session.profile.branchName || "");
         setAuthState("ready");
         const rolePrefix = session.dashboardPath.replace(/\/dashboard$/, "");
-        if (!location.pathname.startsWith(rolePrefix)) {
+        const deepLinkId = location.pathname.match(/^\/ouvrir-dossier\/([^/]+)$/)?.[1];
+        if (!deepLinkId && !location.pathname.startsWith(rolePrefix)) {
           navigate(session.dashboardPath, { replace: true });
         }
       })
@@ -493,7 +500,9 @@ export default function DashboardLayout() {
         {/* Scrollable Page Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 relative">
           <div key={location.pathname} className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
-            <Outlet />
+            <AppRoleContext.Provider value={role}>
+              <Outlet />
+            </AppRoleContext.Provider>
           </div>
         </main>
       </div>

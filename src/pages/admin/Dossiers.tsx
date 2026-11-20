@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   FileText,
   Search,
@@ -24,6 +25,7 @@ import DossierInformationPanel from "@/components/DossierInformationPanel";
 import DossierAuditTimeline from "@/components/DossierAuditTimeline";
 
 export default function AdminDossiers() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -91,6 +93,24 @@ export default function AdminDossiers() {
     setAuditTab("circuit");
     setShowAuditModal(true);
   };
+
+  useEffect(() => {
+    const dossierId = searchParams.get("dossierId");
+    if (loading || !dossierId) return;
+
+    const dossier = dossiers.find((item) => item.new_folderid.toLowerCase() === dossierId.toLowerCase());
+    if (dossier) {
+      setSelectedDossierForAudit(dossier);
+      setAuditTab("details");
+      setShowAuditModal(true);
+    } else {
+      toast.error("Dossier introuvable ou inaccessible.");
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("dossierId");
+    setSearchParams(nextParams, { replace: true });
+  }, [dossiers, loading, searchParams, setSearchParams]);
 
   const handleCloseAudit = () => {
     setShowAuditModal(false);

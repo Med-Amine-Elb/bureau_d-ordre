@@ -12,7 +12,7 @@ import {
   CreditCard,
   Download
 } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import { matchesSupplierFilter } from "@/lib/supplierFilter";
 
 export default function DossiersListAgence() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
   const currentAgence = localStorage.getItem("userAgence") || "Rabat Agdal";
@@ -72,6 +73,30 @@ export default function DossiersListAgence() {
     setSelectedDossier(dossier);
     setIsRemiseModalOpen(true);
   };
+
+  useEffect(() => {
+    const dossierId = searchParams.get("dossierId");
+    if (loading || !dossierId) return;
+
+    const dossier = dossiers.find((item) => item.new_folderid.toLowerCase() === dossierId.toLowerCase());
+    if (!dossier) {
+      toast.error("Dossier introuvable ou non affecté à votre agence.");
+    } else {
+      setSelectedDossier(dossier);
+      if (dossier.new_status === 130) {
+        setIsAccuseModalOpen(true);
+      } else if (dossier.new_status === 140) {
+        setIsRemiseModalOpen(true);
+      } else {
+        setSearch(dossier.new_folder_number);
+        toast.info("Ce dossier est déjà clôturé. Il a été affiché dans la liste.");
+      }
+    }
+
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete("dossierId");
+    setSearchParams(nextParams, { replace: true });
+  }, [dossiers, loading, searchParams, setSearchParams]);
 
   const handleConfirmAccuse = async (data: { commentaire: string }) => {
     if (!selectedDossier) return;
