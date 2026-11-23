@@ -56,6 +56,11 @@
           "entitySetName": "new_userprofiles",
           "logicalName": "new_userprofile",
           "isHidden": false
+        },
+        "notifications": {
+          "entitySetName": "new_notifications",
+          "logicalName": "new_notification",
+          "isHidden": false
         }
       },
       "environmentVariableName": ""

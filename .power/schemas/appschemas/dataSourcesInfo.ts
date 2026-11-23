@@ -40,6 +40,13 @@ export const dataSourcesInfo = {
     "dataSourceType": "Dataverse",
     "apis": {}
   },
+  "new_notifications": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "new_notificationid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
   "new_reminderconfigurations": {
     "tableId": "",
     "version": "",
