@@ -35,6 +35,15 @@ import { companyRecord, departmentRecord, supplierRecord } from './referenceForm
 import type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
 import { buildDossierAuditDrafts, type DossierAuditDraft, type DossierAuditEventType, type DossierAuditSnapshot } from './auditEvents';
 import { getDossierAuditStepLabel } from './auditStepLabels';
+import { New_notificationsService } from '../generated/services/New_notificationsService';
+import type {
+  New_notificationsBase,
+  New_notificationsnew_notificationcategory,
+  New_notificationsnew_emailstatus,
+  New_notificationsnew_notificationtype,
+  New_notificationsstatecode,
+} from '../generated/models/New_notificationsModel';
+
 export type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
 
 const getXrm = (): any => {
@@ -65,6 +74,7 @@ export interface Dossier {
   new_department_id?: string;
   new_prescriber_id?: string;
   new_dcf_collector_id?: string;
+  new_owner_user_id?: string;
   new_supplier_guid?: string;
   new_company_guid?: string;
   new_department_guid?: string;
@@ -466,7 +476,7 @@ const createTransmissionRecord = async (input: {
   collectorId: string;
   sendingComment?: string;
   branchId?: string;
-}, senderId: string): Promise<void> => {
+}, senderId: string): Promise<string> => {
   const record = {
     new_transmissionname: `${input.folderNumber} — ${input.fromRole} → ${input.toRole}`,
     "new_Folder@odata.bind": `/new_folders(${input.folderId})`,
@@ -480,8 +490,44 @@ const createTransmissionRecord = async (input: {
     ...(input.branchId ? { "new_Branch@odata.bind": `/new_branchs(${input.branchId})` } : {}),
   } as Omit<New_transmissionsBase, "new_transmissionid">;
   const result = await New_transmissionsService.create(record);
-  if (result.error) {
-    throw new Error(`Création de la transmission refusée par Dataverse : ${getDataverseErrorMessage(result.error)}`);
+  if (result.error || !result.data?.new_transmissionid) {
+    throw new Error(
+      `Création de la transmission refusée par Dataverse : ${getDataverseErrorMessage(result.error)}`);
+  }
+  return result.data.new_transmissionid;
+};
+
+const createTransmissionNotification = async (input: {
+  transmissionId: string;
+  folderId: string;
+  folderNumber: string;
+  recipientId: string;
+  senderName: string;
+}): Promise<void> => {
+  const title = `Confirmez la réception du dossier ${input.folderNumber}`;
+
+  const record = {
+    new_notificationname: `Transmission ${input.folderNumber}`,
+    new_notificationkey: input.transmissionId,
+    new_title: title,
+    new_message: `Le dossier ${input.folderNumber} vous a été transmis par ${input.senderName}. Veuillez confirmer sa réception dans l’application afin de démarrer son traitement.`,
+    new_createddate: new Date().toISOString(),
+    new_isread: false,
+    new_emailstatus: 871840000 as New_notificationsnew_emailstatus,
+    new_notificationcategory: 871840000 as New_notificationsnew_notificationcategory,
+    new_notificationtype: 871840000 as New_notificationsnew_notificationtype,
+    statecode: 0 as New_notificationsstatecode,
+    "new_Folder@odata.bind": `/new_folders(${input.folderId})`,
+    "new_Recipient@odata.bind": `/systemusers(${input.recipientId})`,
+    new_actionurl: `${window.location.href.split("#")[0]}#/ouvrir-dossier/${encodeURIComponent(input.folderId)}`,
+  } satisfies Omit<New_notificationsBase, "new_notificationid">;
+
+  const result = await New_notificationsService.create(record);
+
+  if (!result.success || result.error) {
+    throw new Error(
+      `Dataverse n’a pas créé la notification : ${getDataverseErrorMessage(result.error)}`
+    );
   }
 };
 
@@ -580,6 +626,7 @@ export const mapCrmEntityToDossier = (entity: any): Dossier => {
     new_department_id: entity["_new_department_value@OData.Community.Display.V1.FormattedValue"] || entity._new_department_value || undefined,
     new_prescriber_id: entity["_new_prescripteur_value@OData.Community.Display.V1.FormattedValue"] || entity._new_prescripteur_value || undefined,
     new_dcf_collector_id: entity["_new_dcfcollector_value@OData.Community.Display.V1.FormattedValue"] || entity._new_dcfcollector_value || undefined,
+    new_owner_user_id: entity._ownerid_value || undefined,
     new_destination_branch_id: entity["_new_destinationbranch_value@OData.Community.Display.V1.FormattedValue"] || entity._new_destinationbranch_value || undefined,
     new_supplier_guid: entity._new_supplier_id_value || undefined,
     new_company_guid: entity._new_company_value || undefined,
@@ -1061,12 +1108,31 @@ export const dataService = {
     collectorId: string;
     sendingComment?: string;
     branchId?: string;
-  }): Promise<void> => {
+  }): Promise<{ notificationCreated: boolean }> => {
     if (!isGuid(input.folderId) || !isGuid(input.collectorId) || (input.branchId && !isGuid(input.branchId))) {
       throw new Error("Le dossier, le destinataire et l’agence éventuelle doivent avoir des identifiants Dataverse valides.");
     }
     const senderId = await getCurrentSystemUserId();
-    await createTransmissionRecord(input, senderId);
+    const senderResult = await SystemusersService.get(senderId, { select: ["systemuserid", "fullname"] });
+    const senderName = senderResult.data?.fullname?.trim();
+    if (!senderResult.success || senderResult.error || !senderName) {
+      throw new Error("Impossible de lire le nom du compte expéditeur dans Dataverse.");
+    }
+
+    const transmissionId = await createTransmissionRecord(input, senderId);
+    let notificationCreated = false;
+    try {
+      await createTransmissionNotification({
+        transmissionId,
+        folderId: input.folderId,
+        folderNumber: input.folderNumber,
+        recipientId: input.collectorId,
+        senderName,
+      });
+      notificationCreated = true;
+    } catch (error) {
+      console.error("La transmission est enregistrée, mais la notification Dataverse a échoué :", error);
+    }
     const roleLabel = input.fromRole;
     try {
       await createDossierAuditEventRecord({
@@ -1083,6 +1149,7 @@ export const dataService = {
     } catch (error) {
       notifyAuditWriteFailure(input.folderNumber, error);
     }
+    return { notificationCreated };
   },
 
   transmitDossier: async (input: {
@@ -1093,11 +1160,18 @@ export const dataService = {
     toRole: TransmissionRole;
     collectorId: string;
     sendingComment?: string;
-  }): Promise<void> => {
+  }): Promise<{ notificationCreated: boolean }> => {
     if (!isGuid(input.folderId) || !isGuid(input.collectorId)) {
       throw new Error("Le dossier et le destinataire doivent avoir des identifiants Dataverse valides.");
     }
     const senderId = await getCurrentSystemUserId();
+    const senderResult = await SystemusersService.get(senderId, {
+      select: ["systemuserid", "fullname"],
+    });
+    const senderName = senderResult.data?.fullname?.trim();
+    if (!senderResult.success || senderResult.error || !senderName) {
+      throw new Error("Impossible de lire le nom du compte expéditeur dans Dataverse.");
+    }
     let previousStatus: number | undefined;
     try {
       const current = await New_foldersService.get(input.folderId, { select: ["new_status"] });
@@ -1112,7 +1186,7 @@ export const dataService = {
       recipientId: input.collectorId,
       suppressAudit: true,
     });
-    await createTransmissionRecord({
+    const transmissionId = await createTransmissionRecord({
       folderId: input.folderId,
       folderNumber: input.folderNumber,
       fromRole: input.fromRole,
@@ -1120,6 +1194,19 @@ export const dataService = {
       collectorId: input.collectorId,
       sendingComment: input.sendingComment,
     }, senderId);
+    let notificationCreated = false;
+    try {
+      await createTransmissionNotification({
+        transmissionId,
+        folderId: input.folderId,
+        folderNumber: input.folderNumber,
+        recipientId: input.collectorId,
+        senderName,
+      });
+      notificationCreated = true;
+    } catch (error) {
+      console.error("La transmission est enregistrée, mais la notification Dataverse a échoué :", error);
+    }
     try {
       await createDossierAuditEventRecord({
         folderId: input.folderId,
@@ -1144,6 +1231,7 @@ export const dataService = {
     } catch (error) {
       notifyAuditWriteFailure(input.folderNumber, error);
     }
+    return { notificationCreated };
   },
 
   completeCourierDelivery: async (folderId: string): Promise<void> => {
@@ -1305,11 +1393,13 @@ export const dataService = {
   updateDossier: async (id: string, dossier: Partial<Dossier>, auditContext?: AuditWriteContext): Promise<void> => {
     let previous: DossierAuditSnapshot & { folderNumber?: string } = {};
     try {
-      const current = await New_foldersService.get(id, { select: [
-        "new_status", "new_isblocked", "new_documenttype", "new_folder_number", "new_accountingdate",
-        "new_cheque_received_bo", "new_supplier_signed", "new_chequenumber", "new_chequepreparationdate",
-        "new_wirereference", "new_date_virement",
-      ] });
+      const current = await New_foldersService.get(id, {
+        select: [
+          "new_status", "new_isblocked", "new_documenttype", "new_folder_number", "new_accountingdate",
+          "new_cheque_received_bo", "new_supplier_signed", "new_chequenumber", "new_chequepreparationdate",
+          "new_wirereference", "new_date_virement",
+        ]
+      });
       if (current.data) {
         const raw = current.data as unknown as Record<string, unknown>;
         previous = {
@@ -1487,12 +1577,12 @@ export const dataService = {
     const systemUserId = await getCurrentSystemUserId();
     const [result, userResult] = await Promise.all([
       New_userprofilesService.getAll({
-      filter: `_new_user_value eq ${systemUserId} and new_active eq true`,
-      select: [
-        "new_userprofileid", "new_role", "new_active",
-        "_new_user_value", "_new_department_value", "_new_branch_value",
-      ],
-      top: 2,
+        filter: `_new_user_value eq ${systemUserId} and new_active eq true`,
+        select: [
+          "new_userprofileid", "new_role", "new_active",
+          "_new_user_value", "_new_department_value", "_new_branch_value",
+        ],
+        top: 2,
       }),
       SystemusersService.get(systemUserId, { select: ["systemuserid", "fullname", "internalemailaddress"] }),
     ]);

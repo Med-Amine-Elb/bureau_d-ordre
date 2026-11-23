@@ -120,7 +120,7 @@ export default function DossierDetailDrawer({
           : dossier.new_description
       };
 
-      await dataService.transmitDossier({
+      const transmission = await dataService.transmitDossier({
         folderId: dossier.new_folderid,
         folderNumber: dossier.new_folder_number,
         dossierChanges: payload,
@@ -129,6 +129,9 @@ export default function DossierDetailDrawer({
         collectorId: data.collecteur,
         sendingComment: data.commentaire,
       });
+      if (!transmission.notificationCreated) {
+        toast.warning("Dossier transmis", { description: "La notification destinée au destinataire n’a pas pu être créée." });
+      }
       setSuccessMessage("Dossier transmis.");
       setSuccessModalOpen(true);
       fetchData();

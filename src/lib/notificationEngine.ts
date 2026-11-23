@@ -8,6 +8,8 @@ export interface AppNotification {
   path: string;
   date: string;
   dossierNumber: string;
+  recipientUserId: string;
+  folderId: string;
 }
 
 interface NotificationRule {
@@ -91,10 +93,20 @@ export const generateNotifications = (
         type: rule.type,
         path,
         date: d.new_reception_date || new Date().toISOString(),
-        dossierNumber: d.new_folder_number
+        dossierNumber: d.new_folder_number,
+        recipientUserId: getNotificationRecipientId(d, role),
+        folderId: d.new_folderid
       });
     });
   });
 
   return list;
 };
+
+function getNotificationRecipientId(dossier: Dossier, role: string): string {
+  if (role === "Prescripteur") return dossier.new_prescriber_guid || "";
+  if (role === "DCF") return dossier.new_dcf_collector_guid || "";
+  if (role === "Trésorerie" || role === "Tresorerie") return dossier.new_collecteur_treso || "";
+  if (role === "Agence") return dossier.new_destination_branch_guid || "";
+  return dossier.new_owner_user_id || "";
+}

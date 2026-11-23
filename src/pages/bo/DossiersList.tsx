@@ -76,6 +76,7 @@ export default function DossiersList() {
       let count = 0;
       let skipped = 0;
       let couriersClosed = 0;
+      let notificationFailures = 0;
       for (const id of selectedDossiers) {
         const dossier = dossiers.find(d => d.new_folderid === id);
         if (dossier && (dossier.new_status === 10 || dossier.new_status === 60)) {
@@ -95,7 +96,7 @@ export default function DossiersList() {
             skipped++;
             continue;
           }
-          await dataService.transmitDossier({
+          const transmission = await dataService.transmitDossier({
             folderId: dossier.new_folderid,
             folderNumber: dossier.new_folder_number,
             dossierChanges: {
@@ -106,10 +107,11 @@ export default function DossiersList() {
             toRole: isToDCF ? "DCF" : "Prescripteur",
             collectorId,
           });
+          if (!transmission.notificationCreated) notificationFailures++;
           count++;
         }
       }
-      setSuccessMessage(`${count} dossier(s) transmis${couriersClosed ? ` ; ${couriersClosed} courrier(s) clôturé(s)` : ""}${skipped ? ` ; ${skipped} ignoré(s), destinataire non identifié` : ""}.`);
+      setSuccessMessage(`${count} dossier(s) transmis${couriersClosed ? ` ; ${couriersClosed} courrier(s) clôturé(s)` : ""}${skipped ? ` ; ${skipped} ignoré(s), destinataire non identifié` : ""}${notificationFailures ? ` ; notification non créée pour ${notificationFailures} dossier(s)` : ""}.`);
       setSuccessModalOpen(true);
       setSelectedDossiers([]);
       const result = await dataService.getDossiers();
@@ -216,7 +218,7 @@ export default function DossiersList() {
           : selectedDossierForTransmission.new_description
       };
 
-      await dataService.transmitDossier({
+      const transmission = await dataService.transmitDossier({
         folderId: selectedDossierForTransmission.new_folderid,
         folderNumber: selectedDossierForTransmission.new_folder_number,
         dossierChanges: payload,
@@ -225,6 +227,9 @@ export default function DossiersList() {
         collectorId: data.collecteur,
         sendingComment: data.commentaire,
       });
+      if (!transmission.notificationCreated) {
+        toast.warning("Dossier transmis", { description: "La notification destinée au destinataire n’a pas pu être créée." });
+      }
       setSuccessMessage("Dossier transmis.");
       setSuccessModalOpen(true);
       const updated = await dataService.getDossiers();
