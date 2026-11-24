@@ -35,6 +35,7 @@ import { companyRecord, departmentRecord, supplierRecord } from './referenceForm
 import type { CompanyInput, DepartmentInput, SupplierInput } from './referenceForms';
 import { buildDossierAuditDrafts, type DossierAuditDraft, type DossierAuditEventType, type DossierAuditSnapshot } from './auditEvents';
 import { getDossierAuditStepLabel } from './auditStepLabels';
+import { getDossierActionUrl } from './appLinks';
 import { New_notificationsService } from '../generated/services/New_notificationsService';
 import type {
   New_notificationsBase,
@@ -519,7 +520,7 @@ const createTransmissionNotification = async (input: {
     statecode: 0 as New_notificationsstatecode,
     "new_Folder@odata.bind": `/new_folders(${input.folderId})`,
     "new_Recipient@odata.bind": `/systemusers(${input.recipientId})`,
-    new_actionurl: `${window.location.href.split("#")[0]}#/ouvrir-dossier/${encodeURIComponent(input.folderId)}`,
+    new_actionurl: getDossierActionUrl(input.folderId),
   } satisfies Omit<New_notificationsBase, "new_notificationid">;
 
   const result = await New_notificationsService.create(record);
@@ -792,6 +793,40 @@ export const mapDossierToCrmEntity = (d: Partial<Dossier>): any => {
   }
 
   return entity;
+};
+
+const DOSSIER_SELECT_FIELDS = [
+  "new_folder_number", "modifiedon", "new_status", "new_documenttype", "new_receptiondate",
+  "new_invoicenumber", "new_bcnumber", "new_invoicedate", "new_description", "new_isblocked",
+  "new_accountingdate", "new_paymentmethod", "new_chequenumber", "new_wirereference", "new_date_virement",
+  "new_compte_bancaire_dest", "new_banque_emettrice", "new_chequepreparationdate", "new_finaldeliverydate",
+  "new_cheque_received_bo", "new_reception_comment", "new_delivery_date", "new_delivery_person",
+  "new_signed_receipt_url", "new_supplier_signed", "new_branch_comment", "new_date_trans_prescriber",
+  "new_date_accuse_prescriber", "new_date_val_prescriber", "new_date_return_bo", "new_date_trans_dcf",
+  "new_date_accuse_dcf", "new_date_val_dcf", "new_acknowledgment_date", "new_person_to_deliver",
+  "new_return_reason", "new_bo_transmission_date", "new_sharepointurl", "new_cancellationstatus",
+  "new_advancephase", "new_lastalertdate", "new_treasury_comment", "_new_supplier_id_value",
+  "_new_company_value", "_new_department_value", "_new_prescripteur_value", "_new_dcfcollector_value",
+  "_new_destinationbranch_value", "_new_acknowledged_by_id_value", "_new_linkedfolder_value",
+  "_new_treasury_collector_id_value",
+];
+
+const sortDossiersByRecentActivity = (dossiers: Dossier[]): Dossier[] => {
+  const lastActionTimestamp = (dossier: Dossier): number => {
+    const dates = [
+      dossier.modifiedon, dossier.new_final_delivery_date, dossier.new_reception_date_agence,
+      dossier.new_date_livraison, dossier.new_date_accuse_dcf, dossier.new_date_val_dcf,
+      dossier.new_date_trans_dcf, dossier.new_date_retour_bo, dossier.new_date_val_prescripteur,
+      dossier.new_date_accuse_prescripteur, dossier.new_date_trans_prescripteur,
+      dossier.new_date_transmission_bo, dossier.new_cheque_preparation_date, dossier.new_accounting_date,
+      dossier.new_date_virement, dossier.new_date_accuse, dossier.new_reception_date,
+    ];
+    return dates.reduce((latest, value) => {
+      const timestamp = value ? Date.parse(value) : Number.NaN;
+      return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
+    }, 0);
+  };
+  return dossiers.sort((a, b) => lastActionTimestamp(b) - lastActionTimestamp(a));
 };
 
 export const dataService = {
@@ -1272,92 +1307,30 @@ export const dataService = {
   },
 
   getDossiers: async (): Promise<Dossier[]> => {
-    const selectFields = [
-      "new_folder_number",
-      "modifiedon",
-      "new_status",
-      "new_documenttype",
-      "new_receptiondate",
-      "new_invoicenumber",
-      "new_bcnumber",
-      "new_invoicedate",
-      "new_description",
-      "new_isblocked",
-      "new_accountingdate",
-      "new_paymentmethod",
-      "new_chequenumber",
-      "new_wirereference",
-      "new_date_virement",
-      "new_compte_bancaire_dest",
-      "new_banque_emettrice",
-      "new_chequepreparationdate",
-      "new_finaldeliverydate",
-      "new_cheque_received_bo",
-      "new_reception_comment",
-      "new_delivery_date",
-      "new_delivery_person",
-      "new_signed_receipt_url",
-      "new_supplier_signed",
-      "new_branch_comment",
-      "new_date_trans_prescriber",
-      "new_date_accuse_prescriber",
-      "new_date_val_prescriber",
-      "new_date_return_bo",
-      "new_date_trans_dcf",
-      "new_date_accuse_dcf",
-      "new_date_val_dcf",
-      "new_acknowledgment_date",
-      "new_person_to_deliver",
-      "new_return_reason",
-      "new_bo_transmission_date",
-      "new_sharepointurl",
-      "new_cancellationstatus",
-      "new_advancephase",
-      "new_lastalertdate",
-      "new_treasury_comment",
-      "_new_supplier_id_value",
-      "_new_company_value",
-      "_new_department_value",
-      "_new_prescripteur_value",
-      "_new_dcfcollector_value",
-      "_new_destinationbranch_value",
-      "_new_acknowledged_by_id_value",
-      "_new_linkedfolder_value",
-      "_new_treasury_collector_id_value"
-    ];
-
-    const result = await New_foldersService.getAll({ select: selectFields });
+    const result = await New_foldersService.getAll({ select: DOSSIER_SELECT_FIELDS });
     if (result.data) {
-      const dossiers = result.data.map(mapCrmEntityToDossier);
-      const lastActionTimestamp = (dossier: Dossier): number => {
-        const dates = [
-          dossier.modifiedon,
-          dossier.new_final_delivery_date,
-          dossier.new_reception_date_agence,
-          dossier.new_date_livraison,
-          dossier.new_date_accuse_dcf,
-          dossier.new_date_val_dcf,
-          dossier.new_date_trans_dcf,
-          dossier.new_date_retour_bo,
-          dossier.new_date_val_prescripteur,
-          dossier.new_date_accuse_prescripteur,
-          dossier.new_date_trans_prescripteur,
-          dossier.new_date_transmission_bo,
-          dossier.new_cheque_preparation_date,
-          dossier.new_accounting_date,
-          dossier.new_date_virement,
-          dossier.new_date_accuse,
-          dossier.new_reception_date,
-        ];
-        return dates.reduce((latest, value) => {
-          const timestamp = value ? Date.parse(value) : Number.NaN;
-          return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest;
-        }, 0);
-      };
-
-      return dossiers.sort((a, b) => lastActionTimestamp(b) - lastActionTimestamp(a));
+      return sortDossiersByRecentActivity(result.data.map(mapCrmEntityToDossier));
     }
     throw new Error("Failed to fetch folders: " + (result.error ? JSON.stringify(result.error) : "Unknown error"));
+  },
+
+  getDossiersForCurrentPrescripteur: async (): Promise<Dossier[]> => {
+    const profile = await dataService.getCurrentUserProfile();
+    if (profile.role !== "Prescripteur") {
+      throw new Error("Seul un profil Prescripteur peut consulter les dossiers qui lui sont affectés.");
+    }
+    if (!isGuid(profile.departmentId)) {
+      throw new Error("Aucune direction valide n’est associée à votre profil Prescripteur.");
+    }
+
+    const result = await New_foldersService.getAll({
+      select: DOSSIER_SELECT_FIELDS,
+      filter: `_new_prescripteur_value eq ${profile.systemUserId} and _new_department_value eq ${profile.departmentId}`,
+    });
+    if (!result.success || result.error) {
+      throw new Error("Impossible de charger les dossiers affectés à votre compte.");
+    }
+    return sortDossiersByRecentActivity((result.data ?? []).map(mapCrmEntityToDossier));
   },
 
   createDossier: async (dossier: Partial<Dossier>): Promise<string> => {
