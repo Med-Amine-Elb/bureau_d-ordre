@@ -34,6 +34,8 @@ export default function CreateDossier() {
   const [companies, setCompanies] = useState<CompanyLookup[]>([]);
   const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [prescripteurs, setPrescripteurs] = useState<SystemUser[]>([]);
+  const [prescripteursLoading, setPrescripteursLoading] = useState(false);
   const [lookupErrors, setLookupErrors] = useState<string[]>([]);
   const [lookupsLoading, setLookupsLoading] = useState(true);
   const [lookupReload, setLookupReload] = useState(0);
@@ -125,6 +127,30 @@ export default function CreateDossier() {
       ? new Date(editDossier.new_date_livraison).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!formData.direction) {
+      setPrescripteurs([]);
+      setPrescripteursLoading(false);
+      return;
+    }
+
+    setPrescripteursLoading(true);
+    dataService.getActiveProfileUsers("Prescripteur", formData.direction)
+      .then((activePrescripteurs) => {
+        if (!cancelled) setPrescripteurs(activePrescripteurs);
+      })
+      .catch((error) => {
+        console.error("Impossible de charger les Prescripteurs actifs de la direction sélectionnée:", error);
+        if (!cancelled) setPrescripteurs([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPrescripteursLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [formData.direction]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -453,12 +479,18 @@ export default function CreateDossier() {
                     <option value="">
                       {formData.direction ? "Sélectionner un prescripteur..." : "Sélectionnez d’abord une direction"}
                     </option>
-                    {users.filter(u =>
-                      u.new_department_id?.toLowerCase() === formData.direction.toLowerCase()
-                    ).map(u => (
+                    {prescripteurs.map(u => (
                       <option key={u.systemuserid} value={u.systemuserid}>{u.fullname}</option>
                     ))}
                   </select>
+                  {formData.direction && !prescripteursLoading && prescripteurs.length === 0 && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      Aucun profil Prescripteur actif n’est affecté à cette direction.
+                    </p>
+                  )}
+                  {prescripteursLoading && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Chargement des Prescripteurs de cette direction…</p>
+                  )}
                 </div>
               </>
             )}
