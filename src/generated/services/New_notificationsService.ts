@@ -4,7 +4,6 @@
  */
 
 import type { GetEntityMetadataOptions, EntityMetadata } from '@microsoft/power-apps/data/metadata/dataverse';
-import type { IDataverseQueryOptions } from '@microsoft/power-apps/data';
 import type { IGetOptions, IGetAllOptions } from '../models/CommonModels';
 import type { IOperationResult } from '@microsoft/power-apps/data';
 import type { New_notificationsBase, New_notifications } from '../models/New_notificationsModel';
@@ -25,21 +24,19 @@ export class New_notificationsService {
     return result;
   }
 
-  public static async update(id: string, changedFields: Partial<Omit<New_notificationsBase, 'new_notificationid'>>, partitionId?: string): Promise<IOperationResult<New_notifications>> {
+  public static async update(id: string, changedFields: Partial<Omit<New_notificationsBase, 'new_notificationid'>>): Promise<IOperationResult<New_notifications>> {
     const result = await New_notificationsService.client.updateRecordAsync<Partial<Omit<New_notificationsBase, 'new_notificationid'>>, New_notifications>(
       New_notificationsService.dataSourceName,
       id,
-      changedFields,
-      partitionId
+      changedFields
     );
     return result;
   }
 
-  public static async delete(id: string, partitionId?: string): Promise<IOperationResult<void>> {
+  public static async delete(id: string): Promise<IOperationResult<void>> {
     const result = await New_notificationsService.client.deleteRecordAsync(
       New_notificationsService.dataSourceName,
-      id,
-      partitionId);
+      id);
     return result;
   }
 
@@ -59,15 +56,6 @@ export class New_notificationsService {
   public static async getAll<TResult>(options?: IGetAllOptions): Promise<IOperationResult<TResult[]>> {
     const result = await New_notificationsService.client.retrieveMultipleRecordsAsync<TResult>(
       New_notificationsService.dataSourceName,
-      options
-    );
-    return result;
-  }
-
-  public static async getSavedQuery<TResult = import('../models/New_notificationsModel').New_notifications>(savedQueryId: string, options?: IDataverseQueryOptions): Promise<IOperationResult<TResult[]>> {
-    const result = await New_notificationsService.client.retrieveSavedQueryAsync<TResult>(
-      New_notificationsService.dataSourceName,
-      savedQueryId,
       options
     );
     return result;
