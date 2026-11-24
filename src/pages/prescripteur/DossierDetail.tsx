@@ -34,7 +34,7 @@ export default function DossierDetailPrescripteur() {
 
   const fetchDossier = async () => {
     try {
-      const result = await dataService.getDossiers();
+      const result = await dataService.getDossiersForCurrentPrescripteur();
       const found = result.find(d => d.new_folderid === id);
       setDossier(found || null);
     } catch (err) {

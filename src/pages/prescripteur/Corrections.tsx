@@ -23,7 +23,7 @@ export default function CorrectionsPrescripteur() {
   useEffect(() => {
     const fetchDossiers = async () => {
       try {
-        const all = await dataService.getDossiers();
+        const all = await dataService.getDossiersForCurrentPrescripteur();
         // Filtrer les dossiers en retour correction (Statut 90) que le prescripteur a renvoyés
         const inCorrection = all.filter(d => d.new_status === 90);
         setDossiers(inCorrection);

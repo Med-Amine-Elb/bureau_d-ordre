@@ -51,8 +51,9 @@ export default function DossiersListPrescripteur() {
 
   const fetchDossiers = async () => {
     try {
-      const result = await dataService.getDossiers();
-      // On affiche tous les dossiers à partir du statut 30 pour que le prescripteur puisse faire le suivi
+      const result = await dataService.getDossiersForCurrentPrescripteur();
+      // Dataverse has already scoped this result to the signed-in Prescripteur.
+      // Keep the dossiers that are in the Prescripteur's follow-up lifecycle.
       const assigned = result.filter(d => d.new_status >= 30 || d.new_status === 20);
       setDossiers(assigned);
     } catch (err) {

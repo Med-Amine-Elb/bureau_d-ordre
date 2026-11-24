@@ -122,10 +122,18 @@ export default function DashboardLayout() {
   };
 
   useEffect(() => {
+    if (authState !== "ready" || !role) return;
+
+    let cancelled = false;
+    const isSimulation = import.meta.env.DEV && sessionStorage.getItem("appAuthMode") === "simulation";
+    setDossiers([]);
+
     const fetchDossiers = async () => {
       try {
-        const data = await dataService.getDossiers();
-        setDossiers(data);
+        const data = role === "Prescripteur" && !isSimulation
+          ? await dataService.getDossiersForCurrentPrescripteur()
+          : await dataService.getDossiers();
+        if (!cancelled) setDossiers(data);
       } catch (err) {
         console.error("Error fetching dossiers for notifications:", err);
       }
@@ -134,8 +142,11 @@ export default function DashboardLayout() {
     fetchDossiers();
     const interval = setInterval(fetchDossiers, 10000); // Poll every 10s
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [authState, role]);
 
   useEffect(() => {
     const generated = generateNotifications(dossiers, role, userAgence);

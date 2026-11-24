@@ -46,9 +46,9 @@ export default function DashboardPrescripteur() {
 
   const fetchDossiers = async () => {
     try {
-      const result = await dataService.getDossiers();
-      // On simule le filtrage Dataverse côté client :
-      // On affiche tous les dossiers assignés ou en suivi
+      const result = await dataService.getDossiersForCurrentPrescripteur();
+      // Dataverse has already scoped this result to the signed-in Prescripteur.
+      // Keep only dossiers in the Prescripteur follow-up statuses for this page.
       const assigned = result.filter(
         (d) => d.new_status >= 30 || d.new_status === 20,
       );
