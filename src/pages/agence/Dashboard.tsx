@@ -231,9 +231,9 @@ export default function DashboardAgence() {
                   {disponible} chèques
                 </span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="max-h-[190px] overflow-auto overscroll-contain">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                     <tr>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Bénéficiaire</th>
@@ -256,7 +256,7 @@ export default function DashboardAgence() {
                         </td>
                       </tr>
                     ) : (
-                      dossiers.filter((d) => d.new_status === 140).slice(0, 5).map((dossier, i) => {
+                      dossiers.filter((d) => d.new_status === 140).map((dossier, i) => {
                         const delay = dossier.new_reception_date_agence ? Math.floor((new Date().getTime() - parseISO(dossier.new_reception_date_agence).getTime()) / (1000 * 3600 * 24)) : 0;
                         return (
                           <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
@@ -324,9 +324,9 @@ export default function DashboardAgence() {
                   {enTransit} chèques
                 </span>
               </div>
-              <div className="overflow-x-auto">
+              <div className="max-h-[190px] overflow-auto overscroll-contain">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                     <tr>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Date d’envoi</th>
@@ -347,7 +347,7 @@ export default function DashboardAgence() {
                         </td>
                       </tr>
                     ) : (
-                      dossiers.filter((d) => d.new_status === 130).slice(0, 5).map((dossier, i) => (
+                      dossiers.filter((d) => d.new_status === 130).map((dossier, i) => (
                         <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
                           <td className="py-3 px-4">
                             <Link to={`/agence/cheques/${dossier.new_folderid}`} className="text-[13px] font-semibold text-slate-900 dark:text-white group-hover:text-primary transition-colors">

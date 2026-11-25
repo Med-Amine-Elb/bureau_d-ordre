@@ -669,7 +669,8 @@ export default function DashboardBO() {
                   Dossiers à réceptionner ({dossiersEnAttenteBO.length})
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="max-h-[220px] overflow-y-auto overscroll-contain pr-1">
+                <div className="grid grid-cols-1 gap-3">
                 {dossiersEnAttenteBO.map((d) => (
                   <div
                     key={d.new_folderid}
@@ -692,6 +693,7 @@ export default function DashboardBO() {
                     </button>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           )}
@@ -708,7 +710,8 @@ export default function DashboardBO() {
                   Chèques à réceptionner ({chequesEnAttenteReceptionBO.length})
                 </h3>
               </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="max-h-[220px] overflow-y-auto overscroll-contain pr-1">
+                <div className="grid grid-cols-1 gap-3">
                 {chequesEnAttenteReceptionBO.map((d) => (
                   <div
                     key={d.new_folderid}
@@ -735,6 +738,7 @@ export default function DashboardBO() {
                     </button>
                   </div>
                 ))}
+                </div>
               </div>
             </div>
           )}
@@ -759,9 +763,9 @@ export default function DashboardBO() {
               </div>
             </div>
 
-            <div className="overflow-x-auto mt-4 flex-1">
+            <div className="mt-4 max-h-[250px] overflow-auto overscroll-contain">
               <table className="w-full text-left text-sm">
-                <thead>
+                <thead className="sticky top-0 z-10 bg-white dark:bg-[#0F172B]">
                   <tr className="border-y border-slate-100 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     <th className="py-3 px-5">N° Dossier</th>
                     <th className="py-3 px-5">Fournisseur</th>
@@ -782,7 +786,6 @@ export default function DashboardBO() {
                   ) : (
                     dossiers
                       .filter((d) => d.new_status !== 150 && d.new_status !== 20)
-                      .slice(0, 5)
                       .map((d) => (
                         <tr key={d.new_folderid} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/20 transition-colors">
                           <td className="py-3.5 px-5">

@@ -231,9 +231,9 @@ export default function DashboardDCF() {
                   {aAccuser} dossiers
                 </span>
               </div>
-              <div className="overflow-y-auto flex-1 pr-1">
+              <div className="max-h-[190px] overflow-y-auto overscroll-contain pr-1">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                     <tr>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>
@@ -282,9 +282,9 @@ export default function DashboardDCF() {
                   {aComptabiliser} dossiers
                 </span>
               </div>
-              <div className="overflow-y-auto flex-1 pr-1">
+              <div className="max-h-[190px] overflow-y-auto overscroll-contain pr-1">
                 <table className="w-full text-left">
-                  <thead className="bg-slate-50/50 dark:bg-slate-800/30">
+                  <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                     <tr>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
                       <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider text-right rounded-r-lg">Action</th>

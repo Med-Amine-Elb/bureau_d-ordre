@@ -252,9 +252,9 @@ export default function DashboardPrescripteur() {
                     Voir tout
                   </button>
                 </div>
-                <div className="overflow-y-auto flex-1 pr-1">
+                <div className="max-h-[210px] overflow-y-auto overscroll-contain pr-1">
                   <table className="w-full text-left">
-                    <thead className="bg-slate-50/50 dark:bg-slate-800/30 sticky top-0 z-10 backdrop-blur-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800">
                       <tr>
                         <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider rounded-l-lg">Dossier</th>
                         <th className="py-2.5 px-4 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Fournisseur & Type</th>
@@ -268,7 +268,7 @@ export default function DashboardPrescripteur() {
                       ) : dossiers.filter((d) => d.new_status === 30 || d.new_status === 40).length === 0 ? (
                         <tr><td colSpan={4} className="py-4 text-center text-[11px] text-slate-400">Aucun dossier en attente d'action.</td></tr>
                       ) : (
-                        dossiers.filter((d) => d.new_status === 30 || d.new_status === 40).slice(0, 5).map((dossier, i) => (
+                        dossiers.filter((d) => d.new_status === 30 || d.new_status === 40).map((dossier, i) => (
                           <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors group">
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2.5">
